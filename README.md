@@ -6,9 +6,14 @@ The tool contains no AI and calls no external service. You paste its output into
 
 ## Open it
 
-Double-click `index.html` to open it in Chrome or Edge. No installation is needed; it needs an internet connection only to load Three.js from a CDN.
+- **Online:** https://jorickfdejong.github.io/visual-prompt-generator/
+- **Locally:** run the small PowerShell server (no Node/Python needed) and open `http://localhost:8765`:
 
-> Optional: `tools/serve.ps1` serves the folder at `http://localhost:8765` (PowerShell, no Node/Python needed).
+  ```powershell
+  powershell -NoProfile -ExecutionPolicy Bypass -File tools/serve.ps1 -Root .
+  ```
+
+Double-clicking `index.html` does **not** work: the code is split into JavaScript modules (`js/`), and browsers refuse to load those from a `file://` page. An internet connection is needed to load Three.js from a CDN.
 
 ## Navigation (Blender-style)
 
@@ -71,4 +76,28 @@ sunny park, golden hour, 35mm film photo
 
 ## Structure (for later versions)
 
-All code is in `index.html`, split into commented sections. Scene objects go through a small **type registry** (`TYPES`); V1 only has `mannequin`. A future type, such as an image card on a slanted wooden block, only needs a new registry entry. Relations, export, variants and saving work on all objects.
+`index.html` holds only the page layout; `styles.css` the styling. The code lives in `js/` as ES modules, loaded from `js/main.js`:
+
+| File | What it does |
+|---|---|
+| `state.js` | Constants and the shared `state` object |
+| `scene.js` | Three.js renderer, scene, lights, editor camera, gizmo |
+| `images.js` | Uploaded images: storage, textures, background cutout |
+| `room.js` | Floor, walls, surface patterns, light settings, grid |
+| `camera.js` | Shot camera and camera view (framing the shot) |
+| `mannequin.js` | The articulated wooden doll |
+| `image-card.js` | Image card on a wooden stand |
+| `types.js` | The object **type registry** (`TYPES`) |
+| `objects.js` | Adding, duplicating, copy/paste and deleting objects |
+| `selection.js` | Compose/edit modes, selection, gizmo, help panel |
+| `rendering.js` | Viewport and shot rendering, screenshots, live preview |
+| `relations.js` | Spatial relations (Tarski's World) and the prompt text |
+| `left-panel.js` | Edit tab: object list, transforms, details, world settings |
+| `prompt-panel.js` | Export tab: tuples, overrides, notes; `markDirty()` |
+| `clipboard.js` | Copy / download, toast messages |
+| `persistence.js` | Autosave, scene files, undo/redo |
+| `main.js` | Wires up buttons, menus and shortcuts; starts the app |
+
+Scene objects go through a small **type registry** (`TYPES` in `types.js`): a new object type only needs a new registry entry. Relations, export and saving work on all objects.
+
+`state.js` and `scene.js` must not import from other project modules: the other modules use their values while loading, so they have to load first.
