@@ -118,6 +118,7 @@ $('#imageFile').addEventListener('change', async (e) => {
   const done = imagePick; imagePick = null;
   done?.(f ? await importImageFile(f) : null);
 });
+// No "window regained focus = cancelled" fallback: Safari can fire 'change' well after focus returns
+// (e.g. while it converts a Photos/iCloud picture), and that guess threw the chosen file away.
+// Every current browser sends 'cancel'; on older ones a cancelled pick just leaves the promise pending.
 $('#imageFile').addEventListener('cancel', () => { const d = imagePick; imagePick = null; d?.(null); });
-// older browsers give no cancel event; the window regains focus instead
-window.addEventListener('focus', () => setTimeout(() => { if (imagePick && !$('#imageFile').files.length) { const d = imagePick; imagePick = null; d(null); } }, 600));
