@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "static",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "tools/serve.ps1", "-Root", "."],
+      "port": 8765
+    },
+    {
+      "name": "static-alt",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "tools/serve.ps1", "-Root", ".", "-Port", "8766"],
+      "port": 8766
+    },
+    {
+      "name": "static-3",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "tools/serve.ps1", "-Root", ".", "-Port", "8767"],
+      "port": 8767
+    },
+    {
+      "name": "static-4",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "tools/serve.ps1", "-Root", ".", "-Port", "8768"],
+      "port": 8768
+    }
+  ]
+}
