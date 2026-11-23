@@ -142,7 +142,7 @@ body.camview #toolStrip, body.editing #toolStrip { display: none; }
 #toolStrip #addDrop button:hover, #toolStrip #addDrop button:focus-visible { background: var(--panel-2); }
 #toolStrip #addDrop button::after { display: none; }
 #addDrop svg { width: 18px; height: 18px; }
-#context[hidden], #gridSection[hidden], #worldSection[hidden] { display: none; }
+#context[hidden], #imageSection[hidden], #worldSection[hidden] { display: none; }
 /* world settings */
 h3.sub { font-size: 11px; font-weight: 600; margin: 12px 0 6px; color: var(--text); }
 h3.sub.withBtn { display: flex; justify-content: space-between; align-items: center; }
@@ -232,9 +232,6 @@ body.camview #inset { display: none; }
 
 /* prompt panel */
 #shotPreview { width: 100%; background: #111; border-radius: 6px; display: block; min-height: 60px; object-fit: contain; max-height: 200px; }
-.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
-.chip { font-size: 11px; padding: 2px 8px; border-radius: 12px; }
-.chip.on { border-color: var(--accent); color: var(--accent); }
 #tupleList { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
 .tuple { display: flex; align-items: center; gap: 6px; padding: 2px 4px; border-radius: 4px; }
 .tuple:hover { background: var(--panel-2); }
@@ -255,3 +252,59 @@ details summary { cursor: pointer; color: var(--muted); }
 body.camview #btnBackEditor { display: flex; align-items: center; gap: 8px; top: 10px; left: 10px; }
 body.camview #camHint { display: block; left: 0; right: 0; text-align: center; color: var(--accent-2); font-weight: 600; pointer-events: none; }
 body.exporting #inset { display: none; }
+
+/* ---------- export modal, object names ---------- */
+#side { display: flex; flex-direction: column; overflow: hidden; }
+#sideBody { flex: 1; overflow-y: auto; min-height: 0; }
+#sideFoot { padding: 10px 14px; border-top: 1px solid var(--line); background: var(--panel); }
+#btnExport { width: 100%; padding: 9px; }
+#exportModal { position: fixed; inset: 0; z-index: 15; display: grid; place-items: center; background: rgba(0,0,0,.55); padding: 24px; }
+#exportModal[hidden] { display: none; }
+.modalBox { width: min(720px, 100%); max-height: 100%; display: flex; flex-direction: column; overflow: hidden;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+.modalBox header { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.modalBox h1 { font-size: 15px; margin: 0; }
+.modalBody { overflow-y: auto; min-height: 0; }
+#nameLayer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 1; }
+#nameLayer[hidden], #nameLayer [hidden] { display: none; }
+#nameLayer div { position: absolute; left: 0; top: 0; padding: 1px 7px; border-radius: 10px; border: 1.5px solid;
+  background: rgba(29,31,35,.85); font-size: 11px; font-weight: 600; white-space: nowrap; }
+
+/* camera-controls widget (js/nav.js): bottom-right of the viewport, styled like #toolStrip */
+#navWidget { position: absolute; right: 10px; bottom: 10px; z-index: 4; display: flex; flex-direction: column; gap: 3px; }
+#navWidget button {
+  position: relative; width: 42px; height: 42px; padding: 0; display: grid; place-items: center;
+  background: rgba(29,31,35,.92); border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.3);
+  touch-action: none; user-select: none; -webkit-user-select: none;
+}
+#navWidget #navRotate, #navWidget #navPan { cursor: grab; }
+body.camview #navWidget #btnNames, body.editing #navWidget #btnNames { display: none; }
+#navWidget button.active, #navWidget button.held { border-color: var(--accent); color: var(--accent); }
+#navWidget #navRotate.held, #navWidget #navPan.held { cursor: grabbing; }
+#navWidget svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+#navWidget button::after {
+  content: attr(data-tip) "\A" attr(data-key);
+  position: absolute; right: calc(100% + 10px); top: 50%; transform: translateY(-50%);
+  white-space: pre; text-align: left; line-height: 1.5; padding: 4px 8px; border-radius: 6px; font-size: 12px; color: var(--text);
+  background: #111316; border: 1px solid var(--line); pointer-events: none; opacity: 0; transition: opacity .12s;
+}
+#navWidget button:hover::after, #navWidget button:focus-visible::after { opacity: 1; }
+#viewport.nav-space canvas { cursor: grab; }
+@media (max-height: 520px) { #navWidget { flex-direction: row; } #navWidget button { position: static; width: 38px; height: 38px; }
+  /* the row has no room beside a button: show the hint above the whole row */
+  #navWidget button::after { top: auto; right: 0; bottom: calc(100% + 8px); transform: none; } }
+
+/* include / leave out checkboxes (Export) */
+#includeList { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.incGroup { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+.incGroup .incAll { font-weight: 600; margin-bottom: 2px; }
+.incGroup .checkRow:not(.incAll) { margin-left: 18px; }
+
+/* Natural-language prompt (js/natural.js): inline clickable mentions */
+.nlRef { font: inherit; color: inherit; background: rgba(127,127,127,.16); border: 0; border-radius: 4px; padding: 0 .3em; margin: 0; cursor: pointer; display: inline; }
+.nlRef:hover { background: rgba(127,127,127,.32); }
+.nlRef .nlDot { display: inline-block; width: .6em; height: .6em; border-radius: 50%; margin-right: .3em; vertical-align: baseline; }
+.nlEmpty { opacity: .6; }
+#promptWarnings { margin: 0 0 10px; padding: 8px 10px 8px 26px; border-left: 3px solid #ffb74d; border-radius: 4px; background: rgba(255,183,77,.12); }
+#promptWarnings[hidden] { display: none; }
+#addDrop { max-height: calc(100vh - 70px); overflow-y: auto; }

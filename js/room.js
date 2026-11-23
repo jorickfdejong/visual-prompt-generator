@@ -9,8 +9,10 @@ export const ROOM_DEFAULT = () => ({
   background: '#e4dfd7',
   floor: { pattern: 'plain', color: '#bdb3a4', imageId: null },
   walls: { back: false, left: false, right: false, pattern: 'plain', color: '#ece6dc', imageId: null, width: 8, depth: 8, height: 3 },
-  light: { direction: 40, height: 50, brightness: 2.4, color: '#ffffff', ambient: 1.6, shadows: true },
+  light: { shadows: true },
 });
+// fixed light setup (the light is no longer configurable; only shadows can be toggled)
+const LIGHT = { direction: 40, height: 50, brightness: 2.4, color: '#ffffff', ambient: 1.6 };
 // procedural patterns, drawn light grey so the chosen colour tints them; m = metres one canvas covers
 export const PATTERNS = {
   floor: { plain: { label: 'Plain' }, wood: { label: 'Wood planks', m: 2 }, tiles: { label: 'Tiles', m: 1 }, checker: { label: 'Checkerboard', m: 1 }, concrete: { label: 'Concrete', m: 3 }, image: { label: 'Your image…', m: 3 } },
@@ -107,39 +109,20 @@ state.settings.room = ROOM_DEFAULT();
 export const wallGroup = new THREE.Group();
 scene.add(wallGroup);
 export const wallMat = new THREE.MeshStandardMaterial({ color: '#ece6dc', roughness: 0.95 });   // front side only: walls vanish when seen from outside the room
-// editor-only sun marker: a small sun on the light's path with a line to the centre of the floor
-export const sunMarker = new THREE.Group();
-{
-  const ball = new THREE.Mesh(new THREE.SphereGeometry(0.22, 20, 14), new THREE.MeshBasicMaterial({ color: '#ffd54f' }));
-  const ray = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3(0, 0, 1)]),
-    new THREE.LineDashedMaterial({ color: '#e0a800', dashSize: 0.25, gapSize: 0.18 }));
-  ray.computeLineDistances();
-  sunMarker.add(ball, ray);
-  sunMarker.userData = { ball, ray };
-  setHelper(sunMarker);
-  scene.add(sunMarker);
-}
-// the light: turned around the room (direction), raised or lowered (height), brightness, colour and ambient fill
+// the light: fixed direction, height, brightness, colour and ambient fill; shadows can be toggled
 export function applyLight() {
-  const R = state.settings.room, L = R.light, W = R.walls;
-  const az = (+L.direction || 0) * DEG, el = THREE.MathUtils.clamp(+L.height || 0, 2, 90) * DEG;
+  const R = state.settings.room, W = R.walls, L = R.light || {};
+  const az = LIGHT.direction * DEG, el = LIGHT.height * DEG;
   const half = Math.max(+W.width || 8, +W.depth || 8) / 2 + 2;   // shadows cover the whole floor
   const dist = half * 1.5 + 6;
   const dir = new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el));
   sun.position.copy(dir).multiplyScalar(dist);
-  sun.color.set(L.color);
-  sun.intensity = Math.max(0, +L.brightness || 0);
-  hemi.intensity = Math.max(0, +L.ambient || 0);
+  sun.color.set(LIGHT.color);
+  sun.intensity = LIGHT.brightness;
+  hemi.intensity = LIGHT.ambient;
   sun.castShadow = L.shadows !== false;   // older scenes have no flag: shadows on
   Object.assign(sun.shadow.camera, { left: -half, right: half, top: half, bottom: -half, near: 0.5, far: dist * 2 });
   sun.shadow.camera.updateProjectionMatrix();
-  // marker sits a bit outside the room so it never hides the scene
-  const mDist = half + 2;
-  sunMarker.position.copy(dir).multiplyScalar(mDist);
-  sunMarker.userData.ball.material.color.set(L.color);
-  const { ray } = sunMarker.userData;
-  ray.geometry.setFromPoints([new THREE.Vector3(), dir.clone().multiplyScalar(-mDist)]);
-  ray.computeLineDistances();
 }
 export function applyRoom() {
   const R = state.settings.room;

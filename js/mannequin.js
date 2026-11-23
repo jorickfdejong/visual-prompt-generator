@@ -33,10 +33,15 @@ export function capsule(r, len) {
   return capCache[k] || (capCache[k] = new THREE.CapsuleGeometry(r, len, 6, 16));
 }
 
+// a light version of an accent colour: the hex lerped t of the way towards white (0 = unchanged, 1 = white)
+export function lightAccent(hex, t = 0.55) {
+  return new THREE.Color(hex).lerp(new THREE.Color('#ffffff'), t);
+}
+
 export function createMannequin(accent) {
   // transparent stays on permanently so edit-mode dimming only changes opacity (no shader recompiles)
-  const wood = new THREE.MeshStandardMaterial({ color: '#d9b48a', roughness: 0.75, metalness: 0, transparent: true });
-  const ball = new THREE.MeshStandardMaterial({ color: '#b98d5f', roughness: 0.7, metalness: 0, transparent: true });
+  const wood = new THREE.MeshStandardMaterial({ color: accent ? lightAccent(accent, 0.55) : '#d9b48a', roughness: 0.75, metalness: 0, transparent: true });
+  const ball = new THREE.MeshStandardMaterial({ color: accent ? lightAccent(accent, 0.30) : '#b98d5f', roughness: 0.7, metalness: 0, transparent: true });
   const root = new THREE.Group();
   const joints = {}, meshes = [], handles = [];
   for (const [name, parent, off] of SKELETON) {

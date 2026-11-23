@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { $, ASPECTS, DEG, state } from './state.js';
-import { blenderControls, orbit, renderer, scene, setHelper, tc } from './scene.js';
+import { blenderControls, orbit, renderer, scene, setHelper, detachGizmo } from './scene.js';
 import { exitEdit, selectCamera, selectMany, selectObject, updateModeBadge } from './selection.js';
 import { layoutInset } from './rendering.js';
 import { markDirty } from './prompt-panel.js';
@@ -62,7 +62,7 @@ export function enterCameraView() {
   if (state.mode === 'edit') exitEdit();
   state.cameraView = true;
   document.body.classList.add('camview');
-  tc.detach();
+  detachGizmo();
   orbit.enabled = false;
   // read the direction BEFORE creating the controls: their constructor re-aims the camera at (0,0,0)
   const dir = shotCam.getWorldDirection(new THREE.Vector3());

@@ -34,7 +34,7 @@
       </div>
       <div id="inset" title="Shot camera — click to frame the shot"><span>CAMERA</span><b class="inset-edit" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg><em>Edit shot</em></b></div>
       <button id="btnBackEditor">← Back to editor <kbd>Esc</kbd></button>
-      <div id="camHint">Middle mouse to orbit · Shift + middle mouse to pan · wheel to zoom</div>
+      <div id="camHint">Two fingers, pinch or wheel to zoom · Ctrl + two fingers or middle mouse to orbit · Shift + two fingers or middle mouse to pan</div>
       <div id="editBar"><button id="btnEditDone" class="primary">✓ Done <kbd>Esc</kbd></button></div>
       <div id="help">
         <div id="helpPanel" hidden></div>
@@ -49,21 +49,15 @@
           <button id="btnAddImage" role="menuitem"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="13" rx="1"/><path d="M5 12l4-4 4 4 2-2 4 4"/><path d="M3 21h18v-3H3z"/></svg>Image (JPG / PNG)…</button>
         </div>
         <input type="file" id="imageFile" accept=".png,.jpg,.jpeg,image/png,image/jpeg" hidden>
-        <button data-tool="translate" data-tip="Move" data-key="W" aria-label="Move (W)"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg></button>
-        <button data-tool="rotate" data-tip="Rotate" data-key="R" aria-label="Rotate (R)"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg></button>
-        <button data-tool="scale" data-tip="Scale" data-key="E" aria-label="Scale (E)"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="10" height="10" rx="1"/><path d="M11 13l9-9M14 4h6v6"/></svg></button>
+        <button data-tool="transform" data-tip="Move &amp; rotate" data-key="W" aria-label="Move and rotate (W)"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg></button>
+        <button data-tool="scale" data-tip="Scale" data-key="K" aria-label="Scale (K)"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="10" height="10" rx="1"/><path d="M11 13l9-9M14 4h6v6"/></svg></button>
       </div>
     </div>
   </main>
 
   <!-- ================= SIDEBAR (right) ================= -->
   <aside id="side" class="panel">
-    <nav id="tabs">
-      <button data-tab="edit" class="on">Edit</button>
-      <button data-tab="export">Export</button>
-    </nav>
-
-    <div id="tabEdit">
+    <div id="sideBody">
     <section id="outliner">
       <h2><span>Scene</span><span class="hint" id="objCount"></span></h2>
       <div id="camRow" class="camRow" title="Select the camera to move it and change its lens"><span>🎥</span><span class="name">Camera</span><span class="hint" id="camSummary"></span></div>
@@ -82,21 +76,25 @@
     <section id="context"></section>
     <section id="editSide" hidden></section>
 
-    <section id="gridSection">
-      <h2>Grid (Tarski's world)</h2>
-      <div class="field"><label>Snap to grid</label><input type="checkbox" id="snap"></div>
-      <div class="field"><label>Cell size</label>
-        <select id="cellSize"><option value="0.25">0.25 m</option><option value="0.5">0.5 m</option><option value="1">1 m</option></select>
-      </div>
-      <div class="hint" id="boardInfo"></div>
+    <section id="imageSection">
+      <h2>Final image</h2>
+      <div class="field"><label for="visualStyle">Visual style</label><input type="text" id="visualStyle" placeholder="e.g. watercolour painting"></div>
     </section>
     <section id="worldSection"></section>
     </div>
 
-    <div id="tabExport" hidden>
+  <div id="sideFoot"><button id="btnExport" class="primary">Export…</button></div>
+  </aside>
+</div>
+
+<div id="exportModal" role="dialog" aria-modal="true" aria-labelledby="exportTitle" hidden>
+  <div class="modalBox">
+    <header><h1 id="exportTitle">Export</h1><button id="btnCloseExport" class="icon" aria-label="Close">✕</button></header>
+    <div class="modalBody">
     <section>
       <h2>Camera</h2>
       <img id="shotPreview" alt="Camera preview" title="Live view of the shot camera">
+      <div class="field" style="margin-top:8px"><label for="reference">Reference image</label><select id="reference"><option value="clay">Clay grey</option><option value="colour">Coloured</option></select></div>
       <div class="row" style="margin-top:8px">
         <button id="btnCopyImg">Copy image</button>
         <button id="btnDlPng">Download PNG</button>
@@ -105,12 +103,23 @@
 
     <section>
       <h2>Scene notes</h2>
-      <textarea id="notes" placeholder="Setting, lighting, style… e.g. sunny park, golden hour, 35mm film photo"></textarea>
+      <textarea id="notes" placeholder="Anything else the image needs…"></textarea>
+    </section>
+
+    <section>
+      <h2>Include in the prompt</h2>
+      <div id="includeList"></div>
+    </section>
+
+    <section>
+      <h2>Written prompt</h2>
+      <ul id="promptWarnings" aria-label="Warnings" hidden></ul>
+      <div id="naturalPrompt"></div>
+      <p class="hint" style="margin:8px 0 0">Click a name to go to that object.</p>
     </section>
 
     <details class="sec" id="tupleSec">
       <summary><h2><span><span class="chev">▸</span> Prompt tuples</span> <span class="hint" id="tupleCount"></span></h2></summary>
-      <div class="chips" id="familyChips"></div>
       <div id="tupleList"></div>
       <div class="row" style="margin-top:8px;flex-wrap:nowrap">
         <input type="text" id="customTuple" placeholder="Add your own: woman, holding, umbrella">
@@ -120,7 +129,8 @@
     </details>
 
     <section>
-      <h2>Export</h2>
+      <h2>Text</h2>
+      <div class="field"><label>Format</label><select id="format"><option value="both">Written prompt + tuples</option><option value="natural">Written prompt</option><option value="tuples">Tuples</option></select></div>
       <div class="row">
         <button id="btnCopyText" class="primary">Copy text</button>
         <button id="btnCopyBoth">Copy image + text</button>
@@ -132,7 +142,7 @@
       </details>
     </section>
     </div>
-  </aside>
+  </div>
 </div>
 
 <div id="toast"></div>

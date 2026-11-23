@@ -1,13 +1,16 @@
 import { $, state, STORE_SCENE } from './state.js';
 import { editCam, orbit, scene } from './scene.js';
 import { imageStore, importImageFile, isImageFile, pickImage } from './images.js';
-import { rebuildGrid } from './room.js';
 import { applyCamera, enterCameraView, exitCameraView, pilot, resetCamera, shotCam } from './camera.js';
 import { addObject, copySelection, cutSelection, deleteSelection, duplicateSelection, pasteClipboard, uniqueName } from './objects.js';
-import { configureGizmo, deselect, enterEdit, exitEdit, selectCamera, selectJoint, selectMany, selectObject, selObjs, setTool, toggleHelp, updateModeBadge } from './selection.js';
+import { deselect, enterEdit, exitEdit, placePivot, selectCamera, selectJoint, selectMany, selectObject, selObjs, setTool, toggleHelp, updateModeBadge } from './selection.js';
 import { inset, render, resize, takeScreenshot } from './rendering.js';
+import { PROPS } from './props.js';
 import { camel, exportText } from './relations.js';
-import { renderObjectList, setTab } from './left-panel.js';
+import { renderObjectList } from './left-panel.js';
+import { closeExport, exportOpen, openExport, promptText } from './export-modal.js';
+import { toggleNames } from './labels.js';
+import './nav.js';
 import { addCustomTuple, markDirty, refreshDerived, takeDirty } from './prompt-panel.js';
 import { copyBoth, copyImage, copyText, download, downloadText, toast } from './clipboard.js';
 import { commitHistory, deserializeScene, loadStored, renderSceneName, serializeScene, stepHistory } from './persistence.js';
@@ -16,7 +19,7 @@ import { commitHistory, deserializeScene, loadStored, renderSceneName, serialize
    WIRING
    ===================================================================== */
 $('#camRow').onclick = selectCamera;
-function addDoll() { const o = addObject('mannequin'); selectObject(o); markDirty(); }
+function addOne(type) { if (state.mode === 'edit') exitEdit(); const o = addObject(type); selectObject(o); markDirty(); }
 function toggleAddMenu(open = $('#addDrop').hidden) {
   $('#addDrop').hidden = !open;
   $('#btnAdd').classList.toggle('open', open);
@@ -24,7 +27,20 @@ function toggleAddMenu(open = $('#addDrop').hidden) {
   if (open) $('#addDrop [role=menuitem]').focus();
 }
 $('#btnAdd').addEventListener('click', (e) => { e.stopPropagation(); toggleAddMenu(); });
-$('#btnAddDoll').onclick = () => { toggleAddMenu(false); addDoll(); };
+$('#btnAddDoll').onclick = () => { toggleAddMenu(false); addOne('mannequin'); };
+// wooden toys and shapes
+for (const [group, title] of [['object', 'Objects'], ['geometry', 'Geometry']]) {
+  const h = document.createElement('div');
+  h.className = 'dropTitle'; h.textContent = title;
+  $('#addDrop').appendChild(h);
+  for (const p of PROPS.filter((x) => x.group === group)) {
+    const b = document.createElement('button');
+    b.setAttribute('role', 'menuitem');
+    b.innerHTML = `<svg viewBox="0 0 24 24">${p.icon}</svg>${p.label}`;
+    b.onclick = () => { toggleAddMenu(false); addOne(p.type); };
+    $('#addDrop').appendChild(b);
+  }
+}
 // image card: picked from disk or dropped on the page; the file name becomes its id
 function addImageObject(id) {
   const e = imageStore[id];
@@ -51,16 +67,21 @@ $('#btnCopyImg').onclick = copyImage;
 $('#btnDlPng').onclick = () => download('reference.png', takeScreenshot());
 $('#btnCopyText').onclick = () => copyText();
 $('#btnCopyBoth').onclick = copyBoth;
-$('#btnDlTxt').onclick = () => downloadText('prompt.txt', exportText());
+$('#btnDlTxt').onclick = () => downloadText('prompt.txt', promptText());
 $('#notes').addEventListener('input', (e) => { state.notes = e.target.value; markDirty(); });
+$('#visualStyle').addEventListener('input', (e) => { state.visualStyle = e.target.value; markDirty(); });
 $('#btnAddTuple').onclick = addCustomTuple;
 $('#customTuple').addEventListener('keydown', (e) => { if (e.key === 'Enter') addCustomTuple(); });
-$('#cellSize').addEventListener('change', (e) => { state.settings.cell = +e.target.value; rebuildGrid(); if (state.selected) setTool(state.tool); markDirty(); });
-$('#snap').addEventListener('change', (e) => { state.settings.snap = e.target.checked; if (state.selected && state.mode === 'compose') setTool(state.tool); if (state.joint) configureGizmo('joint'); markDirty(); });
-document.querySelectorAll('#tabs button').forEach((b) => { b.onclick = () => setTab(b.dataset.tab); });
+$('#btnNames').onclick = toggleNames;
+$('#btnExport').onclick = openExport;
+$('#btnCloseExport').onclick = closeExport;
+$('#exportModal').addEventListener('pointerdown', (e) => { if (e.target.id === 'exportModal') closeExport(); });
+$('#exportModal').addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); closeExport(); } });
+$('#reference').addEventListener('change', (e) => { state.settings.reference = e.target.value; markDirty(); });
+$('#format').addEventListener('change', (e) => { state.settings.format = e.target.value; markDirty(); });
 function newScene() {
   if (!confirm('Start an empty scene? Anything you have not saved to a file is lost.')) return;
-  deserializeScene({ objects: [], notes: '', settings: state.settings });
+  deserializeScene({ objects: [], notes: '', settings: { ...state.settings, cell: 0.5 } });
 }
 async function saveSceneFile() {
   const json = JSON.stringify(serializeScene(), null, 2);
@@ -161,6 +182,7 @@ window.addEventListener('keydown', (e) => {
   const tag = e.target.tagName;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return;
   const k = e.key.toLowerCase();
+  if (exportOpen()) { if (k === 'escape') closeExport(); return; }   // the modal owns the keyboard
   if (e.key === '?') { toggleHelp(); return; }
   if (k === 'escape') {
     if (!$('#fileDrop').hidden) toggleFileMenu(false);
@@ -183,9 +205,9 @@ window.addEventListener('keydown', (e) => {
     return;
   }
   if (state.mode === 'compose') {
-    if (k === 'w') setTool('translate');
-    else if (k === 'r') setTool('rotate');
-    else if (k === 'e') setTool('scale');
+    if (k === 'n' && !e.ctrlKey && !e.metaKey && !e.repeat) toggleNames();
+    else if (k === 'w' || k === 'r') setTool('transform');
+    else if (k === 'k' && !e.ctrlKey && !e.metaKey) setTool('scale');
     else if ((k === 'delete' || k === 'backspace') && selObjs().length) deleteSelection();
     else if (k === 'enter' && state.selected?.obj) enterEdit(state.selected.obj);
     else if (k === 'd' && (e.ctrlKey || e.metaKey) && selObjs().length) { e.preventDefault(); duplicateSelection(); }
@@ -211,12 +233,13 @@ else {
 updateModeBadge();
 commitHistory();   // first undo step = the scene as loaded
 resize();
-window.vpg = { state, markDirty, serializeScene, deserializeScene, exportText, takeScreenshot, editCam }; // handy for debugging in the console
+window.vpg = { state, markDirty, serializeScene, deserializeScene, exportText, promptText, takeScreenshot, editCam, shotCam, addObject }; // handy for debugging in the console
 
 function frame() {
   requestAnimationFrame(frame);
   if (pilot) pilot.update(); else orbit.update();
   if (takeDirty()) refreshDerived();
+  placePivot();   // keep the gizmo on the centre of the selection
   render();
 }
 

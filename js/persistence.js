@@ -1,4 +1,4 @@
-import { $, state, STORE_SCENE } from './state.js';
+import { $, ENV_DEFAULT, state, STORE_SCENE } from './state.js';
 import { editCam, floor, orbit, scene } from './scene.js';
 import { imageStore } from './images.js';
 import { applyRoom, rebuildGrid, ROOM_DEFAULT } from './room.js';
@@ -7,7 +7,7 @@ import { TYPES } from './types.js';
 import { addObject, serializeObject } from './objects.js';
 import { deselect, enterEdit, exitEdit, overviewView, selectCamera, selectJoint, selectMany, selObjs, setOverviewView } from './selection.js';
 import { renderContext, renderObjectList, renderWorldPanel } from './left-panel.js';
-import { flushPendingSave, markDirty, renderFamilyChips } from './prompt-panel.js';
+import { flushPendingSave, markDirty, renderIncludes } from './prompt-panel.js';
 import { toast } from './clipboard.js';
 
 /* =====================================================================
@@ -27,6 +27,8 @@ export function serializeScene({ images = true } = {}) {
     objects: state.objects.map(serializeObject),
     camera: { pos: shotCam.position.toArray(), quat: shotCam.quaternion.toArray(), focal: state.camera.focal, aspect: state.camera.aspect },
     notes: state.notes,
+    environment: { ...state.environment },
+    visualStyle: state.visualStyle,
     settings: JSON.parse(JSON.stringify(state.settings)),
     overrides: JSON.parse(JSON.stringify(state.overrides)),
     custom: JSON.parse(JSON.stringify(state.custom)),
@@ -46,23 +48,31 @@ export function deserializeScene(s) {
   state.notes = s.notes || '';
   if (s.images) Object.assign(imageStore, s.images);
   const room = ROOM_DEFAULT(), sr = s.settings?.room || {};
+  const fam = { ...(s.settings?.families || {}) };
+  // older scenes had one switch for each of these pairs
+  for (const [from, to] of [['size', 'sizeRel'], ['facing', 'facingRel']]) if (from in fam && !(to in fam)) fam[to] = fam[from];
   state.settings = {
-    ...state.settings, ...(s.settings || {}),
-    families: { ...state.settings.families, ...(s.settings?.families || {}) },
-    room: { ...room, ...sr, floor: { ...room.floor, ...(sr.floor || {}) }, walls: { ...room.walls, ...(sr.walls || {}) }, light: { ...room.light, ...(sr.light || {}) } },
+    ...state.settings, reference: 'clay', ...(s.settings || {}),
+    families: { ...state.settings.families, ...fam },
+    room: { ...room, ...sr, floor: { ...room.floor, ...(sr.floor || {}) }, walls: { ...room.walls, ...(sr.walls || {}) }, light: { ...room.light, ...(sr.light && 'shadows' in sr.light ? { shadows: sr.light.shadows } : {}) } },
   };
+  delete state.settings.snap;   // the snap setting no longer exists
+  state.environment = { ...ENV_DEFAULT(), ...(s.environment || {}) };
+  state.visualStyle = s.visualStyle ?? state.environment.visualStyle ?? '';
+  delete state.environment.visualStyle;   // it was an environment label for a short while
   state.overrides = s.overrides || {};
   state.custom = s.custom || [];
   for (const o of s.objects || []) if (TYPES[o.type]) addObject(o.type, o);
   syncSettingsUI();
   applyCamera(); rebuildGrid(); applyRoom(); renderWorldPanel();
-  renderObjectList(); renderContext(); renderFamilyChips();
+  renderObjectList(); renderContext(); renderIncludes();
   markDirty(true);
 }
 export function syncSettingsUI() {
   $('#notes').value = state.notes;
-  $('#cellSize').value = String(state.settings.cell);
-  $('#snap').checked = state.settings.snap;
+  $('#visualStyle').value = state.visualStyle;
+  $('#format').value = state.settings.format || 'both';
+  $('#reference').value = state.settings.reference || 'clay';
 }
 export let warnedImgStore = false;
 export function saveScene() {

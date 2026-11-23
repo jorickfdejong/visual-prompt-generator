@@ -1,8 +1,12 @@
 import * as THREE from 'three';
 import { $, ASPECTS, state } from './state.js';
-import { editCam, renderer, scene, tc, vp } from './scene.js';
+import { clayReference } from './prompt-rules.js';
+import { wallGroup } from './room.js';
+import { editCam, floor, hemi, gizmo, renderer, scene, vp } from './scene.js';
 import { shotCam } from './camera.js';
 import { applyDim, dimmed } from './selection.js';
+import { renderOutline } from './outline.js';
+import { updateLabels } from './labels.js';
 
 /* =====================================================================
    RENDERING
@@ -15,12 +19,12 @@ export function layoutInset() {
   inset.style.width = w + 'px'; inset.style.height = h + 'px';
 }
 export function cleanRender(fn) {
-  const tv = tc.visible, wasDim = dimmed;
-  tc.visible = false;
+  const tv = gizmo.visible, wasDim = dimmed;
+  gizmo.visible = false;
   if (wasDim) applyDim(false);
   fn();
   if (wasDim) applyDim(true);
-  tc.visible = tv;
+  gizmo.visible = tv;
 }
 export function resize() {
   const w = vp.clientWidth, h = vp.clientHeight;
@@ -34,6 +38,7 @@ new ResizeObserver(resize).observe(vp);
 export function render() {
   const w = vp.clientWidth, h = vp.clientHeight;
   if (!w || !h) return;
+  updateLabels();
   renderer.setScissorTest(false);
   if (state.cameraView) {
     renderer.setViewport(0, 0, w, h);
@@ -53,7 +58,7 @@ export function render() {
   }
   renderer.setViewport(0, 0, w, h);
   renderer.render(scene, editCam);
-  if (document.body.classList.contains('exporting')) return; // inset hidden while Export is open
+  renderOutline(w, h);
   // camera inset (top right)
   const cr = renderer.domElement.getBoundingClientRect(), ir = inset.getBoundingClientRect();
   const x = ir.left - cr.left + 2, yb = cr.bottom - ir.bottom + 2, iw = ir.width - 4, ih = ir.height - 4;
@@ -62,6 +67,38 @@ export function render() {
   renderer.setViewport(x, yb, iw, ih);
   cleanRender(() => renderer.render(scene, shotCam));
   renderer.setScissorTest(false);
+}
+
+/* neutral clay look for the reference image: light grey for everything, so the generator has no colour or
+   material to copy. Pictures keep their content (it is made grey afterwards). */
+const CLAY = {};
+const clayMat = (color, side) => CLAY[color + side] || (CLAY[color + side] = new THREE.MeshStandardMaterial({ color, side, roughness: 0.9 }));
+function clayRender(fn) {
+  const undo = [];
+  const swap = (m, color) => { const old = m.material; undo.push(() => { m.material = old; }); m.material = clayMat(color, old.side); };
+  const bg = scene.background, sky = hemi.color.clone(), ground = hemi.groundColor.clone();
+  try {
+    for (const o of state.objects) for (const m of o.meshes) if (!(o.type === 'image' && m.material === o.mats[0])) swap(m, '#b8b8b8');
+    swap(floor, '#a0a0a0');
+    wallGroup.children.forEach((m) => swap(m, '#acacac'));
+    scene.background = new THREE.Color('#dcdcdc');
+    hemi.color.set('#ffffff'); hemi.groundColor.set('#808080');
+    fn();
+  } finally {
+    undo.forEach((u) => u());
+    scene.background = bg; hemi.color.copy(sky); hemi.groundColor.copy(ground);
+  }
+}
+// luminance only
+function greyURL(src, type, quality) {
+  const cv = document.createElement('canvas');
+  cv.width = src.width; cv.height = src.height;
+  const g = cv.getContext('2d', { willReadFrequently: true });
+  g.drawImage(src, 0, 0);
+  const img = g.getImageData(0, 0, cv.width, cv.height), d = img.data;
+  for (let i = 0; i < d.length; i += 4) d[i] = d[i + 1] = d[i + 2] = Math.round(0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]);
+  g.putImageData(img, 0, 0);
+  return cv.toDataURL(type, quality);
 }
 
 export let shotRenderer = null;
@@ -75,7 +112,12 @@ export function renderShot(longSide, type = 'image/png', quality) {
     shotRenderer.setPixelRatio(1);
   }
   shotRenderer.setSize(w, h, false);
-  cleanRender(() => shotRenderer.render(scene, shotCam));
+  const draw = () => shotRenderer.render(scene, shotCam);
+  if (clayReference()) {
+    cleanRender(() => clayRender(draw));
+    return greyURL(shotRenderer.domElement, type, quality);
+  }
+  cleanRender(draw);
   return shotRenderer.domElement.toDataURL(type, quality);
 }
 export function takeScreenshot() {
@@ -90,9 +132,9 @@ export function dataURLtoBlob(url) {
   for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
   return new Blob([arr], { type: mime });
 }
-// live camera preview in the Export tab (throttled)
+// live camera preview in the Export window (throttled)
 export let previewTimer = null;
 export function schedulePreview() {
-  if ($('#tabExport').hidden || previewTimer) return;
+  if ($('#exportModal').hidden || previewTimer) return;
   previewTimer = setTimeout(() => { previewTimer = null; $('#shotPreview').src = renderShot(640); }, 120);
 }

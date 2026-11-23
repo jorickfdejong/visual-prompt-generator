@@ -4,8 +4,10 @@ import { createMannequin } from './mannequin.js';
 import { buildImageCard, createImageCard, IMG_H, STAND } from './image-card.js';
 import { scaleRange } from './objects.js';
 import { camel } from './relations.js';
+import { propTypes } from './props.js';
 
 export const TYPES = {
+  ...propTypes((s) => camel(s)),
   image: {
     noun: 'image',
     nounOf: (o) => camel(o.details.subject || '') || 'image',   // what the picture shows becomes its noun
@@ -33,7 +35,7 @@ export const TYPES = {
     poseable: true,          // has joints: shows the Pose button / edit mode
     fields: DETAIL_FIELDS,   // detail fields shown in the object panel and exported as attributes
     create: createMannequin,
-    defaultDetails: () => ({ name: '', gender: '', age: '', skin: '', hair: '', clothing: '', expression: '', pose: 'standing', action: '', custom: [] }),
+    defaultDetails: () => ({ name: '', gender: '', age: '', race: '', body: '', skin: '', hair: '', clothing: '', expression: '', pose: 'standing', action: '', custom: [] }),
     serializeExtra: (o) => ({
       joints: Object.fromEntries(Object.entries(o.joints).map(([k, g]) => [k, [g.rotation.x, g.rotation.y, g.rotation.z].map((v) => +v.toFixed(4))])),
       pelvisY: o.joints.pelvis.position.y,

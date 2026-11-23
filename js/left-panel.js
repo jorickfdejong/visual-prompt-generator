@@ -1,15 +1,14 @@
 import * as THREE from 'three';
-import { $, DEG, SKIN_TONES, state } from './state.js';
+import { $, DEG, ENV_FIELDS, SKIN_TONES, state } from './state.js';
 import { floor, orbit, scene } from './scene.js';
 import { imageStore, pickImage, rgbHex, withPixels } from './images.js';
-import { applyLight, applyRoom, PATTERNS, ROOM_DEFAULT } from './room.js';
+import { applyLight, applyRoom, PATTERNS } from './room.js';
 import { shotCam } from './camera.js';
 import { PELVIS_Y, POSES } from './mannequin.js';
 import { buildImageCard, IMG_H } from './image-card.js';
 import { TYPES } from './types.js';
-import { uniqueName } from './objects.js';
+import { scaleRange, uniqueName } from './objects.js';
 import { enterEdit, exitEdit, placePivot, selectMany, selectObject, selObjs, setTool, toggleInSelection, updateModeBadge } from './selection.js';
-import { schedulePreview } from './rendering.js';
 import { camel } from './relations.js';
 import { markDirty } from './prompt-panel.js';
 
@@ -60,14 +59,6 @@ export function setName(o, raw) {
   updateModeBadge(); markDirty();
 }
 
-export let wasEditing = false;
-export function setTab(name) {
-  document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
-  $('#tabEdit').hidden = name !== 'edit';
-  $('#tabExport').hidden = name !== 'export';
-  document.body.classList.toggle('exporting', name === 'export');
-  if (name === 'export') schedulePreview();
-}
 export function renderContext() {
   const el = $('#context');
   const editing = state.mode === 'edit';
@@ -75,10 +66,8 @@ export function renderContext() {
   const sel = state.selected;
   side.hidden = !editing;
   $('#camSection').hidden = editing || sel?.kind !== 'camera';
-  $('#gridSection').hidden = editing || !!sel;   // nothing selected = editing the world
-  $('#worldSection').hidden = editing || !!sel;
-  if (editing && !wasEditing) setTab('edit');   // jump to the Edit tab when edit mode starts
-  wasEditing = editing;
+  $('#worldSection').hidden = editing || !!sel;   // nothing selected = editing the environment
+  $('#imageSection').hidden = editing || !!sel;
   renderTools();
   if (editing) {
     renderEditPanel(side);
@@ -94,18 +83,20 @@ export function renderContext() {
   }
   const objs = selObjs();
   if (sel?.kind === 'multi') {
+    const multi = multiDetails(objs);
     el.innerHTML = `<h2>${objs.length} objects selected</h2>
-      <p class="hint" style="margin-top:0">${objs.map((o) => esc(o.details.name)).join(', ')}. The gizmo moves, rotates and scales them together. Shift/Ctrl-click to add or remove one.</p>${transformHTML(sel)}`;
+      <p class="hint" style="margin-top:0">${objs.map((o) => esc(o.details.name)).join(', ')}. The gizmo moves, rotates and scales them together. Shift/Ctrl-click to add or remove one.</p>${transformHTML(sel)}${multi.html}`;
+    multi.bind(el);
   } else if (sel?.kind === 'obj') {
     const o = sel.obj;
-    el.innerHTML = `<div class="field"><label>Name</label><input type="text" id="nameInput" value="${esc(o.details.name)}"></div>
+    el.innerHTML = `<div class="field"><label>Name</label><input type="text" id="objName" value="${esc(o.details.name)}"></div>
       ${TYPES[o.type].poseable ? `<button id="btnPose" class="primary" style="width:100%;margin:2px 0 12px" title="Pose the joints (Enter or double-click it)">Pose</button>` : ''}
       ${transformHTML(sel)}
       ${o.type === 'image' ? imagePanelHTML(o) : ''}
       ${detailsHTML(o)}`;
     el.querySelector('#btnPose')?.addEventListener('click', () => enterEdit(o));
     if (o.type === 'image') bindImagePanel(el, o);
-    const nameInput = el.querySelector('#nameInput');
+    const nameInput = el.querySelector('#objName');
     nameInput.addEventListener('change', () => { setName(o, nameInput.value); nameInput.value = o.details.name; renderObjectList(); });
     bindDetails(el, o);
   } else {
@@ -137,7 +128,7 @@ export function transformValues(sel = state.selected) {
     if (sel.kind === 'obj') v.s = t.scale.x;
     return v;
   }
-  if (sel?.kind === 'multi') { const c = groupCentre(); return { px: c.x, py: c.y, pz: c.z }; }
+  if (sel?.kind === 'multi') { const c = groupCentre(); return { px: c.x, py: c.y, pz: c.z, s: groupScale ? groupScale.f : 1 }; }
   return {};
 }
 export function transformHTML(sel) {
@@ -146,7 +137,7 @@ export function transformHTML(sel) {
   const field = (k, ax, step) => `<label class="tfField"><span class="ax" data-scrub="${k}" title="Drag to adjust">${ax}</span><input type="number" data-tf="${k}" step="${step}" value="${fmtNum(v[k])}"></label>`;
   const trio = (p, step) => `<div class="tfRow">${field(p + 'x', 'X', step)}${field(p + 'y', 'Y', step)}${field(p + 'z', 'Z', step)}</div>`;
   const group = (label, unit, body) => `<div class="tfGroup"><div class="tfLabel">${label}<span class="unit">${unit}</span></div>${body}</div>`;
-  let html = group(sel.kind === 'multi' ? 'Centre' : 'Position', 'm', trio('p', state.settings.snap ? state.settings.cell : 0.05));
+  let html = group(sel.kind === 'multi' ? 'Centre' : 'Position', 'm', trio('p', 0.05));
   if ('rx' in v) html += group('Rotation', '°', trio('r', 5));
   if ('s' in v) html += group('Scale', '×', `<div class="tfRow">${field('s', '↔', 0.05)}</div>`);
   return `<div class="transform">${html}</div>`;
@@ -160,24 +151,62 @@ export function bindTransformInputs(el) {
   // drag the axis letter left/right to change the value (one step per 4 px; Shift = 10x finer)
   el.querySelectorAll('[data-scrub]').forEach((ax) => {
     ax.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
+      if (e.button !== 0 || document.body.classList.contains('scrubbing')) return;
+      e.preventDefault();   // no text selection / focus change while dragging
       const k = ax.dataset.scrub;
       const inp = el.querySelector(`[data-tf="${k}"]`);
+      if (!inp) return;
+      const act = document.activeElement;
+      if (act && act !== document.body && act.matches?.('[data-tf]')) act.blur();   // commit any typed value first
       const step = parseFloat(inp.step) || 1;
-      const start = parseFloat(inp.value) || 0, x0 = e.clientX;
-      ax.setPointerCapture(e.pointerId);
+      const start = k === 's' && state.selected?.kind === 'multi' ? 1 : (transformValues()[k] ?? (parseFloat(inp.value) || 0));
+      const x0 = e.clientX, pid = e.pointerId;
+      let moved = false, last = null, done = false;
+      if (k === 's') beginGroupScale();
+      try { ax.setPointerCapture(pid); } catch { /* not capturable: the move listeners below still work while the pointer is over the letter */ }
       document.body.classList.add('scrubbing');
       const move = (ev) => {
+        if (ev.pointerId !== pid) return;
         const fine = ev.shiftKey ? 0.1 : 1;
         const n = start + Math.round((ev.clientX - x0) / 4) * step * fine;
+        if (n === last) return;
+        if (Math.abs(ev.clientX - x0) > 3) moved = true;
+        last = n;
         applyTransformInput(k, +n.toFixed(4));
       };
-      const up = () => { ax.removeEventListener('pointermove', move); document.body.classList.remove('scrubbing'); };
+      const end = () => {
+        if (done) return;
+        done = true;
+        ax.removeEventListener('pointermove', move);
+        for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) ax.removeEventListener(t, end);
+        try { if (ax.hasPointerCapture(pid)) ax.releasePointerCapture(pid); } catch { /* already released */ }
+        if (moved && last != null) applyTransformInput(k, +last.toFixed(4));   // commit the final value
+        if (k === 's') endGroupScale();
+        document.body.classList.remove('scrubbing');
+        ax._dragged = moved;   // swallows the click that follows a drag, so the label does not focus the field
+        syncTransformInputs();
+      };
       ax.addEventListener('pointermove', move);
-      ax.addEventListener('pointerup', up, { once: true });
-      ax.addEventListener('pointercancel', up, { once: true });
+      for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) ax.addEventListener(t, end);
     });
+    // a plain click on the letter focuses the field (label default); a click that ends a drag does not
+    ax.addEventListener('click', (e) => { if (ax._dragged) { e.preventDefault(); ax._dragged = false; } });
   });
+}
+// Multi-selection scale: a factor relative to the sizes at the start (shown as 1, reset to 1 afterwards)
+let groupScale = null;   // { centre, items: [{ o, p, s }], lo, hi, f } while a relative scale is in progress
+export function beginGroupScale() {
+  if (groupScale || state.selected?.kind !== 'multi') return;
+  const objs = selObjs();
+  let lo = 0, hi = Infinity;
+  const items = objs.map((o) => { const s = o.root.scale.x, [a, b] = scaleRange(o); lo = Math.max(lo, a / s); hi = Math.min(hi, b / s); return { o, p: o.root.position.clone(), s }; });
+  groupScale = { centre: groupCentre(), items, lo, hi, f: 1 };
+}
+export function endGroupScale() {
+  if (!groupScale) return;
+  groupScale = null;
+  placePivot();
+  syncTransformInputs();
 }
 export function applyTransformInput(k, n) {
   const sel = state.selected;
@@ -189,20 +218,38 @@ export function applyTransformInput(k, n) {
     else if (k[0] === 'p') t.position[axis] = n;
     else t.rotation[axis] = n * DEG;
     t.updateMatrixWorld(true);
+  } else if (sel.kind === 'multi' && k === 's') {
+    const typed = !groupScale;
+    beginGroupScale();
+    const g = groupScale;
+    if (g) {
+      const f = THREE.MathUtils.clamp(n, g.lo, g.hi);
+      g.f = f;
+      for (const { o, p, s } of g.items) {
+        o.root.position.copy(g.centre).addScaledVector(p.clone().sub(g.centre), f);
+        o.root.scale.setScalar(s * f);
+        o.root.updateMatrixWorld(true);
+      }
+      placePivot();
+    }
+    if (typed) { groupScale = null; placePivot(); }
   } else if (sel.kind === 'multi' && k[0] === 'p') {
     const d = n - groupCentre()[axis];
     selObjs().forEach((o) => { o.root.position[axis] += d; });
+    if (groupScale) groupScale.items.forEach((it) => { it.p[axis] += d; });
+    if (groupScale) groupScale.centre[axis] += d;
     placePivot();
   }
   markDirty();
   syncTransformInputs();
 }
-// keep the fields in step while the gizmo drags (skip the one being typed in)
+// keep the fields in step while the gizmo drags (skip the one being typed in, but not while scrubbing)
 export function syncTransformInputs() {
   const fields = document.querySelectorAll('#context [data-tf]');
   if (!fields.length) return;
   const v = transformValues();
-  fields.forEach((inp) => { if (inp !== document.activeElement) inp.value = fmtNum(v[inp.dataset.tf]); });
+  const scrubbing = document.body.classList.contains('scrubbing');
+  fields.forEach((inp) => { if (scrubbing || inp !== document.activeElement) inp.value = fmtNum(v[inp.dataset.tf]); });
   const sizeEl = $('#imgSize');
   if (sizeEl && state.selected?.obj?.type === 'image') sizeEl.textContent = imageSizeText(state.selected.obj);
 }
@@ -216,7 +263,8 @@ export function renderTools() {
 }
 document.querySelectorAll('#toolStrip [data-tool]').forEach((b) => { b.onclick = () => setTool(b.dataset.tool); });
 
-// World settings: background colour, floor and background walls
+// Environment settings: labels, background colour, floor and background walls
+
 export function renderWorldPanel() {
   const R = state.settings.room, F = R.floor, W = R.walls;
   const opts = (kind, cur) => Object.entries(PATTERNS[kind]).map(([k, p]) => `<option value="${k}" ${k === cur ? 'selected' : ''}>${p.label}</option>`).join('');
@@ -224,29 +272,18 @@ export function renderWorldPanel() {
       <span class="hint" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(imageStore[cfg.imageId]?.name || 'no image')}</span>
       <button data-wimg="${kind}">Replace…</button></div></div>`;
   const num = (k, v) => `<input type="number" data-wnum="${k}" min="0.5" max="40" step="0.5" value="${v}">`;
-  const L = R.light;
-  const units = { direction: '°', height: '°' };
-  const fmtLight = (k) => (units[k] ? Math.round(L[k]) : (+L[k]).toFixed(1)) + (units[k] || '');
-  const slider = (k, label, min, max, step) => `<div class="field"><label>${label}</label><div class="row" style="flex-wrap:nowrap">
-      <input type="range" data-wl="${k}" min="${min}" max="${max}" step="${step}" value="${L[k]}"><span data-wlv="${k}" style="width:38px;text-align:right">${fmtLight(k)}</span></div></div>`;
   const el = $('#worldSection');
-  el.innerHTML = `<h2>World</h2>
+  el.innerHTML = `<h2>Environment</h2>
+    <h3 class="sub" style="margin-top:0">Labels</h3>
+    ${ENV_FIELDS.map((f) => `<div class="field"><label>${f.label}</label><input type="text" data-env="${f.key}" value="${esc(state.environment[f.key] || '')}" placeholder="${esc(f.placeholder || '')}"></div>`).join('')}
     <div class="field"><label>Background</label><input type="color" data-wc="background" value="${R.background}"></div>
     <div class="field"><label>Size (m)</label><div class="tfRow">
       <label class="tfField" title="Width (X): floor and back wall"><span class="ax" data-wscrub="width" title="Drag to adjust">W</span>${num('width', W.width)}</label>
       <label class="tfField" title="Depth (Z): floor and side walls"><span class="ax" data-wscrub="depth" title="Drag to adjust">D</span>${num('depth', W.depth)}</label>
       <label class="tfField" title="Wall height"><span class="ax" data-wscrub="height" title="Drag to adjust">H</span>${num('height', W.height)}</label>
     </div></div>
-    <h3 class="sub withBtn">Light <button id="btnResetLight" title="Back to the default light">Reset</button></h3>
-    ${slider('direction', 'Direction', 0, 360, 1, '°')}
-    ${slider('height', 'Height', 2, 90, 1, '°')}
-    ${slider('brightness', 'Brightness', 0, 6, 0.1, '')}
-    <div class="field"><label>Colour</label><div class="row" style="flex-wrap:nowrap">
-      <input type="color" data-wc="light" value="${L.color}" style="flex:1">
-      ${[['#ffffff', 'neutral'], ['#ffd9a8', 'warm sunlight'], ['#ff9e5e', 'sunset'], ['#cfe2ff', 'cool daylight'], ['#8fa8ff', 'moonlight']].map(([c, n]) => `<button class="swatch" data-lc="${c}" title="${n}" style="background:${c}"></button>`).join('')}
-    </div></div>
-    ${slider('ambient', 'Ambient', 0, 4, 0.1, '')}
-    <div class="field"><label>Shadows</label><label class="checkRow"><input type="checkbox" id="lightShadows" ${L.shadows !== false ? 'checked' : ''}> Cast shadows</label></div>
+    <h3 class="sub">Light</h3>
+    <div class="field"><label>Shadows</label><label class="checkRow"><input type="checkbox" id="lightShadows" ${R.light.shadows !== false ? 'checked' : ''}> Cast shadows</label></div>
     <h3 class="sub">Floor</h3>
     <div class="field"><label>Look</label><select data-wpat="floor">${opts('floor', F.pattern)}</select></div>
     ${imgRow('floor', F)}
@@ -265,15 +302,8 @@ export function renderWorldPanel() {
     if (k === 'background') R.background = inp.value; else R[k].color = inp.value;
     changed(false);
   }));
-  // light sliders and colour presets (only the light changes, so skip rebuilding the room)
-  el.querySelectorAll('[data-wl]').forEach((inp) => inp.addEventListener('input', () => {
-    L[inp.dataset.wl] = +inp.value;
-    el.querySelector(`[data-wlv="${inp.dataset.wl}"]`).textContent = fmtLight(inp.dataset.wl);
-    applyLight(); markDirty();
-  }));
-  el.querySelector('#lightShadows').addEventListener('change', (e) => { L.shadows = e.target.checked; applyLight(); markDirty(); });
-  el.querySelector('#btnResetLight').onclick =() => { R.light = ROOM_DEFAULT().light; changed(true); };
-  el.querySelectorAll('[data-lc]').forEach((b) => { b.onclick = () => { L.color = b.dataset.lc; el.querySelector('[data-wc="light"]').value = L.color; applyLight(); markDirty(); }; });
+  el.querySelector('#lightShadows').addEventListener('change', (e) => { R.light.shadows = e.target.checked; applyLight(); markDirty(); });
+  el.querySelectorAll('[data-env]').forEach((inp) => inp.addEventListener('input', () => { state.environment[inp.dataset.env] = inp.value; markDirty(); }));
   el.querySelectorAll('[data-wall]').forEach((inp) => inp.addEventListener('change', () => { W[inp.dataset.wall] = inp.checked; changed(false); }));
   el.querySelectorAll('[data-wnum]').forEach((inp) => inp.addEventListener('change', () => {
     const v = parseFloat(inp.value);
@@ -424,6 +454,85 @@ export function bindDetails(el, o) {
   el.querySelectorAll('[data-cv]').forEach((inp) => inp.addEventListener('input', () => { d.custom[+inp.dataset.cv].value = inp.value; markDirty(); }));
   el.querySelectorAll('[data-crm]').forEach((b) => { b.onclick = () => { d.custom.splice(+b.dataset.crm, 1); markDirty(); renderContext(); }; });
   el.querySelector('#btnAddDetail').onclick = () => { d.custom.push({ key: '', value: '' }); renderContext(); el.querySelector(`[data-ck="${d.custom.length - 1}"]`)?.focus(); };
+}
+
+// Details of several objects at once. Fields = those every selected object's type has; "Mixed" where values differ.
+let multiFocusEntry = null;   // custom entry to focus after the next render
+export function multiDetails(objs) {
+  const defs = (TYPES[objs[0].type].fields || []).filter((f) => objs.every((o) => (TYPES[o.type].fields || []).some((g) => g.key === f.key)));
+  const val = (o, k) => o.details[k] ?? '';
+  const fields = defs.map((f) => {
+    const vals = objs.map((o) => val(o, f.key)), same = vals.every((v) => v === vals[0]), cur = same ? vals[0] : '';
+    if (f.type === 'select') return `<div class="field"><label>${f.label}</label><select data-mk="${f.key}">${same ? '' : '<option value="__mixed" disabled selected>Mixed</option>'}${f.options.map((v) => `<option value="${v}" ${same && cur === v ? 'selected' : ''}>${v || '—'}</option>`).join('')}</select></div>`;
+    if (f.type === 'skin') return `<div class="field"><label>${f.label}</label><div><input type="text" data-mk="skin" value="${esc(cur)}" placeholder="${same ? 'e.g. olive' : 'Mixed'}">
+      <div class="swatches">${SKIN_TONES.map(([n, c]) => `<button class="swatch ${same && cur === n ? 'on' : ''}" data-mskin="${n}" title="${n}" style="background:${c}"></button>`).join('')}</div></div></div>`;
+    return `<div class="field"><label>${f.label}</label><input type="text" data-mk="${f.key}" value="${esc(cur)}" placeholder="${same ? (f.placeholder || '') : 'Mixed'}"></div>`;
+  }).join('');
+  // custom rows: named details match across objects by trimmed lower-case key; blank ones by order within each object.
+  // Each row keeps the real entries it edits, so typing never has to re-match or re-render.
+  const groups = new Map();
+  for (const o of objs) {
+    for (const c of o.details.custom) {
+      const base = (c.key || '').trim().toLowerCase();
+      let k = base, n = 0;
+      while (groups.get(k)?.has(o)) k = base + '\u0000' + (++n);
+      if (!groups.has(k)) groups.set(k, new Map());
+      groups.get(k).set(o, c);
+    }
+  }
+  const rows = [...groups.values()];
+  const rowHTML = rows.map((m, i) => {
+    const es = [...m.values()], full = es.length === objs.length && es.every((e) => e.value === es[0].value);
+    return `<div class="customRow"><input type="text" data-mck="${i}" value="${esc(es[0].key)}" placeholder="detail (e.g. glasses)"><input type="text" data-mcv="${i}" value="${full ? esc(es[0].value) : ''}" placeholder="${full ? 'value (e.g. round)' : 'Mixed'}"><button class="icon danger" data-mcrm="${i}">✕</button></div>`;
+  }).join('');
+  const html = `<h2 style="margin-top:14px">Details</h2>
+    ${fields}
+    <div style="margin-top:4px">${rowHTML}</div>
+    <button id="btnAddDetail">+ Add detail</button>`;
+  const bind = (el) => {
+    el.querySelectorAll('[data-mk]').forEach((inp) => inp.addEventListener('input', () => {
+      if (inp.value === '__mixed') return;
+      objs.forEach((o) => { o.details[inp.dataset.mk] = inp.value; });
+      if (inp.dataset.mk === 'skin') el.querySelectorAll('[data-mskin]').forEach((s) => s.classList.toggle('on', s.dataset.mskin === inp.value));
+      markDirty();
+    }));
+    el.querySelectorAll('[data-mskin]').forEach((b) => {
+      b.onclick = () => {
+        const allOn = objs.every((o) => o.details.skin === b.dataset.mskin);
+        objs.forEach((o) => { o.details.skin = allOn ? '' : b.dataset.mskin; });
+        markDirty(); renderContext();
+      };
+    });
+    el.querySelectorAll('[data-mck]').forEach((inp) => inp.addEventListener('input', () => {
+      for (const e of rows[+inp.dataset.mck].values()) e.key = inp.value;
+      markDirty();
+    }));
+    el.querySelectorAll('[data-mcv]').forEach((inp) => inp.addEventListener('input', () => {
+      const m = rows[+inp.dataset.mcv], key = el.querySelector(`[data-mck="${inp.dataset.mcv}"]`).value;
+      for (const o of objs) {
+        let e = m.get(o);
+        if (!e) { e = { key, value: '' }; o.details.custom.push(e); m.set(o, e); }
+        e.value = inp.value;
+      }
+      markDirty();
+    }));
+    el.querySelectorAll('[data-mcrm]').forEach((b) => {
+      b.onclick = () => {
+        for (const [o, e] of rows[+b.dataset.mcrm]) { const j = o.details.custom.indexOf(e); if (j >= 0) o.details.custom.splice(j, 1); }
+        markDirty(); renderContext();
+      };
+    });
+    el.querySelector('#btnAddDetail').onclick = () => {
+      objs.forEach((o) => { const e = { key: '', value: '' }; o.details.custom.push(e); if (o === objs[0]) multiFocusEntry = e; });
+      markDirty(); renderContext();
+    };
+    if (multiFocusEntry) {
+      const i = rows.findIndex((m) => [...m.values()].includes(multiFocusEntry));
+      multiFocusEntry = null;
+      if (i >= 0) el.querySelector(`[data-mck="${i}"]`)?.focus();
+    }
+  };
+  return { html, bind };
 }
 
 // Edit mode (pose): only the articulation controls; name and details live in the object panel.

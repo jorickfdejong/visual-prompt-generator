@@ -1,21 +1,38 @@
 import { $, FAMILIES, state } from './state.js';
-import { tc } from './scene.js';
+import { gizmoDragging } from './scene.js';
 import { grid } from './room.js';
 import { schedulePreview } from './rendering.js';
-import { boardAxes, computeTuples, exportText, finalTuples } from './relations.js';
+import { computeTuples, finalTuples } from './relations.js';
+import { exportOpen, promptText } from './export-modal.js';
+import { renderNatural } from './natural.js';
+import { renderWarnings } from './consistency.js';
 import { esc } from './left-panel.js';
 import { commitHistory, saveScene } from './persistence.js';
 
 /* =====================================================================
    UI — PROMPT PANEL
    ===================================================================== */
-export function renderFamilyChips() {
-  const el = $('#familyChips');
-  el.innerHTML = Object.entries(FAMILIES).filter(([k]) => k !== 'custom').map(([k, f]) =>
-    `<button class="chip ${state.settings.families[k] ? 'on' : ''}" data-fam="${k}" title="Show/hide this kind of tuple">${f.label}</button>`).join('');
-  el.querySelectorAll('[data-fam]').forEach((b) => {
-    b.onclick = () => { state.settings.families[b.dataset.fam] = !state.settings.families[b.dataset.fam]; renderFamilyChips(); markDirty(); };
+// checkboxes that include or leave out a kind of information, with one per group for all of it
+export function renderIncludes() {
+  const el = $('#includeList'), on = state.settings.families;
+  const groups = {};
+  for (const [k, f] of Object.entries(FAMILIES)) (groups[f.group] ||= []).push(k);
+  el.innerHTML = Object.entries(groups).map(([name, keys]) =>
+    `<div class="incGroup" role="group" aria-label="${name}"><label class="checkRow incAll"><input type="checkbox" data-group="${name}">${name}</label>${keys.map((k) =>
+      `<label class="checkRow" title="${FAMILIES[k].hint || ''}"><input type="checkbox" data-fam="${k}" ${on[k] ? 'checked' : ''}>${FAMILIES[k].label}</label>`).join('')}</div>`).join('');
+  const syncGroups = () => el.querySelectorAll('[data-group]').forEach((b) => {
+    const n = groups[b.dataset.group].filter((k) => on[k]).length;
+    b.checked = n === groups[b.dataset.group].length;
+    b.indeterminate = n > 0 && !b.checked;
   });
+  el.querySelectorAll('[data-fam]').forEach((b) => { b.onchange = () => { on[b.dataset.fam] = b.checked; syncGroups(); markDirty(true); }; });
+  el.querySelectorAll('[data-group]').forEach((b) => {
+    b.onchange = () => {
+      for (const k of groups[b.dataset.group]) { on[k] = b.checked; el.querySelector(`[data-fam=${k}]`).checked = b.checked; }
+      syncGroups(); markDirty(true);
+    };
+  });
+  syncGroups();
 }
 export function renderTuples() {
   const el = $('#tupleList');
@@ -38,7 +55,7 @@ export function renderTuples() {
     div.querySelector('button')?.addEventListener('click', () => setOverride(t.key, { rel: undefined }));
     rows.push(div);
   }
-  state.custom.forEach((c, i) => {
+  if (state.settings.families.custom) state.custom.forEach((c, i) => {
     const div = document.createElement('div');
     div.className = 'tuple' + (c.off ? ' off' : '');
     div.innerHTML = `<span class="fam" style="background:#fff" title="Custom"></span><input type="checkbox" ${c.off ? '' : 'checked'}><span class="ttext">${esc(c.text)}</span><button class="danger" title="Remove">✕</button>`;
@@ -47,7 +64,7 @@ export function renderTuples() {
     rows.push(div);
   });
   rows.forEach((r) => el.appendChild(r));
-  if (!rows.length) el.innerHTML = '<div class="hint">No tuples (all kinds hidden?).</div>';
+  if (!rows.length) el.innerHTML = '<div class="hint">No tuples (all kinds left out?).</div>';
 }
 export function setOverride(key, patch) {
   const o = { ...(state.overrides[key] || {}), ...patch };
@@ -77,7 +94,7 @@ export function markDirty(forceRender = false) {
 }
 // runs once things have been still for a moment: autosave + one undo step
 export function settle() {
-  if (tc.dragging || document.body.classList.contains('scrubbing')) { saveTimer = setTimeout(settle, 250); return; }
+  if (gizmoDragging() || document.body.classList.contains('scrubbing')) { saveTimer = setTimeout(settle, 250); return; }
   saveTimer = null;
   saveScene();
   commitHistory();
@@ -87,13 +104,11 @@ export function refreshDerived() {
   state.tuples = computeTuples();
   const sig = JSON.stringify([state.tuples.map((t) => t.key), state.settings.families]);
   if (sig !== lastSig || forceTupleRender) { lastSig = sig; forceTupleRender = false; renderTuples(); }
-  const text = exportText();
+  const text = promptText();
+  if (exportOpen()) { renderNatural($('#naturalPrompt')); renderWarnings(); }
   if (text !== lastExport) {
     lastExport = text;
     $('#exportPreview').textContent = text;
-    $('#tupleCount').textContent = finalTuples().length + ' lines';
   }
-  const ax = boardAxes();
-  const side = { '0,1': '+Z side', '0,-1': '−Z side', '1,0': '+X side', '-1,0': '−X side' }[ax.front.map((v) => v + 0).join(',')];
-  $('#boardInfo').textContent = `The camera views the board from the ${side}. Left/right and front/back are read from the camera, on a ${state.settings.cell} m grid.`;
+  $('#tupleCount').textContent = finalTuples().length + ' lines';
 }

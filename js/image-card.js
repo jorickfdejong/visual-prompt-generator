@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { cutoutTexture, imageStore, imageTexture } from './images.js';
+import { lightAccent } from './mannequin.js';
 
 /* =====================================================================
    IMAGE CARD — a flat picture standing in the slot of a wooden block
@@ -22,7 +23,7 @@ export function buildImageCard(o) {
   const tex = !e ? null : o.cutout?.on ? cutoutTexture(o) : imageTexture(o.imageId);
   // transparent stays on so edit-mode dimming works; alphaTest cuts out PNG transparency (also in the shadow)
   const pic = new THREE.MeshStandardMaterial({ map: tex, color: tex ? '#ffffff' : '#9aa0a8', roughness: 0.85, side: THREE.DoubleSide, transparent: true, alphaTest: 0.05 });
-  const wood = new THREE.MeshStandardMaterial({ color: '#c99d6c', roughness: 0.75, transparent: true });
+  const wood = new THREE.MeshStandardMaterial({ color: o.accent ? lightAccent(o.accent, 0.55) : '#c99d6c', roughness: 0.75, transparent: true });
   o.mats = [pic, wood];
   o.meshes = [];
   const add = (geo, mat, x, y, z) => {

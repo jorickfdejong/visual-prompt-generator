@@ -47,19 +47,73 @@ orbit.update();
 // Left mouse is left free for selecting and gizmos. (OrbitControls pans when Shift/Ctrl is held during a rotate.)
 export function blenderControls(c) {
   c.mouseButtons = { LEFT: null, MIDDLE: THREE.MOUSE.ROTATE, RIGHT: THREE.MOUSE.PAN };
+  c.enableZoom = false;   // wheel / trackpad / pinch navigation is handled in nav.js
 }
 // stop the browser's middle-click autoscroll on the canvas
 renderer.domElement.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); });
 
-// Gizmo
+// Gizmo: two controls drawn as one. `tc` moves (arrows + centre dot) or scales, `rc` rotates (three rings).
 export const tc = new TransformControls(editCam, renderer.domElement);
-tc.setSize(0.8);
-// rotate gizmo: keep only the three axis rings (drop the yellow screen-axis ring 'E' and the grey free-rotate ball 'XYZE')
-for (const group of [tc._gizmo?.gizmo?.rotate, tc._gizmo?.picker?.rotate]) {
-  if (group) [...group.children].filter((h) => h.name === 'E' || h.name === 'XYZE').forEach((h) => group.remove(h));
+export const rc = new TransformControls(editCam, renderer.domElement);
+rc.setMode('rotate');
+export const gizmo = new THREE.Group();   // lets rendering hide both at once
+gizmo.add(tc, rc);
+scene.add(gizmo);
+const AXIS_COLORS = { X: '#e5484d', Y: '#46a758', Z: '#3e7bfa' };
+const RING_R = 0.5;
+function buildGizmo() {
+  const mat = (color) => new THREE.MeshBasicMaterial({ color, depthTest: false, depthWrite: false, fog: false, toneMapped: false, transparent: true });
+  const invisible = mat('#ffffff');
+  // geometry is made along +Y and turned to its axis here
+  const toAxis = { X: (g) => g.rotateZ(-Math.PI / 2), Y: (g) => g, Z: (g) => g.rotateX(Math.PI / 2) };
+  // half rings: TransformControls keeps the half that faces the view in front
+  const ring = (tube, seg) => new THREE.TorusGeometry(RING_R, tube, seg, 48, Math.PI).rotateY(Math.PI / 2).rotateX(Math.PI / 2);
+  const ringAxis = { X: (g) => g, Y: (g) => g.rotateZ(-Math.PI / 2), Z: (g) => g.rotateY(Math.PI / 2) };
+  const add = (group, name, geo, m) => { const h = new THREE.Mesh(geo, m); h.name = name; h.renderOrder = Infinity; group.add(h); };
+  const move = tc._gizmo.gizmo.translate, movePick = tc._gizmo.picker.translate;
+  const turn = rc._gizmo.gizmo.rotate, turnPick = rc._gizmo.picker.rotate;
+  for (const g of [move, movePick, turn, turnPick]) g.clear();
+  for (const a of ['X', 'Y', 'Z']) {
+    const m = mat(AXIS_COLORS[a]);
+    // the arrows start just outside the rings, so the two never cover each other
+    add(move, a, toAxis[a](new THREE.CylinderGeometry(0.012, 0.012, 0.16, 8).translate(0, RING_R + 0.12, 0)), m);
+    add(move, a, toAxis[a](new THREE.ConeGeometry(0.05, 0.13, 16).translate(0, RING_R + 0.26, 0)), m);
+    add(movePick, a, toAxis[a](new THREE.CylinderGeometry(0.09, 0.09, 0.32, 8).translate(0, RING_R + 0.21, 0)), invisible);
+    add(turn, a, ringAxis[a](ring(0.011, 6)), mat(AXIS_COLORS[a]));
+    add(turnPick, a, ringAxis[a](ring(0.06, 6)), invisible);
+  }
+  // centre dot: slides over the floor plane
+  add(move, 'XZ', new THREE.SphereGeometry(0.06, 20, 14), mat('#ffffff'));
+  add(movePick, 'XZ', new THREE.SphereGeometry(0.11, 12, 8), invisible);
+  // scaling is always uniform, so one line is enough: from the centre diagonally up on screen, whatever the view angle
+  const size = tc._gizmo.gizmo.scale, sizePick = tc._gizmo.picker.scale;
+  for (const g of [size, sizePick, tc._gizmo.helper.scale]) g.clear();
+  const diagonal = (g) => g.rotateZ(-Math.PI / 4), orange = mat('#f0a04b');
+  add(size, 'XYZ', diagonal(new THREE.CylinderGeometry(0.012, 0.012, 0.7, 8).translate(0, 0.35, 0)), orange);
+  add(size, 'XYZ', diagonal(new THREE.BoxGeometry(0.11, 0.11, 0.11).translate(0, 0.7, 0)), orange);
+  add(sizePick, 'XYZ', diagonal(new THREE.CylinderGeometry(0.1, 0.06, 0.6, 8).translate(0, 0.5, 0)), invisible);   // starts off-centre: grabbing at the centre would scale wildly
+  for (const h of [...size.children, ...sizePick.children]) {
+    h.updateMatrix = function () { this.quaternion.copy(editCam.quaternion); THREE.Mesh.prototype.updateMatrix.call(this); };
+  }
 }
-scene.add(tc);
-tc.addEventListener('dragging-changed', (e) => { orbit.enabled = !e.value; });
+buildGizmo();
+// only one of the two may respond at a time (tc's listeners run first, so arrows win over rings)
+for (const [c, other] of [[tc, rc], [rc, tc]]) {
+  const hover = c.pointerHover.bind(c);
+  c.pointerHover = (p) => {
+    if (other.dragging || (c === rc && tc.object && tc.axis)) { c.axis = null; return; }
+    hover(p);
+  };
+  c.setSize(0.9);
+  c.addEventListener('dragging-changed', (e) => { orbit.enabled = !e.value; });
+}
+export function attachGizmo(obj, { move = true, turn = true } = {}) {
+  if (move) tc.attach(obj); else tc.detach();
+  if (turn) rc.attach(obj); else rc.detach();
+}
+export function detachGizmo() { tc.detach(); rc.detach(); }
+export const gizmoDragging = () => tc.dragging || rc.dragging;
+export const gizmoHot = () => !!((tc.object && tc.axis) || (rc.object && rc.axis));   // pointer is on a handle
 
 export const raycaster = new THREE.Raycaster();
 raycaster.layers.enableAll();

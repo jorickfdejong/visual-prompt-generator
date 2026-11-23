@@ -19,9 +19,10 @@ Double-clicking `index.html` does **not** work: the code is split into JavaScrip
 
 | Input | Action |
 |---|---|
-| Middle mouse drag | Orbit the view |
-| Shift + middle mouse drag | Pan (right mouse drag also pans) |
-| Mouse wheel | Zoom |
+| Ctrl + two fingers (trackpad) or middle mouse drag | Orbit the view (also Alt + left drag) |
+| Shift + two fingers or Shift + middle mouse drag | Pan (also right drag, or Space + left drag) |
+| Two fingers, pinch or mouse wheel | Zoom |
+| Buttons bottom-right | Orbit, pan, zoom and reset, always visible |
 | Left click | Select / use the gizmo |
 
 The same controls frame the shot in **Camera view**.
@@ -30,24 +31,31 @@ The same controls frame the shot in **Camera view**.
 
 | Area | What you do |
 |---|---|
-| **Compose mode** (default) | Arrange the space. Select a doll or the camera (in the viewport or the Objects list) and move / rotate / scale it (`W` / `E` / `R`). Add, duplicate (`Ctrl+D`), delete (`Del`), hide or rename (double-click the name) dolls. |
-| **Edit mode** | Click the **✎ Edit** button that floats above the selected doll (or double-click it / press `Enter`). The edit panel opens on the right, in place of the prompt panel. Other dolls fade out. Click a joint (orange dot) or a body part to rotate it, or use a pose preset, Mirror L↔R or Hip height. Fill in details: gender, age, skin, hair, clothing, expression, pose, action, plus your own details. `Esc` / **Done** returns to Compose. |
+| **Compose mode** (default) | Arrange the space. Select a doll or the camera (in the viewport or the Objects list) and move and rotate it with one gizmo (`W`) or scale it (`K`). Add, duplicate (`Ctrl+D`), delete (`Del`), hide or rename (double-click the name) dolls. |
+| **Edit mode** | Click the **✎ Edit** button that floats above the selected doll (or double-click it / press `Enter`). The edit panel opens on the right, in place of the prompt panel. Other dolls fade out. Click a joint (orange dot) or a body part to rotate it, or use a pose preset, Mirror L↔R or Hip height. Fill in details: gender, age, race, body type, skin, hair, clothing, expression, pose, action, plus your own details. `Esc` / **Done** returns to Compose. |
 | **Shot camera** | Always visible in the top-right corner. Set focal length and aspect ratio. Click the preview (or **Camera view**) to frame the shot with the navigation controls, then take a **📸 Screenshot**. |
-| **Prompt panel** | Shows every computed tuple. Untick a line to leave it out, use a dropdown to override a relation, add your own tuples, hide whole families with the chips, and add scene notes. |
+| **Objects** | Puppets, pictures, wooden toys (tree, car, house) and shapes (cube, ball, cylinder, pyramid, cone). Select several to edit their shared details together; differing values show as Mixed. |
+| **Final image** | Shown when nothing is selected: the visual style of the image to generate. |
+| **Environment** | Shown when nothing is selected: labels for environment, temperature and lighting, floor, walls and shadows. |
+| **Export** | The button at the bottom of the sidebar: camera image, a written prompt whose names jump to the object, and the tuples below. |
+| **Prompt tuples** | Shows every computed tuple. Untick a line to leave it out, use a dropdown to override a relation, add your own tuples, and add scene notes. |
+| **Include in the prompt** | Checkboxes in Export that include or leave out a kind of information (size, size relationships, left / right, cameraâ€¦), in both the written prompt and the tuples. The group checkbox switches all of it. |
 | **Variants** | **Save as variant** stores the whole setup with a thumbnail and its prompt. Load a variant, change it, and save again to iterate. Tick `cmp` on two cards and click **Compare** to see both images and a diff of their tuples. |
 
 Everything autosaves in your browser (localStorage). **New scene** clears the working setup; your variants are kept.
 
 ## Spatial relations (Tarski's World, extended to 3D)
 
-- The space is a grid; set the cell size in **Grid** (default 0.5 m). Snap to grid keeps placements exact.
+- The space is a grid of 0.5 m cells. Objects move freely and stick only to the floor; the grid is used to read relations.
 - "Front" is the side facing the **shot camera**, so the relations always describe the reference image.
-- Every predicate that holds is listed:
+- Relations the real camera view contradicts are left out; a custom tuple that repeats a listed fact (also the other way round) is skipped.
+- Every other predicate that holds is listed:
   - `rightOf` / `leftOf`, `frontOf` / `backOf`, `sameRow` / `sameCol`
   - `adjacent`, `between`
   - `small` / `medium` / `large`, `larger` / `sameSize`
   - 3D: `above`, `onTopOf`, `sameLevel`
-  - Extensions: `facing`, `facingCamera` / `profile` / `backToCamera`
+  - Placement: `onGround`, `floating` (read from the real positions)
+  - Extensions: `facing`, `facingCamera` / `threeQuarterLeft` / `profileLeft` / `backToCamera`; rotation such as `lyingOnBack`, `leaningLeft`, `upsideDown`
   - Camera: shot size, angle, lens, aspect ratio
 
 Example export:
@@ -66,7 +74,16 @@ sunny park, golden hour, 35mm film photo
 (fullShot, camera)
 (eyeLevel, camera)
 (16:9, camera)
+
+Use the reference image for composition, pose and camera only. Ignore its colours, materials and textures.
+Full-colour image, natural colours.
 ```
+
+## The written prompt
+
+Fixed sentence templates, in this order: scene, objects from left to right (each named by its place and pose in the frame), layout, camera, lighting, additional notes, reference line. Sizes and distances are written in words, not metres. Warnings above it point out likely misreadings and are never exported.
+
+**Reference image** in Export picks a neutral grey render (default) or the coloured one. With the grey one the prompt also asks for full colour, unless the notes ask for black and white.
 
 ## Copying to an image generator
 
@@ -92,6 +109,10 @@ sunny park, golden hour, 35mm film photo
 | `selection.js` | Compose/edit modes, selection, gizmo, help panel |
 | `rendering.js` | Viewport and shot rendering, screenshots, live preview |
 | `relations.js` | Spatial relations (Tarski's World) and the prompt text |
+| `world-facts.js` | Real positions read from the scene: support, depth, place in the frame, what hides what |
+| `prompt-rules.js` | Fixed closing lines and sentence templates |
+| `natural.js` | The written prompt |
+| `consistency.js` | Warnings about contradictions, floating or unseen objects |
 | `left-panel.js` | Edit tab: object list, transforms, details, world settings |
 | `prompt-panel.js` | Export tab: tuples, overrides, notes; `markDirty()` |
 | `clipboard.js` | Copy / download, toast messages |

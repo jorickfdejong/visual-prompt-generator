@@ -1,11 +1,11 @@
 import * as THREE from 'three';
-import { $, DEG, state } from './state.js';
-import { editCam, floor, orbit, raycaster, renderer, scene, tc, vp } from './scene.js';
+import { $, state } from './state.js';
+import { attachGizmo, detachGizmo, editCam, floor, gizmoDragging, gizmoHot, orbit, raycaster, rc, renderer, scene, tc, vp } from './scene.js';
 import { grid } from './room.js';
 import { camModel, shotCam } from './camera.js';
 import { TYPES } from './types.js';
 import { scaleRange } from './objects.js';
-import { esc, renderContext, renderObjectList, setTab, syncTransformInputs } from './left-panel.js';
+import { esc, renderContext, renderObjectList, syncTransformInputs } from './left-panel.js';
 import { markDirty } from './prompt-panel.js';
 
 /* =====================================================================
@@ -19,41 +19,52 @@ export function applyDim(on) {
     for (const m of o.mats) { m.opacity = dim ? 0.15 : 1; m.depthWrite = !dim; }
   }
 }
-export function configureGizmo(target) {
-  const snap = state.settings.snap;
-  if (target === 'joint') {
-    tc.setMode('rotate'); tc.setSpace('local');
-    tc.setRotationSnap(snap ? 15 * DEG : null); tc.setTranslationSnap(null); tc.setScaleSnap(null);
-  } else if (target === 'camera') {
-    if (state.tool === 'scale') state.tool = 'translate';
-    tc.setMode(state.tool); tc.setSpace(state.tool === 'rotate' ? 'local' : 'world');
-    tc.setRotationSnap(null); tc.setTranslationSnap(null);
-  } else {
-    tc.setMode(state.tool); tc.setSpace('world');
-    tc.setTranslationSnap(snap ? state.settings.cell : null);
-    tc.setRotationSnap(snap ? 15 * DEG : null);
-    tc.setScaleSnap(snap ? 0.05 : null);
+// point the gizmo at whatever is selected: move + rotate together, or scale
+export function updateGizmo() {
+  if (state.cameraView) { detachGizmo(); return; }
+  if (state.mode === 'edit') {
+    if (!state.joint) { detachGizmo(); return; }
+    rc.setSpace('local');
+    attachGizmo(state.editing.joints[state.joint], { move: false });
+    return;
   }
+  const camera = state.selected?.kind === 'camera';
+  if (camera) state.tool = 'transform';   // the camera cannot be scaled
+  const scaling = state.tool === 'scale';
+  tc.setMode(scaling ? 'scale' : 'translate');
+  rc.setSpace(camera ? 'local' : 'world');
+  if (camera) attachGizmo(shotCam);
+  else if (selObjs().some((o) => !o.hidden)) { placePivot(); attachGizmo(pivot, { turn: !scaling }); }
+  else detachGizmo();
 }
 // every selected doll, whether one ('obj') or several ('multi')
 export function selObjs() {
   const s = state.selected;
   return !s ? [] : s.kind === 'multi' ? s.objs : s.kind === 'obj' ? [s.obj] : [];
 }
-// Multi-select: the gizmo drives an invisible pivot at the group's centre; the dolls follow it.
+// The gizmo drives an invisible pivot at the centre of the selection; the objects follow it.
 export const pivot = new THREE.Object3D();
 scene.add(pivot);
-export const groupRel = new Map();   // obj -> matrix relative to the pivot, captured at drag start
+export const groupRel = new Map();   // obj -> { rel: matrix relative to the pivot, p, s } captured at drag start
+const scaleAnchor = new THREE.Vector3();
+// centre of an object's body, measured in its own space so it does not shift when the object turns
+export function objCentre(o) {
+  o.root.updateWorldMatrix(true, true);
+  const inv = o.root.matrixWorld.clone().invert(), all = new THREE.Box3(), b = new THREE.Box3(), m = new THREE.Matrix4();
+  for (const mesh of o.meshes) {
+    if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+    all.union(b.copy(mesh.geometry.boundingBox).applyMatrix4(m.multiplyMatrices(inv, mesh.matrixWorld)));
+  }
+  return all.isEmpty() ? o.root.position.clone() : all.getCenter(new THREE.Vector3()).applyMatrix4(o.root.matrixWorld);
+}
+// called every frame, so the gizmo stays centred when a value is typed or the object changes shape
 export function placePivot() {
   const objs = selObjs();
-  if (!objs.length) return;
-  const c = new THREE.Vector3();
-  objs.forEach((o) => c.add(o.root.position));
-  c.divideScalar(objs.length);
-  c.y = 0;
-  if (state.settings.snap) { const s = state.settings.cell; c.x = Math.round(c.x / s) * s; c.z = Math.round(c.z / s) * s; }
-  pivot.position.copy(c); pivot.quaternion.identity(); pivot.scale.set(1, 1, 1);
-  pivot.userData.prevS = 1;
+  if (!objs.length || gizmoDragging()) return;
+  pivot.position.set(0, 0, 0);
+  objs.forEach((o) => pivot.position.add(objCentre(o)));
+  pivot.position.divideScalar(objs.length);
+  pivot.quaternion.identity(); pivot.scale.set(1, 1, 1);
   pivot.updateMatrixWorld(true);
 }
 export function selectMany(objs) {
@@ -62,9 +73,7 @@ export function selectMany(objs) {
   if (!objs.length) { deselect(); return; }
   if (objs.length === 1) { selectObject(objs[0]); return; }
   state.selected = { kind: 'multi', objs };
-  configureGizmo('obj');
-  placePivot();
-  tc.attach(pivot);
+  updateGizmo();
   renderObjectList(); renderContext();
 }
 export function toggleInSelection(o) {
@@ -77,51 +86,61 @@ export let scaleStart = 1;
 export function uniformScale(s) {
   return [s.x, s.y, s.z].reduce((a, b) => (Math.abs(b - scaleStart) > Math.abs(a - scaleStart) ? b : a), scaleStart);
 }
-tc.addEventListener('mouseDown', () => {
-  if (tc.object) scaleStart = tc.object.scale.x;
-  if (tc.object !== pivot) return;
+function onDragStart(e) {
+  const obj = e.target.object;
+  if (!obj) return;
+  scaleStart = obj.scale.x;
+  if (obj !== pivot) return;
   pivot.updateMatrixWorld(true);
-  const inv = pivot.matrixWorld.clone().invert();
+  const inv = pivot.matrixWorld.clone().invert(), objs = selObjs();
   groupRel.clear();
-  for (const o of selObjs()) { o.root.updateMatrixWorld(true); groupRel.set(o, inv.clone().multiply(o.root.matrixWorld)); }
-});
-tc.addEventListener('mouseUp', () => { if (tc.object === pivot) placePivot(); });
+  scaleAnchor.set(0, 0, 0);
+  for (const o of objs) {
+    o.root.updateMatrixWorld(true);
+    groupRel.set(o, { rel: inv.clone().multiply(o.root.matrixWorld), p: o.root.position.clone(), s: o.root.scale.x });
+    scaleAnchor.add(o.root.position);
+  }
+  // scaling grows from the base (a single object) or the floor (several), so nothing sinks through the floor
+  scaleAnchor.divideScalar(objs.length);
+  if (objs.length > 1) scaleAnchor.y = 0;
+}
+for (const c of [tc, rc]) c.addEventListener('mouseDown', onDragStart);
 export function applyGroupTransform() {
   if (tc.mode === 'scale') {
     // uniform scale, clamped so every object stays within its type's range
-    let v = uniformScale(pivot.scale);
     let lo = 0, hi = Infinity;
-    for (const [o, m] of groupRel) { const s0 = new THREE.Vector3().setFromMatrixScale(m).x, [a, b] = scaleRange(o); lo = Math.max(lo, a / s0); hi = Math.min(hi, b / s0); }
-    v = THREE.MathUtils.clamp(v, lo, hi);
-    pivot.scale.setScalar(v);
-    pivot.userData.prevS = v;
+    for (const [o, { s }] of groupRel) { const [a, b] = scaleRange(o); lo = Math.max(lo, a / s); hi = Math.min(hi, b / s); }
+    const f = THREE.MathUtils.clamp(uniformScale(pivot.scale), lo, hi);
+    pivot.scale.setScalar(f);
+    for (const [o, { p, s }] of groupRel) {
+      o.root.position.copy(p).sub(scaleAnchor).multiplyScalar(f).add(scaleAnchor);
+      o.root.scale.setScalar(s * f);
+    }
+    return;
   }
   pivot.updateMatrixWorld(true);
   const m = new THREE.Matrix4();
-  for (const [o, rel] of groupRel) {
+  for (const [o, { rel, s }] of groupRel) {
     m.multiplyMatrices(pivot.matrixWorld, rel);
     m.decompose(o.root.position, o.root.quaternion, o.root.scale);
-    o.root.scale.setScalar(o.root.scale.x);
+    o.root.scale.setScalar(s);
   }
 }
 export function selectObject(o) {
   if (state.mode === 'edit') return;
   state.selected = { kind: 'obj', obj: o };
-  configureGizmo('obj');
-  if (o.hidden) tc.detach(); else tc.attach(o.root);
+  updateGizmo();
   renderObjectList(); renderContext();
 }
 export function selectCamera() {
   if (state.mode === 'edit') exitEdit();
   state.selected = { kind: 'camera' };
-  setTab('edit');   // camera settings live in the Edit tab
-  configureGizmo('camera');
-  tc.attach(shotCam);
+  updateGizmo();
   renderObjectList(); renderContext();
 }
 export function deselect() {
   state.selected = null;
-  tc.detach();
+  detachGizmo();
   renderObjectList(); renderContext();
 }
 export let overviewView = null;   // editor camera before entering edit mode
@@ -133,7 +152,7 @@ export function enterEdit(o) {
   state.mode = 'edit';
   state.editing = o;
   state.joint = null;
-  tc.detach();
+  detachGizmo();
   o.handles.forEach((h) => { h.visible = true; });
   applyDim(true);
   overviewView = { pos: editCam.position.clone(), target: orbit.target.clone() };   // restored on exit
@@ -153,7 +172,7 @@ export function exitEdit() {
   state.mode = 'compose';
   state.editing = null;
   state.joint = null;
-  tc.detach();
+  detachGizmo();
   updateModeBadge();
   selectObject(o);
 }
@@ -161,13 +180,12 @@ export function selectJoint(name) {
   const o = state.editing;
   state.joint = name;
   o.handles.forEach((h) => h.material.color.set(h.userData.handle === name ? '#ffffff' : '#ff9f43'));
-  if (name) { configureGizmo('joint'); tc.attach(o.joints[name]); } else tc.detach();
+  updateGizmo();
   renderContext();
 }
 export function setTool(t) {
   state.tool = t;
-  if (state.mode === 'compose' && state.selected) configureGizmo(state.selected.kind === 'camera' ? 'camera' : 'obj');
-  if (state.selected?.kind === 'multi') placePivot();
+  updateGizmo();
   renderContext();
 }
 export function updateModeBadge() {
@@ -178,18 +196,18 @@ export function updateModeBadge() {
 /* Help: a "?" button in the viewport corner that opens the shortcuts and an explanation for the current mode */
 export function renderHelp() {
   const rows = (list) => `<dl>${list.map(([k, t]) => `<dt>${k.split(' + ').map((x) => `<kbd>${x}</kbd>`).join(' + ')}</dt><dd>${t}</dd>`).join('')}</dl>`;
-  const nav = rows([['Middle mouse', 'orbit the view'], ['Shift + Middle mouse', 'pan'], ['Wheel', 'zoom']]);
+  const nav = rows([['Two fingers', 'zoom (trackpad, or pinch)'], ['Shift + Two fingers', 'pan (trackpad)'], ['Ctrl + Two fingers', 'orbit (trackpad)'], ['Middle mouse', 'orbit (also Alt + left drag)'], ['Shift + Middle mouse', 'pan (also right drag, or Space + left drag)'], ['Wheel', 'zoom']]);
   const html = state.mode === 'edit'
     ? `<h3>Edit mode — ${esc(state.editing.details.name)}</h3>
        <p>Pose the doll: click a joint (orange dot) or a body part and drag the rings to rotate it, or pick a preset. Name and details are edited in the object panel when you select it.</p>
        <h4>Keys</h4>${rows([['Click', 'select a joint'], ['Ctrl + Z', 'undo'], ['Ctrl + Y', 'redo'], ['Esc', 'deselect the joint, press again to finish']])}
        <h4>View</h4>${nav}`
     : `<h3>Compose mode</h3>
-       <p>Arrange the objects and the shot camera. Spatial relations (left of, in front of, between…) are read from the camera's point of view on the grid and become prompt tuples in the Export tab. Nothing is decided for you: every tuple can be switched off or overridden.</p>
-       <p>With nothing selected the panel on the right edits the world: grid, background, floor and walls. Select an object or the camera to edit it, or type exact values.</p>
+       <p>Arrange the objects and the shot camera. Spatial relations (left of, in front of, between…) are read from the camera's point of view on the grid and become prompt tuples in the Export window. Nothing is decided for you: every tuple can be switched off or overridden.</p>
+       <p>With nothing selected the panel on the right edits the final image (visual style) and the environment: labels, background, floor and walls. Select an object or the camera to edit it, or type exact values.</p>
        <h4>Selecting</h4>${rows([['Click', 'select an object or the camera'], ['Drag', 'box-select on empty space'], ['Shift + Click', 'add to the selection'], ['Ctrl + Click', 'toggle one object'], ['Ctrl + A', 'select all objects'], ['Esc', 'deselect']])}
-       <h4>Transform</h4>${rows([['W', 'move'], ['R', 'rotate'], ['E', 'scale'], ['Drag X / Y / Z', 'in the panel to scrub a value (Shift = finer)']])}
-       <h4>Objects</h4>${rows([['A', 'open the add menu'], ['Enter', 'pose a doll (also double-click)'], ['Ctrl + C', 'copy'], ['Ctrl + X', 'cut'], ['Ctrl + V', 'paste'], ['Ctrl + D', 'duplicate'], ['Del', 'delete']])}
+       <h4>Transform</h4>${rows([['W', 'move and rotate (also R): drag an arrow, a ring, or the centre dot to slide over the floor'], ['K', 'scale'], ['Drag X / Y / Z', 'in the panel to scrub a value (Shift = finer)']])}
+       <h4>Objects</h4>${rows([['A', 'open the add menu'], ['N', 'show or hide object names'], ['Enter', 'pose a doll (also double-click)'], ['Ctrl + C', 'copy'], ['Ctrl + X', 'cut'], ['Ctrl + V', 'paste'], ['Ctrl + D', 'duplicate'], ['Del', 'delete']])}
        <h4>History</h4>${rows([['Ctrl + Z', 'undo'], ['Ctrl + Y', 'redo (also Ctrl + Shift + Z)']])}
        <h4>View</h4>${nav}
        <h4>File</h4>${rows([['Ctrl + S', 'save the scene as a .json file'], ['Ctrl + O', 'open a scene file (or drop it on the page)'], ['Drop', 'JPG / PNG files on the page to add them as images']])}`;
@@ -203,17 +221,29 @@ export function toggleHelp(open = $('#helpPanel').hidden) {
 $('#btnHelp').addEventListener('click', (e) => { e.stopPropagation(); toggleHelp(); });
 document.addEventListener('pointerdown', (e) => { if (!$('#helpPanel').hidden && !e.target.closest('#help')) toggleHelp(false); });
 
-export function onGizmoChange() {
-  const obj = tc.object;
+// dragging up or down: objects stick to the floor when they come close to it
+const FLOOR_SNAP = 0.12;
+// an upright object stands on its origin; a tilted one rests on its lowest point
+function bottomOf(o) {
+  const up = new THREE.Vector3(0, 1, 0).applyQuaternion(o.root.quaternion);
+  if (up.y > 0.999) return o.root.position.y;
+  o.root.updateMatrixWorld(true);
+  const b = new THREE.Box3();
+  o.meshes.forEach((m) => b.expandByObject(m, true));
+  return b.min.y;
+}
+function snapToFloor() {
+  if (tc.mode !== 'translate' || !tc.axis?.includes('Y')) return;
+  const objs = selObjs();
+  const low = Math.min(...objs.map(bottomOf));
+  if (Math.abs(low) >= FLOOR_SNAP) return;
+  objs.forEach((o) => { o.root.position.y -= low; });
+  pivot.position.y -= low;
+}
+export function onGizmoChange(e) {
+  const obj = e.target.object;
   if (!obj) return;
-  if (obj === pivot) { applyGroupTransform(); markDirty(); syncTransformInputs(); return; }
-  if (state.selected?.kind === 'obj' && obj === state.selected.obj.root && tc.mode === 'scale') {
-    // keep scale uniform, measured against the drag-start scale
-    const v = THREE.MathUtils.clamp(uniformScale(obj.scale), ...scaleRange(state.selected.obj));
-    obj.scale.setScalar(v);
-    obj.userData.prevS = v;
-  }
-  if (obj === shotCam) obj.scale.set(1, 1, 1);
+  if (obj === pivot) { applyGroupTransform(); snapToFloor(); }
   markDirty();
   syncTransformInputs();
 }
@@ -251,7 +281,7 @@ vp.appendChild(boxEl);
 renderer.domElement.addEventListener('pointerdown', (e) => {
   downPos = [e.clientX, e.clientY];
   box = null;
-  if (e.button !== 0 || state.cameraView || state.mode !== 'compose' || (tc.object && tc.axis)) return;
+  if (e.button !== 0 || state.cameraView || state.mode !== 'compose' || gizmoHot()) return;
   if (pickCompose(e)) return;   // starting on a doll or the camera = a click, not a box
   box = { x0: e.clientX, y0: e.clientY, add: e.shiftKey };
 });
@@ -293,7 +323,7 @@ renderer.domElement.addEventListener('pointerup', (e) => {
   if (!downPos || e.button !== 0) return;
   const moved = Math.hypot(e.clientX - downPos[0], e.clientY - downPos[1]) > 4;
   downPos = null;
-  if (moved || state.cameraView || tc.dragging || (tc.object && tc.axis)) return;
+  if (moved || state.cameraView || gizmoDragging() || gizmoHot()) return;
   if (state.mode === 'edit') { selectJoint(pickJoint(e)); return; }
   const hit = pickCompose(e);
   const add = e.shiftKey || e.ctrlKey || e.metaKey;
@@ -309,4 +339,4 @@ renderer.domElement.addEventListener('dblclick', (e) => {
 });
 
 // gizmo drags (the gizmo itself is created in scene.js)
-tc.addEventListener('objectChange', onGizmoChange);
+for (const c of [tc, rc]) c.addEventListener('objectChange', onGizmoChange);

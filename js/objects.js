@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { $, ACCENTS, DOLL_HEIGHT, state } from './state.js';
 import { scene } from './scene.js';
 import { TYPES } from './types.js';
@@ -28,12 +29,17 @@ export function nextName(base = 'doll') {
 }
 export function scaleRange(o) { return TYPES[o.type].scaleRange || [0.3, 3]; }
 export function objHeight(o) { return (TYPES[o.type].height?.(o) ?? DOLL_HEIGHT) * o.root.scale.x; }
-export function freeSpot() {
+// half the width of an object on the floor
+function footprint(root) {
+  const s = new THREE.Box3().setFromObject(root).getSize(new THREE.Vector3());
+  return Math.max(0.3, s.x / 2, s.z / 2);
+}
+export function freeSpot(root) {
   // side by side along x first (0, 1, -1, 2, -2, …), then further rows back
-  const taken = state.objects.map((o) => o.root.position);
-  for (const z of [0, -1, -2, 1]) for (let i = 0; i < 13; i++) {
+  const taken = state.objects.map((o) => ({ p: o.root.position, r: footprint(o.root) })), r = footprint(root);
+  for (const z of [0, -1, -2, -3, 1, 2]) for (let i = 0; i < 9; i++) {
     const x = i % 2 ? (i + 1) / 2 : -i / 2;
-    if (!taken.some((p) => Math.hypot(p.x - x, p.z - z) < 0.6)) return [x, 0, z];
+    if (!taken.some((t) => Math.hypot(t.p.x - x, t.p.z - z) < t.r + r)) return [x, 0, z];
   }
   return [0, 0, 0];
 }
@@ -46,7 +52,7 @@ export function addObject(type, data = {}) {
   obj.details.custom = (obj.details.custom || []).map((c) => ({ ...c }));
   if (!obj.details.name) obj.details.name = nextName(T.baseName);
   obj.meshes.forEach((m) => { m.userData.objId = obj.id; });
-  obj.root.position.set(...(data.pos || freeSpot()));
+  obj.root.position.set(...(data.pos || freeSpot(obj.root)));
   if (data.quat) obj.root.quaternion.set(...data.quat);
   obj.root.scale.setScalar(data.scale || 1);
   obj.root.userData.prevS = data.scale || 1;
