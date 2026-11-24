@@ -7,6 +7,7 @@ import { shotCam } from './camera.js';
 import { applyDim, dimmed } from './selection.js';
 import { renderOutline } from './outline.js';
 import { updateLabels } from './labels.js';
+import { updatePoseButton } from './pose-button.js';
 
 /* =====================================================================
    RENDERING
@@ -39,6 +40,7 @@ export function render() {
   const w = vp.clientWidth, h = vp.clientHeight;
   if (!w || !h) return;
   updateLabels();
+  updatePoseButton();
   renderer.setScissorTest(false);
   if (state.cameraView) {
     renderer.setViewport(0, 0, w, h);

@@ -8,7 +8,7 @@ import { PELVIS_Y, POSES } from './mannequin.js';
 import { buildImageCard, IMG_H } from './image-card.js';
 import { TYPES } from './types.js';
 import { nextName, scaleRange, uniqueName } from './objects.js';
-import { enterEdit, exitEdit, placePivot, selectMany, selectObject, selObjs, setTool, toggleInSelection, updateModeBadge } from './selection.js';
+import { exitEdit, placePivot, selectMany, selectObject, selObjs, setTool, toggleInSelection, updateModeBadge } from './selection.js';
 import { camel } from './relations.js';
 import { canStretch, scaleLimits, sizeOf } from './stretch.js';
 import { markDirty } from './prompt-panel.js';
@@ -65,7 +65,7 @@ export function startRename(li, o) {
   inp.addEventListener('blur', done);
   inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') inp.blur(); if (e.key === 'Escape') { inp.value = o.details.name; inp.blur(); } e.stopPropagation(); });
 }
-function setName(o, raw) {
+export function setName(o, raw) {
   raw = raw.trim();
   if (raw === o.details.name) return;
   const base = TYPES[o.type].baseName;
@@ -83,16 +83,9 @@ export function renderContext() {
   const sel = state.selected;
   side.hidden = !editing;
   $('#camSection').hidden = editing || sel?.kind !== 'camera';
-  $('#worldSection').hidden = editing || !!sel;   // nothing selected = editing the environment
   $('#imageSection').hidden = editing || !!sel;
   renderTools();
-  if (editing) {
-    renderEditPanel(side);
-    el.hidden = true;
-    return;
-  }
-  el.hidden = false;
-  side.innerHTML = '';
+  if (editing) renderEditPanel(side); else side.innerHTML = '';   // the object's own panel stays below it
   if (sel?.kind === 'camera') {
     el.innerHTML = `<p class="hint" style="margin-top:0">Move or rotate the camera with the gizmo or type exact values, or open <b>Camera view</b> to frame the shot by orbiting.</p>${transformHTML(sel)}`;
     bindTransformInputs(el);
@@ -106,15 +99,13 @@ export function renderContext() {
     multi.bind(el);
   } else if (sel?.kind === 'obj') {
     const o = sel.obj;
-    el.innerHTML = `${TYPES[o.type].poseable ? `<button id="btnPose" class="primary" style="width:100%;margin:2px 0 12px" title="Change the posture (Enter or double-click it)">Change posture</button>` : ''}
-      ${transformHTML(sel)}
+    el.innerHTML = `${transformHTML(sel)}
       ${o.type === 'image' ? imagePanelHTML(o) : ''}
       ${detailsHTML(o)}`;
-    el.querySelector('#btnPose')?.addEventListener('click', () => enterEdit(o));
     if (o.type === 'image') bindImagePanel(el, o);
     bindDetails(el, o);
   } else {
-    el.innerHTML = `<p class="hint" style="margin:0">Select the camera or an object in the scene list above. Drag over empty space to select several objects.</p>`;
+    el.innerHTML = `<p class="hint" style="margin:0">Select the camera or an object in the scene list above. Shift + drag over empty space to select several objects.</p>`;
     return;
   }
   bindTransformInputs(el);
@@ -289,8 +280,7 @@ export function renderWorldPanel() {
       <button data-wimg="${kind}">Replace…</button></div></div>`;
   const num = (k, v) => `<input type="number" data-wnum="${k}" min="0.5" max="40" step="0.5" value="${v}">`;
   const el = $('#worldSection');
-  el.innerHTML = `<h2>Environment</h2>
-    <h3 class="sub" style="margin-top:0">Labels</h3>
+  el.innerHTML = `<h3 class="sub" style="margin-top:0">Labels</h3>
     ${ENV_FIELDS.map((f) => `<div class="field"><label>${f.label}</label><input type="text" data-env="${f.key}" value="${esc(state.environment[f.key] || '')}" placeholder="${esc(f.placeholder || '')}"></div>`).join('')}
     <div class="field"><label>Background</label><input type="color" data-wc="background" value="${R.background}"></div>
     <div class="field"><label>Size (m)</label><div class="tfRow">
@@ -635,7 +625,7 @@ export function renderEditPanel(el) {
     <div class="row"><button id="btnResetJoint" ${state.joint ? '' : 'disabled'}>Reset ${state.joint || 'joint'}</button><button id="btnMirror">Mirror L↔R</button><button id="btnResetPose">Reset posture</button></div>
     <div class="field" style="margin-top:8px"><label>Hip height</label><input type="range" id="hipY" min="0.2" max="1.1" step="0.01" value="${o.joints.pelvis.position.y}"></div>
     <p class="hint">${state.joint ? `Rotating <b>${state.joint}</b> — drag the rings.` : 'Click a joint (orange dot) or a body part to rotate it.'}</p>
-    <p class="hint">Name and details (gender, clothing…) are in the object panel: press <b>Esc</b> to go back.</p>`;
+    <p class="hint">Press <kbd>Esc</kbd>, or click another object or empty space, to stop.</p>`;
   el.querySelectorAll('[data-pose]').forEach((b) => { b.onclick = () => applyPose(o, b.dataset.pose); });
   el.querySelector('#btnResetJoint').onclick = () => { if (state.joint) { o.joints[state.joint].rotation.set(0, 0, 0); markDirty(); } };
   el.querySelector('#btnMirror').onclick = () => mirrorPose(o);

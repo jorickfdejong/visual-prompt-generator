@@ -1,95 +1,107 @@
-/* Spotlight tour: 4 chapters, a ring around the target, a card beside it. The app stays usable underneath. */
-const CHAPTERS = ['Viewport positions', 'Adding & removing objects', 'Moving puppets', 'Adding details to puppets'];
-const $ = (s) => document.querySelector(s);
-const vpg = () => window.vpg || {};
-const st = () => vpg().state || { objects: [] };
+import { state } from './state.js';
+import { inputIcon } from './input-icons.js';
+import { editCam, orbit } from './scene.js';
+import { selObjs } from './selection.js';
+import { viewCount, viewMoving } from './views.js';
+import { detailList } from './details.js';
 
-const isPuppet = (o) => o && o.type === 'mannequin';
-const selPuppet = () => { const s = st().selected; return s && s.kind === 'obj' && isPuppet(s.obj) ? s.obj : null; };
-const anyPuppet = () => (st().objects || []).find(isPuppet) || null;
-const camKey = () => { const c = vpg().editCam; return c ? [c.position.x, c.position.y, c.position.z].map((v) => v.toFixed(3)).join() : ''; };
-const detailsKey = () => { const p = selPuppet(); try { return p ? JSON.stringify(p.details) : ''; } catch { return ''; } };
-const posKey = (o) => o && o.root ? [o.root.position.x, o.root.position.y, o.root.position.z, o.root.rotation.y, o.root.scale.x].map((v) => v.toFixed(3)).join() : '';
+/* Spotlight tour: 4 steps, a ring around the target, a card beside it. The app stays usable underneath.
+   Every step has tasks; Next only works when all of them are done. */
+const DONE_KEY = 'vpg.tutorialDone';
+const $ = (s) => document.querySelector(s);
 const easy = () => document.body.classList.contains('nav-easy');
+const kbd = (...keys) => inputIcon(keys.join(' + ')) + keys.map((k) => `<kbd>${k}</kbd>`).join(' + ');
+
+// remembers every object it has seen, so anything that happens to one of them can be noticed
+function watch(c, value) {
+  c.seen ??= new Map();
+  for (const o of state.objects) if (!c.seen.has(o.id)) c.seen.set(o.id, value(o));
+}
+const changed = (c, pick) => state.objects.some((o) => pick(o, c.seen.get(o.id)));
 
 const STEPS = [
   {
-    ch: 0, title: 'Look around',
-    text: () => easy()
-      ? 'Pick Orbit, Pan or Zoom in the bar, then drag with the left mouse button. The mouse wheel also zooms.'
-      : 'Orbit: hold the middle mouse button and drag. Pan: Shift + middle mouse drag. Zoom: mouse wheel. The buttons in the small control panel do the same.',
-    target: () => (easy() ? $('#easyBar') : $('#navWidget')) || $('#navWidget') || $('#easyBar'),
-    tryText: 'Try it: move the view.',
-    init: (c) => { c.cam = camKey(); },
-    done: (c) => camKey() !== c.cam,
+    title: 'Viewport positions', like: () => (easy() ? 'Sketchfab' : 'Blender'),
+    text: () => 'Look around the scene from every side.',
+    target: (c) => $(c.did.size === 3 && !c.did.has('view') ? '#viewBar' : '#viewport'),
+    tasks: [
+      ['orbit', () => `Orbit: ${easy() ? `${kbd('Left mouse')} drag on empty space` : `${kbd('Middle mouse')} drag`} or ${kbd('Ctrl', 'Two fingers')}`],
+      ['zoom', () => `Zoom: ${kbd('Wheel')} or ${kbd('Two fingers')}`],
+      ['pan', () => `Pan: ${easy() ? `${kbd('Right mouse')} drag` : `${kbd('Shift', 'Middle mouse')} drag`} or ${kbd('Shift', 'Two fingers')}`],
+      ['view', () => `Pick a standard view: Front, Back, Left, Right or Above (${kbd('1')} to ${kbd('5')})`],
+    ],
+    update: (c) => {
+      const view = state.mode === 'compose' && !state.cameraView && { off: editCam.position.clone().sub(orbit.target), target: orbit.target.clone() };
+      const prev = c.prev;
+      c.prev = view;
+      c.views ??= viewCount();
+      if (viewCount() > c.views) c.did.add('view');
+      if (!view || !prev || viewMoving()) return;
+      const zoom = Math.abs(Math.log(view.off.length() / prev.off.length()));
+      const turn = view.off.angleTo(prev.off);
+      const slide = view.target.distanceTo(prev.target);
+      c.zoomed = (c.zoomed || 0) + zoom;
+      c.turned = (c.turned || 0) + turn;
+      if (zoom < 1e-5 && turn < 1e-5) c.slid = (c.slid || 0) + slide;   // zooming towards the pointer also shifts the target
+      if (c.turned > 0.15) c.did.add('orbit');
+      if (c.zoomed > 0.08) c.did.add('zoom');
+      if (c.slid > 0.15) c.did.add('pan');
+    },
   },
   {
-    ch: 0, title: 'The camera preview',
-    text: () => 'The small window at the top right shows what your final image will look like. Click it to frame the shot. Use "Back to editor" to return.',
-    target: () => $('#inset'),
-    tryText: 'Try it: click the preview.',
-    init: () => {},
-    done: () => !!st().cameraView,
+    title: 'Adding & removing objects', like: () => 'PowerPoint',
+    text: () => `Made a mistake? ${kbd('Ctrl', 'Z')} undoes it.`,
+    target: (c) => (!c.did.has('add') ? ($('#addDrop').hidden ? $('#btnAdd') : $('#addDrop')) : $('#viewport')),
+    tasks: [
+      ['add', () => `Add an object: press the + button or ${kbd('A')}`],
+      ['remove', () => `Remove it: click it, then press ${kbd('Delete')}`],
+    ],
+    update: (c) => {
+      const ids = new Set(state.objects.map((o) => o.id));
+      if (c.ids && [...ids].some((id) => !c.ids.has(id))) c.did.add('add');
+      if (c.did.has('add') && c.ids && [...c.ids].some((id) => !ids.has(id))) c.did.add('remove');
+      c.ids = ids;
+    },
   },
   {
-    ch: 1, title: 'Add an object',
-    text: () => 'Press the + button (or the A key) to add a puppet, object, shape or image. Click an object in the view to select it.',
-    target: () => $('#btnAdd'),
-    tryText: 'Try it: add something.',
-    init: (c) => { c.n = (st().objects || []).length; },
-    done: (c) => (st().objects || []).length > c.n,
+    title: 'Moving objects', like: () => (easy() ? 'Tinkercad' : 'Blender'),
+    text: () => 'Drag an object to slide it over the floor, or click it to get the gizmo: arrows move it, rings turn it.',
+    target: () => $('#viewport'), needsObject: true,
+    tasks: [
+      ['move', () => `Move: ${kbd('Left mouse')} drag an object, drag an arrow or press ${kbd('← ↑ ↓ →')}`],
+      ['turn', () => 'Turn: drag a ring of the gizmo'],
+    ],
+    update: (c) => {
+      watch(c, (o) => ({ p: o.root.position.clone(), q: o.root.quaternion.clone() }));
+      if (changed(c, (o, was) => o.root.position.distanceTo(was.p) > 0.05)) c.did.add('move');
+      if (changed(c, (o, was) => o.root.quaternion.angleTo(was.q) > 0.05)) c.did.add('turn');
+    },
   },
   {
-    ch: 1, title: 'Remove and undo',
-    text: () => 'Select an object and press Delete to remove it. The list on the right shows everything in the scene. Made a mistake? Press Ctrl+Z to undo.',
-    target: () => $('#outliner'),
-    tryText: 'Try it: select an object.',
-    init: () => {},
-    done: () => { const s = st().selected; return !!s && s.kind !== 'camera'; },
-  },
-  {
-    ch: 2, title: 'Move a puppet',
-    text: () => 'Click a puppet. Arrows move it, rings turn it. The tools on the left switch between Move & rotate and Scale, which resizes it. Objects can also be stretched: pull a coloured box.',
-    target: () => $('#toolStrip'),
-    needsPuppet: true,
-    tryText: 'Try it: move or turn the puppet.',
-    init: (c) => { const p = selPuppet() || anyPuppet(); c.pos = posKey(p); c.obj = p; },
-    done: (c) => { const p = selPuppet() || c.obj; return !!p && posKey(p) !== c.pos; },
-  },
-  {
-    ch: 2, title: 'Change posture',
-    text: () => 'Press "Change posture" or double-click the puppet. Then click an orange joint and drag the rings to bend it. Presets give quick poses. Press Esc or Done to finish.',
-    target: () => (st().mode === 'edit' ? $('#editBar') : null) || $('#btnPose'),
-    needsPuppet: true,
-    tryText: 'Try it: open posture mode.',
-    init: () => {},
-    done: () => st().mode === 'edit',
-  },
-  {
-    ch: 3, title: 'Add details',
-    text: () => 'Select a puppet and open Details. Gender, clothing and the rest are optional. To add your own detail, fill in both of its fields. "Represents" says what an object is in the image.',
-    target: () => $('#context'),
-    needsPuppet: true,
-    tryText: 'Try it: change a detail.',
-    init: (c) => { c.d = detailsKey(); },
-    done: (c) => { const k = detailsKey(); return !!k && k !== c.d; },
-  },
-  {
-    ch: 3, title: 'Export',
-    text: () => 'When you are happy, press Export at the top right. You get the image and the text to use together.',
-    target: () => $('#btnExport'),
-    tryText: 'Try it: open Export.',
-    init: () => {},
-    done: () => { const m = $('#exportModal'); return !!m && !m.hidden; },
+    title: 'Adding details to objects', like: () => 'Figma',
+    text: () => 'Details show above the object and go into the prompt.',
+    target: () => (selObjs().length ? ($('#side').dataset.tab === 'scene' ? $('#context') : $('#tabScene')) : $('#viewport')), needsObject: true,
+    tasks: [
+      ['select', () => `Select an object: ${kbd('Click')} it`],
+      ['detail', () => 'Fill in a detail in the panel on the right'],
+    ],
+    update: (c) => {
+      const key = (o) => JSON.stringify(detailList(o));
+      watch(c, key);
+      if (selObjs().length) c.did.add('select');
+      if (changed(c, (o, was) => key(o) !== was && detailList(o).length)) c.did.add('detail');
+    },
   },
 ];
 
-let root = null, ring = null, card = null, els = null, idx = 0, raf = 0, ctx = {}, doneFlag = false, lastKey = '';
+let root = null, ring = null, card = null, els = null, idx = 0, raf = 0, ctx = {}, lastKey = '', required = false;
 
-export function tutorialOpen() { return !!root; }
+export function tutorialDone() { try { return !!localStorage.getItem(DONE_KEY); } catch { return true; } }
 
-export function startTutorial() {
+// required: the first time, when it cannot be closed before every step is done
+export function startTutorial(opts = {}) {
   if (root) return;
+  required = !!opts.required;
   root = document.createElement('div');
   root.id = 'tutRoot';
   ring = document.createElement('div');
@@ -99,102 +111,58 @@ export function startTutorial() {
   card.setAttribute('role', 'dialog');
   card.setAttribute('aria-modal', 'false');
   card.setAttribute('aria-labelledby', 'tutTitle');
-  card.innerHTML = `<div class="tutStep" id="tutStepLbl"></div><h3 id="tutTitle"></h3>
-    <p id="tutText" aria-live="polite"></p>
-    <p id="tutTry" class="tutTry"></p><p id="tutHint" class="tutHint" aria-live="polite"></p>
-    <div class="tutDots" id="tutDots"></div>
-    <div class="tutBtns"><button type="button" id="tutBack">Back</button><button type="button" id="tutSkip" class="tutGhost">Skip</button><button type="button" id="tutNext" class="tutPrimary">Next</button></div>`;
+  card.innerHTML = `<div class="tutTop"><span class="tutStep" id="tutStepLbl"></span><span class="simPill" id="tutLike"></span></div><h3 id="tutTitle"></h3>
+    <p id="tutText"></p><ul id="tutTasks" aria-live="polite"></ul><p id="tutHint" class="tutHint" aria-live="polite"></p>
+    <div class="tutBtns"><button type="button" id="tutClose" class="tutGhost">Close</button><button type="button" id="tutNext" class="tutPrimary">Next</button></div>`;
   root.append(ring, card);
   document.body.appendChild(root);
   els = {
-    lbl: card.querySelector('#tutStepLbl'), title: card.querySelector('#tutTitle'), text: card.querySelector('#tutText'),
-    tryEl: card.querySelector('#tutTry'), hint: card.querySelector('#tutHint'), dots: card.querySelector('#tutDots'),
-    back: card.querySelector('#tutBack'), next: card.querySelector('#tutNext'), skip: card.querySelector('#tutSkip'),
+    lbl: card.querySelector('#tutStepLbl'), like: card.querySelector('#tutLike'), title: card.querySelector('#tutTitle'), text: card.querySelector('#tutText'),
+    tasks: card.querySelector('#tutTasks'), hint: card.querySelector('#tutHint'), next: card.querySelector('#tutNext'), close: card.querySelector('#tutClose'),
   };
-  els.back.onclick = () => go(idx - 1);
   els.next.onclick = () => (idx >= STEPS.length - 1 ? endTutorial() : go(idx + 1));
-  els.skip.onclick = () => endTutorial();
-  STEPS.forEach((_, i) => {
-    const b = document.createElement('button');
-    b.type = 'button'; b.className = 'tutDot'; b.setAttribute('aria-label', 'Go to card ' + (i + 1));
-    b.onclick = () => go(i);
-    els.dots.appendChild(b);
-  });
-  window.addEventListener('keydown', onKey, true);
-  go(0, true);
+  els.close.hidden = required;
+  els.close.onclick = endTutorial;
+  go(0);
   loop();
 }
 
-export function endTutorial() {
+function endTutorial() {
   if (!root) return;
   cancelAnimationFrame(raf);
-  window.removeEventListener('keydown', onKey, true);
   root.remove();
   root = ring = card = els = null;
-  try { localStorage.setItem('vpg.tutorialDone', '1'); } catch {}
+  try { localStorage.setItem(DONE_KEY, '1'); } catch { /* not remembered */ }
 }
 
-function onKey(e) {
-  if (e.key !== 'Escape') return;
-  const t = e.target;
-  if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
-  e.stopPropagation();
-  e.preventDefault();
-  endTutorial();
-}
-
-function go(i, first) {
-  idx = Math.max(0, Math.min(STEPS.length - 1, i));
-  const s = STEPS[idx];
-  ctx = {}; doneFlag = false; lastKey = '';
-  s.init(ctx);
-  els.lbl.textContent = `Step ${s.ch + 1} of ${CHAPTERS.length} · ${CHAPTERS[s.ch]}`;
-  els.title.textContent = s.title;
-  els.text.textContent = s.text();
-  els.tryEl.textContent = '';
-  els.tryEl.classList.remove('tutOk');
-  els.back.disabled = idx === 0;
+function go(i) {
+  idx = i;
+  ctx = { did: new Set() };
+  lastKey = '';
+  els.lbl.textContent = `Step ${idx + 1} of ${STEPS.length}`;
+  els.title.textContent = STEPS[idx].title;
   els.next.textContent = idx === STEPS.length - 1 ? 'Finish' : 'Next';
-  [...els.dots.children].forEach((d, k) => {
-    d.classList.toggle('on', k === idx);
-    d.classList.toggle('same', STEPS[k].ch === s.ch);
-    if (k === idx) d.setAttribute('aria-current', 'step'); else d.removeAttribute('aria-current');
-  });
-  refreshDynamic(true);
-  els.next.focus({ preventScroll: true });
+  els.next.blur();   // Enter and Space belong to the app again
+  refresh();
 }
 
-// text / try line / hint that depend on the live app state
-function refreshDynamic(force) {
+// everything that depends on the live app state
+function refresh() {
   const s = STEPS[idx];
-  const key = [easy(), !!selPuppet(), !!anyPuppet(), doneFlag].join();
-  if (!force && key === lastKey) return;
+  const noObject = s.needsObject && !state.objects.length;
+  const key = [easy(), noObject, ...ctx.did].join();
+  if (key === lastKey) return;
   lastKey = key;
-  els.text.textContent = s.text();
-  let hint = '';
-  if (s.needsPuppet && !selPuppet()) {
-    hint = anyPuppet() ? 'Click a puppet in the view or in the list first.' : 'There is no puppet yet. Add one first with the + button.';
-  }
-  els.hint.textContent = hint;
-  els.hint.style.display = hint ? '' : 'none';
-  els.tryEl.classList.toggle('tutOk', doneFlag);
-  els.tryEl.textContent = doneFlag ? '\u2713 Done' : (s.tryText || '');
+  els.like.textContent = `Similar to ${s.like()}`;
+  els.text.innerHTML = s.text();
+  els.tasks.innerHTML = s.tasks.map(([k, label]) => `<li class="${ctx.did.has(k) ? 'done' : ''}"><i aria-hidden="true">${ctx.did.has(k) ? '✓' : ''}</i><span>${label()}</span></li>`).join('');
+  els.hint.textContent = noObject ? 'There is no object yet. Add one first with the + button.' : '';
+  els.hint.hidden = !noObject;
+  els.next.disabled = !s.tasks.every(([k]) => ctx.did.has(k));
 }
 
 function targetFor(s) {
-  let el = null;
-  if (s.needsPuppet) {
-    const p = selPuppet();
-    if (!p) {
-      // point at the puppet's list row, or at + when there is none
-      const o = anyPuppet();
-      if (o) {
-        const lis = [...document.querySelectorAll('#objectList li')];
-        el = lis[(st().objects || []).indexOf(o)] || $('#objectList');
-      } else el = $('#btnAdd');
-    }
-  }
-  if (!el) el = s.target();
+  const el = s.needsObject && !state.objects.length ? ($('#addDrop').hidden ? $('#btnAdd') : $('#addDrop')) : s.target(ctx);
   if (!el) return null;
   const r = el.getBoundingClientRect();
   if (r.width < 2 || r.height < 2 || el.closest('[hidden]')) return null;
@@ -206,8 +174,8 @@ function targetFor(s) {
 function loop() {
   if (!root) return;
   const s = STEPS[idx];
-  if (!doneFlag) { try { if (s.done(ctx)) doneFlag = true; } catch {} }
-  refreshDynamic(false);
+  s.update(ctx);
+  refresh();
   layout(targetFor(s));
   raf = requestAnimationFrame(loop);
 }

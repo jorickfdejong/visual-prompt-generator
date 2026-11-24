@@ -17,15 +17,19 @@ Double-clicking `index.html` does **not** work: the code is split into JavaScrip
 
 ## Navigation
 
-Picked on the first visit, switched with the toggle at the bottom of the view. **Easy**: pick Select (Space), Orbit (O), Pan (H) or Zoom (Z) and drag with the left mouse button; the wheel zooms towards the pointer. **Pro** (Blender-style):
+Picked on the first visit, switched with the toggle at the bottom of the view. **Easy**: left drag orbits, or slides the object under the pointer over the floor; the gizmo is the same as in Pro. Right drag pans, the wheel zooms towards the pointer, Shift + drag box-selects. **Pro** (Blender-style):
 
 | Input | Action |
 |---|---|
 | Ctrl + two fingers (trackpad) or middle mouse drag | Orbit the view (also Alt + left drag) |
 | Shift + two fingers or Shift + middle mouse drag | Pan (also right drag, or Space + left drag) |
 | Two fingers, pinch or mouse wheel | Zoom |
-| Buttons bottom-right | Orbit, pan, zoom and reset, always visible |
+| Buttons bottom-right | Orbit, pan and zoom, always visible |
 | Left click | Select / use the gizmo |
+| Left drag on an object | Slide it over the floor |
+| Arrow keys | Move the selection over the floor, 0.5 m per press (smaller steps when scaled down) |
+
+The **View** buttons (or `1` – `5`) look at the scene from the front, back, left, right or above.
 
 The same controls frame the shot in **Camera view**.
 
@@ -34,11 +38,11 @@ The same controls frame the shot in **Camera view**.
 | Area | What you do |
 |---|---|
 | **Compose mode** (default) | Arrange the space. Select a doll or the camera (in the viewport or the Objects list) and move and rotate it with one gizmo (`W`) or scale it (`K`). Add, duplicate (`Ctrl+D`), delete (`Del`), hide or rename (double-click the name) dolls. |
-| **Edit mode** | Click the **✎ Edit** button that floats above the selected doll (or double-click it / press `Enter`). The edit panel opens on the right, in place of the prompt panel. Other dolls fade out. Click a joint (orange dot) or a body part to rotate it, or use a pose preset, Mirror L↔R or Hip height. Fill in details: gender, age, race, body type, skin, hair, clothing, expression, pose, action, plus your own details. `Esc` / **Done** returns to Compose. |
+| **Edit mode** | Click the **Change posture** button under the selected doll (or double-click it / press `Enter`). The posture panel opens on the right; everything else keeps working. Other dolls fade out. Click a joint (orange dot) or a body part to rotate it, or use a pose preset, Mirror L↔R or Hip height. Fill in details: gender, age, race, body type, skin, hair, clothing, expression, pose, action, plus your own details. `Esc`, **Done** or clicking something else returns to Compose. |
 | **Shot camera** | Always visible in the top-right corner. Set focal length and aspect ratio. Click the preview (or **Camera view**) to frame the shot with the navigation controls, then take a **📸 Screenshot**. |
 | **Objects** | Puppets, pictures, wooden toys (tree, car, house) and shapes (cube, ball, cylinder, pyramid, cone). Select several to edit their shared details together; differing values show as Mixed. |
 | **Final image** | Shown when nothing is selected: the visual style of the image to generate. |
-| **Environment** | Shown when nothing is selected: labels for environment, temperature and lighting, floor, walls and shadows. |
+| **Environment** | Its own tab in the sidebar: labels for environment, temperature and lighting, floor, walls and shadows. |
 | **Export** | The button at the top of the sidebar: an editable prompt next to the camera image, with the notes, checkboxes and tuples it is made from below. |
 | **Prompt tuples** | Shows every computed tuple. Untick a line to leave it out, use a dropdown to override a relation, add your own tuples, and add scene notes. |
 | **Include in the prompt** | Checkboxes in Export that include or leave out a kind of information (size, size relationships, left / right, cameraâ€¦), in both the written prompt and the tuples. The group checkbox switches all of it. |
@@ -89,7 +93,7 @@ Fixed sentence templates, in this order: scene, objects from left to right (each
 
 ## Copying to an image generator
 
-- **Download ZIP** gives one file with `reference.png` and `prompt.txt`; add both to the generator. **Copy image** and **Copy text** copy one of them.
+- **Download image + text** gives `reference.png` and `prompt.txt` (allow multiple downloads if the browser asks); add both to the generator. **Copy image** and **Copy text** copy one of them.
 - If the browser blocks the clipboard, the files are downloaded instead (`reference.png`, `prompt.txt`).
 - To re-export an older variant's image, **Load** it and take a screenshot. **Copy** on a card copies that variant's prompt text directly.
 
@@ -124,7 +128,9 @@ Fixed sentence templates, in this order: scene, objects from left to right (each
 | `nav-mode.js` | Easy / Pro navigation |
 | `tutorial.js` | Guided tour (also from the ? panel) |
 | `details.js` | Counting and checking details |
-| `zip.js` | Zip writer |
+| `easy-drag.js` | Easy mode: drag objects, orbit |
+| `side-tabs.js` | Sidebar tabs: Scene and Environment |
+| `pose-button.js` | Change posture button under the selected puppet |
 | `main.js` | Wires up buttons, menus and shortcuts; starts the app |
 
 Scene objects go through a small **type registry** (`TYPES` in `types.js`): a new object type only needs a new registry entry. Relations, export and saving work on all objects.

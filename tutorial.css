@@ -11,21 +11,23 @@
   background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px 12px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, .5); color: var(--text); line-height: 1.45;
 }
-#tutCard .tutStep { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin-bottom: 4px; }
+#tutCard .tutTop { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+#tutCard .tutStep { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+#tutCard .simPill { align-self: center; }
 #tutCard h3 { margin: 0 0 6px; font-size: 15px; }
 #tutCard p { margin: 0 0 8px; }
-#tutCard .tutTry { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
-#tutCard .tutTry:empty { display: none; }
-#tutCard .tutTry.tutOk { color: var(--ok); font-weight: 600; }
+#tutTasks { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+#tutTasks li { display: flex; gap: 8px; align-items: flex-start; }
+#tutTasks i { flex: none; width: 17px; height: 17px; margin-top: 1px; border: 1.5px solid var(--muted); border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 11px; font-weight: 700; }
+#tutTasks li.done { color: var(--muted); }
+#tutTasks li.done i { background: var(--ok); border-color: var(--ok); color: #1d1f23; }
 #tutCard .tutHint { color: var(--accent); font-size: 12px; }
-.tutDots { display: flex; gap: 6px; margin: 4px 0 10px; }
-.tutDot { width: 8px; height: 8px; min-width: 0; padding: 0; border-radius: 50%; border: 0; background: var(--line); cursor: pointer; }
-.tutDot.same { background: var(--muted); }
-.tutDot.on { background: var(--accent); }
 .tutBtns { display: flex; gap: 8px; align-items: center; }
 .tutBtns button { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 5px 12px; cursor: pointer; }
 .tutBtns button:disabled { opacity: .4; cursor: default; }
-.tutBtns .tutGhost { background: none; border-color: transparent; color: var(--muted); margin-left: auto; }
+.tutBtns .tutGhost { background: none; border-color: transparent; color: var(--muted); }
+.tutBtns .tutPrimary:hover:not(:disabled) { background: #f5b061; border-color: #f5b061; }
+.tutBtns #tutNext { margin-left: auto; }
 .tutBtns .tutPrimary { background: var(--accent); border-color: var(--accent); color: #1d1f23; font-weight: 600; }
 #tutCard button:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { #tutRing { transition: none; } }

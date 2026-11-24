@@ -1,9 +1,8 @@
 import * as THREE from 'three';
 import { state } from './state.js';
 import { editCam, orbit, renderer, vp } from './scene.js';
-import { pilot, resetCamera, shotCam } from './camera.js';
-import { easyTool, isEasy } from './nav-mode.js';
-import { markDirty } from './prompt-panel.js';
+import { pilot, shotCam } from './camera.js';
+import { isEasy } from './nav-mode.js';
 
 /* =====================================================================
    NAVIGATION: wheel / trackpad / pinch, Space + drag, Alt + drag, and the floating camera-controls widget.
@@ -116,7 +115,6 @@ const typing = (t) => !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' 
 function setSpace(v) { space = v; vp.classList.toggle('nav-space', v); }
 window.addEventListener('keydown', (e) => {
   if (e.code !== 'Space' || typing(e.target)) return;
-  if (isEasy()) return;   // Space is the Select tool there
   if (e.target.tagName !== 'BUTTON') e.preventDefault();
   if (e.target.tagName !== 'BUTTON') setSpace(true);
 });
@@ -126,50 +124,22 @@ window.addEventListener('blur', () => setSpace(false));
 let drag = null;
 vp.addEventListener('pointerdown', (e) => {
   if (e.button !== 0 || e.target !== canvas || typing(document.activeElement)) return;
-  const tool = isEasy() ? easyTool() : 'select';
-  if (!space && !e.altKey && tool === 'select') return;
+  if (!space && !e.altKey) return;
   e.stopImmediatePropagation();
   e.preventDefault();
-  drag = { id: e.pointerId, x: e.clientX, y: e.clientY, do: space || tool === 'pan' ? 'pan' : tool === 'zoom' ? 'zoom' : 'orbit' };
+  drag = { id: e.pointerId, x: e.clientX, y: e.clientY, do: space ? 'pan' : 'orbit' };
   try { canvas.setPointerCapture(e.pointerId); } catch { /* ignore */ }
 }, true);
 window.addEventListener('pointermove', (e) => {
   if (!drag || e.pointerId !== drag.id) return;
   const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
   drag.x = e.clientX; drag.y = e.clientY;
-  if (drag.do === 'pan') panBy(dx, dy); else if (drag.do === 'zoom') zoomBy(Math.exp(dy * 0.006)); else orbitBy(dx, dy);
+  if (drag.do === 'pan') panBy(dx, dy); else orbitBy(dx, dy);
 });
 const endDrag = (e) => { if (drag && e.pointerId === drag.id) drag = null; };
 window.addEventListener('pointerup', endDrag);
 window.addEventListener('pointercancel', endDrag);
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-
-/* ---------- reset view ---------- */
-function resetView() {
-  const c = active(); if (!c) return;
-  if (c === pilot) {
-    resetCamera();
-    const dir = shotCam.getWorldDirection(new THREE.Vector3());
-    let d = 5;
-    const vis = state.objects.filter((o) => !o.hidden);
-    if (vis.length) d = THREE.MathUtils.clamp(Math.min(...vis.map((o) => o.root.position.distanceTo(shotCam.position))), 1, 30);
-    pilot.target.copy(shotCam.position).addScaledVector(dir, d);
-    pilot.update();
-    markDirty();
-    return;
-  }
-  const dir = new THREE.Vector3(5.5, 4.5 - 0.9, 8.5).normalize();
-  if (state.mode === 'edit' && state.editing) {
-    const o = state.editing, t = new THREE.Vector3();
-    o.joints.chest.getWorldPosition(t);
-    orbit.target.copy(t);
-    editCam.position.copy(t).addScaledVector(dir, 2.6 * o.root.scale.x + 0.6);
-  } else {
-    orbit.target.set(0, 0.9, 0);
-    editCam.position.set(5.5, 4.5, 8.5);
-  }
-  orbit.update();
-}
 
 /* ---------- floating widget ---------- */
 const ICONS = {
@@ -178,7 +148,6 @@ const ICONS = {
   pan: '<path d="M18 11V6a2 2 0 0 0-4 0M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>',
   minus: '<path d="M5 12h14"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
-  reset: '<path d="M4 12a8 8 0 1 0 2.34-5.66"/><path d="M4 4v5h5"/>',
 };
 const widget = document.createElement('div');
 widget.id = 'navWidget';
@@ -193,11 +162,10 @@ function mk(id, tip, key, icon) {
   return b;
 }
 mk('btnNames', 'Show object names', 'N', 'names').setAttribute('aria-pressed', 'false');   // wired in main.js, kept in step by labels.js
-const bRot = mk('navRotate', 'Orbit', 'Drag this button\nMiddle mouse drag\nAlt + left drag\nCtrl + two fingers', 'rotate');
-const bPan = mk('navPan', 'Pan', 'Drag this button\nShift + middle mouse drag\nRight drag\nSpace + left drag\nShift + two fingers', 'pan');
-const bOut = mk('navZoomOut', 'Zoom out', 'Hold this button\nMouse wheel down\nTwo fingers or pinch', 'minus');
-const bIn = mk('navZoomIn', 'Zoom in', 'Hold this button\nMouse wheel up\nTwo fingers or pinch', 'plus');
-const bReset = mk('navReset', 'Reset view', '', 'reset');
+const bRot = mk('navRotate', 'Orbit', 'Middle mouse drag\nCtrl + Two fingers', 'rotate');
+const bPan = mk('navPan', 'Pan', 'Shift + Middle mouse drag\nShift + Two fingers', 'pan');
+const bOut = mk('navZoomOut', 'Zoom out', 'Mouse wheel\nTwo fingers', 'minus');
+const bIn = mk('navZoomIn', 'Zoom in', 'Mouse wheel\nTwo fingers', 'plus');
 vp.appendChild(widget);
 widget.addEventListener('contextmenu', (e) => e.preventDefault());
 
@@ -238,4 +206,3 @@ function holdRepeat(btn, factor) {
 }
 holdRepeat(bOut, 1.06);
 holdRepeat(bIn, 1 / 1.06);
-bReset.addEventListener('click', resetView);

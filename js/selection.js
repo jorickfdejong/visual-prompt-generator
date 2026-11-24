@@ -1,12 +1,14 @@
 import * as THREE from 'three';
 import { $, state } from './state.js';
-import { attachGizmo, detachGizmo, editCam, floor, gizmoDragging, gizmoHot, orbit, raycaster, rc, renderer, scene, showStretch, tc, vp } from './scene.js';
+import { attachGizmo, detachGizmo, editCam, floor, gizmoDragging, gizmoHot, orbit, raycaster, rc, renderer, scene, setGizmoBlocker, showStretch, tc, vp } from './scene.js';
 import { grid } from './room.js';
 import { camModel, shotCam } from './camera.js';
 import { TYPES } from './types.js';
 import { scaleRange } from './objects.js';
 import { canStretch, scaleLimits } from './stretch.js';
 import { esc, renderContext, renderObjectList, syncTransformInputs } from './left-panel.js';
+import { showTab } from './side-tabs.js';
+import { inputIcon } from './input-icons.js';
 import { markDirty } from './prompt-panel.js';
 
 /* =====================================================================
@@ -23,8 +25,7 @@ export function applyDim(on) {
 // point the gizmo at whatever is selected: move + rotate together, or scale
 export function updateGizmo() {
   if (state.cameraView) { detachGizmo(); return; }
-  if (state.mode === 'edit') {
-    if (!state.joint) { detachGizmo(); return; }
+  if (state.mode === 'edit' && state.joint) {
     rc.setSpace('local');
     attachGizmo(state.editing.joints[state.joint], { move: false });
     return;
@@ -74,8 +75,8 @@ export function placePivot() {
   pivot.updateMatrixWorld(true);
 }
 export function selectMany(objs) {
-  if (state.mode === 'edit') return;
   objs = [...new Set(objs)].filter((o) => !o.hidden && state.objects.includes(o));
+  if (state.mode === 'edit' && !(objs.length === 1 && objs[0] === state.editing)) exitEdit({ restoreView: false });
   if (!objs.length) { deselect(); return; }
   if (objs.length === 1) { selectObject(objs[0]); return; }
   state.selected = { kind: 'multi', objs };
@@ -142,7 +143,10 @@ export function applyGroupTransform() {
   }
 }
 export function selectObject(o) {
-  if (state.mode === 'edit') return;
+  if (state.mode === 'edit') {
+    if (o === state.editing) return;
+    exitEdit({ restoreView: false });   // no jump of the view while clicking another object
+  }
   state.selected = { kind: 'obj', obj: o };
   updateGizmo();
   renderObjectList(); renderContext();
@@ -154,6 +158,7 @@ export function selectCamera() {
   renderObjectList(); renderContext();
 }
 export function deselect() {
+  if (state.mode === 'edit') exitEdit();
   state.selected = null;
   detachGizmo();
   renderObjectList(); renderContext();
@@ -162,12 +167,14 @@ export let overviewView = null;   // editor camera before entering edit mode
 export function setOverviewView(v) { overviewView = v; }
 export function enterEdit(o) {
   if (!o || o.hidden || !TYPES[o.type].poseable) return;
+  if (state.editing === o) return;
   if (state.mode === 'edit') exitEdit();
   state.selected = { kind: 'obj', obj: o };
   state.mode = 'edit';
   state.editing = o;
+  showTab('scene');
   state.joint = null;
-  detachGizmo();
+  updateGizmo();
   o.handles.forEach((h) => { h.visible = true; });
   applyDim(true);
   overviewView = { pos: editCam.position.clone(), target: orbit.target.clone() };   // restored on exit
@@ -178,12 +185,13 @@ export function enterEdit(o) {
   editCam.position.copy(c).add(offset);
   updateModeBadge(); renderObjectList(); renderContext();
 }
-export function exitEdit() {
+export function exitEdit({ restoreView = true } = {}) {
   const o = state.editing;
   if (!o) return;
   o.handles.forEach((h) => { h.visible = false; h.material.color.set('#ff9f43'); });
   applyDim(false);
-  if (overviewView) { editCam.position.copy(overviewView.pos); orbit.target.copy(overviewView.target); orbit.update(); overviewView = null; }
+  if (overviewView && restoreView) { editCam.position.copy(overviewView.pos); orbit.target.copy(overviewView.target); orbit.update(); }
+  overviewView = null;
   state.mode = 'compose';
   state.editing = null;
   state.joint = null;
@@ -200,6 +208,7 @@ export function selectJoint(name) {
 }
 export function setTool(t) {
   state.tool = t;
+  if (state.joint) selectJoint(null);   // editing a posture: back to the whole puppet
   updateGizmo();
   renderContext();
 }
@@ -208,22 +217,26 @@ export function updateModeBadge() {
   renderHelp();
 }
 
-const EASY_KEYS = [['Space', 'Select tool'], ['O', 'Orbit tool: drag to look around'], ['H', 'Pan tool: drag to slide the view'], ['Z', 'Zoom tool: drag up or down'], ['Wheel', 'zoom towards the pointer'], ['Middle mouse', 'orbit (Shift: pan)']];
+const TRACKPAD_KEYS = [['Two fingers', 'zoom'], ['Ctrl + Two fingers', 'orbit'], ['Shift + Two fingers', 'pan']];
+const EASY_KEYS = [['Left mouse', 'drag on empty space: orbit'], ['Right mouse', 'drag: pan'], ['Wheel', 'zoom'], ...TRACKPAD_KEYS];
+const PRO_KEYS = [['Middle mouse', 'drag: orbit'], ['Shift + Middle mouse', 'drag: pan'], ['Wheel', 'zoom'], ...TRACKPAD_KEYS];
 /* Help: a "?" button in the viewport corner that opens the shortcuts and an explanation for the current mode */
 export function renderHelp() {
-  const rows = (list) => `<dl>${list.map(([k, t]) => `<dt>${k.split(' + ').map((x) => `<kbd>${x}</kbd>`).join(' + ')}</dt><dd>${t}</dd>`).join('')}</dl>`;
-  const nav = rows(document.body.classList.contains('nav-easy') ? EASY_KEYS : [['Two fingers', 'zoom (trackpad, or pinch)'], ['Shift + Two fingers', 'pan (trackpad)'], ['Ctrl + Two fingers', 'orbit (trackpad)'], ['Middle mouse', 'orbit (also Alt + left drag)'], ['Shift + Middle mouse', 'pan (also right drag, or Space + left drag)'], ['Wheel', 'zoom']]);
+  const easy = document.body.classList.contains('nav-easy');
+  const rows = (list) => `<dl>${list.map(([k, t]) => `<dt>${inputIcon(k)}${k.split(' + ').map((x) => `<kbd>${x}</kbd>`).join(' + ')}</dt><dd>${t}</dd>`).join('')}</dl>`;
+  const nav = rows(easy ? EASY_KEYS : PRO_KEYS);
   const html = state.mode === 'edit'
     ? `<h3>Edit mode — ${esc(state.editing.details.name)}</h3>
-       <p>Change the posture: click a joint (orange dot) or a body part and drag the rings to rotate it, or pick a preset. Name and details are edited in the object panel when you select it.</p>
-       <h4>Keys</h4>${rows([['Click', 'select a joint'], ['Ctrl + Z', 'undo'], ['Ctrl + Y', 'redo'], ['Esc', 'deselect the joint, press again to finish']])}
+       <p>Change the posture: click a joint (orange dot) or a body part and drag the rings to rotate it, or pick a preset. Everything else keeps working; click another object or empty space to stop.</p>
+       <h4>Keys</h4>${rows([['Click', 'select a joint; anything else: stop editing'], ['Ctrl + Z', 'undo'], ['Ctrl + Y', 'redo'], ['Esc', 'deselect the joint, press again to finish']])}
        <h4>View</h4>${nav}`
     : `<h3>Compose mode</h3>
        <button id="btnTutorial">Start the tutorial</button>
        <p>Arrange the objects and the shot camera. Spatial relations (left of, in front of, between…) are read from the camera's point of view on the grid and become prompt tuples in the Export window. Nothing is decided for you: every tuple can be switched off or overridden.</p>
-       <p>With nothing selected the panel on the right edits the final image (visual style) and the environment: labels, background, floor and walls. Select an object or the camera to edit it, or type exact values.</p>
-       <h4>Selecting</h4>${rows([['Click', 'select an object or the camera'], ['Drag', 'box-select on empty space'], ['Shift + Click', 'add to the selection'], ['Ctrl + Click', 'toggle one object'], ['Ctrl + A', 'select all objects'], ['Esc', 'deselect']])}
-       <h4>Transform</h4>${rows([['W', 'move and rotate (also R): drag an arrow, a ring, or the centre dot to slide over the floor'], ['K', 'scale: the orange handle keeps the proportions, a coloured box stretches one side'], ['Drag X / Y / Z', 'in the panel to scrub a value (Shift = finer)']])}
+       <p>With nothing selected the panel on the right edits the final image (visual style). The Environment tab edits the labels, background, floor and walls. Select an object or the camera to edit it, or type exact values.</p>
+       <h4>Selecting</h4>${rows([['Click', 'select an object or the camera; a name above an object: change it'], [easy ? 'Shift + Drag' : 'Drag', 'box-select on empty space'], ['Shift + Click', 'add to the selection'], ['Ctrl + Click', 'toggle one object'], ['Ctrl + A', 'select all objects'], ['Esc', 'deselect']])}
+       <h4>Transform</h4>${rows([['W', 'move and rotate (also R): drag an arrow or a ring'], ['Drag', 'an object to slide it over the floor'], ['← ↑ ↓ →', 'move over the floor, 0.5 m per press (smaller steps when scaled down)'], ['K', 'scale: the orange handle keeps the proportions, a coloured box stretches one side'], ['Drag X / Y / Z', 'in the panel to scrub a value (Shift = finer)']])}
+       <h4>Standard views</h4>${rows([['1', 'front'], ['2', 'back'], ['3', 'left'], ['4', 'right'], ['5', 'above']])}
        <h4>Objects</h4>${rows([['A', 'open the add menu'], ['N', 'show or hide object names'], ['Enter', 'change the posture of a puppet (also double-click)'], ['Ctrl + C', 'copy'], ['Ctrl + X', 'cut'], ['Ctrl + V', 'paste'], ['Ctrl + D', 'duplicate'], ['Del', 'delete']])}
        <h4>History</h4>${rows([['Ctrl + Z', 'undo'], ['Ctrl + Y', 'redo (also Ctrl + Shift + Z)']])}
        <h4>View</h4>${nav}
@@ -277,17 +290,26 @@ export function pickCompose(e) {
   const targets = state.objects.filter((o) => !o.hidden).flatMap((o) => o.meshes).concat(camModel.children);
   const hit = raycaster.intersectObjects(targets, false)[0];
   if (!hit) return null;
-  if (hit.object.userData.isCamera) return { camera: true };
-  return { obj: state.objects.find((o) => o.id === hit.object.userData.objId) };
+  if (hit.object.userData.isCamera) return { camera: true, point: hit.point };
+  return { point: hit.point, obj: state.objects.find((o) => o.id === hit.object.userData.objId) };
+}
+// the joint dot under the pointer (they are drawn on top of everything)
+export function pickHandle(e) {
+  rayFrom(e);
+  return raycaster.intersectObjects(state.editing.handles, false)[0]?.object.userData.handle || null;
 }
 export function pickJoint(e) {
-  rayFrom(e);
+  const h = pickHandle(e);
+  if (h) return h;
   const o = state.editing;
-  const h = raycaster.intersectObjects(o.handles, false)[0];
-  if (h) return h.object.userData.handle;
   const m = raycaster.intersectObjects(o.meshes, false)[0];
   return m ? m.object.userData.joint : null;
 }
+// in edit mode the joint dots lie on top of the gizmo: they win
+let lastMove = null;
+renderer.domElement.addEventListener('pointermove', (e) => { lastMove = e; }, true);
+renderer.domElement.addEventListener('pointerdown', (e) => { lastMove = e; }, true);
+setGizmoBlocker(() => state.mode === 'edit' && !state.joint && !!lastMove && !!pickHandle(lastMove));
 export let downPos = null;
 // Box select (Compose mode): left-drag on empty space draws a rectangle; every doll it touches gets selected.
 // Shift adds to the current selection (drag or click), Ctrl/Cmd-click toggles one doll.
@@ -298,8 +320,9 @@ vp.appendChild(boxEl);
 renderer.domElement.addEventListener('pointerdown', (e) => {
   downPos = [e.clientX, e.clientY];
   box = null;
-  if (e.button !== 0 || state.cameraView || state.mode !== 'compose' || gizmoHot()) return;
-  if (pickCompose(e)) return;   // starting on a doll or the camera = a click, not a box
+  if (e.button !== 0 || state.cameraView || gizmoHot()) return;
+  if (document.body.classList.contains('nav-easy') && !e.shiftKey) return;   // dragging orbits there
+  if ((state.mode === 'edit' && pickHandle(e)) || pickCompose(e)) return;   // starting on a doll or the camera = a click, not a box
   box = { x0: e.clientX, y0: e.clientY, add: e.shiftKey };
 });
 window.addEventListener('pointermove', (e) => {
@@ -340,8 +363,9 @@ renderer.domElement.addEventListener('pointerup', (e) => {
   if (!downPos || e.button !== 0) return;
   const moved = Math.hypot(e.clientX - downPos[0], e.clientY - downPos[1]) > 4;
   downPos = null;
-  if (moved || state.cameraView || gizmoDragging() || gizmoHot()) return;
-  if (state.mode === 'edit') { selectJoint(pickJoint(e)); return; }
+  if (moved || e.onName || state.cameraView || gizmoDragging() || gizmoHot()) return;
+  const joint = state.mode === 'edit' && pickJoint(e);
+  if (joint) { selectJoint(joint); return; }   // anything else leaves edit mode
   const hit = pickCompose(e);
   const add = e.shiftKey || e.ctrlKey || e.metaKey;
   if (!hit) { if (!add) deselect(); }
@@ -350,9 +374,13 @@ renderer.domElement.addEventListener('pointerup', (e) => {
   else selectObject(hit.obj);
 });
 renderer.domElement.addEventListener('dblclick', (e) => {
-  if (state.cameraView || state.mode === 'edit') return;
+  if (state.cameraView) return;
+  if (state.mode === 'edit' && pickJoint(e)) return;
   const hit = pickCompose(e);
-  if (hit?.obj) enterEdit(hit.obj);
+  // the gizmo covers much of a selected puppet: near it counts as on it
+  const sel = !hit && state.selected?.kind === 'obj' && state.selected.obj;
+  const near = sel && objsInBox(e.clientX, e.clientY, e.clientX, e.clientY).includes(sel) ? sel : null;
+  if (hit?.obj || near) enterEdit(hit?.obj || near);
 });
 
 // gizmo drags (the gizmo itself is created in scene.js)

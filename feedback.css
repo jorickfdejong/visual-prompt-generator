@@ -22,30 +22,76 @@
 .modalBox footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--line); }
 @media (max-width: 760px) { .exportTop { grid-template-columns: 1fr; } .modalBox footer .hint { display: none; } }
 
+/* tooltips (js/tooltips.js): placed by the button groups in styles.css */
+.tip { z-index: 5; font-weight: 400; cursor: default; }
+#toolStrip .tipKey { margin-left: 8px; }
+#navWidget .tip > span { display: block; }
+#navWidget .tipKey { margin-top: 4px; }
+#navWidget #navZoomIn .tip { top: auto; bottom: 0; transform: none; }
+#btnHelp { position: relative; }
+#btnHelp .tip { position: absolute; left: 0; bottom: calc(100% + 8px); white-space: pre; padding: 4px 8px; border-radius: 6px; font-size: 12px; color: var(--text);
+  background: #111316; border: 1px solid var(--line); pointer-events: none; opacity: 0; transition: opacity .12s; }
+#btnHelp:hover .tip { opacity: 1; }
+#btnHelp[aria-expanded="true"] .tip { display: none; }
+#btnHelp .tipKey { margin-left: 8px; }
+
+/* standard views (js/views.js): bottom right, under the camera controls */
+#viewBar { position: absolute; right: 10px; bottom: 10px; z-index: 4; height: 32px; display: flex; align-items: center; padding: 0 3px;
+  background: rgba(29,31,35,.92); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 4px 14px rgba(0,0,0,.3); font-size: 11px; }
+#viewBar button.active { background: var(--panel-2); border-color: var(--accent); color: var(--accent); }
+#viewport { container: viewport / inline-size; }
+body:not(.camview) #navWidget { bottom: 48px; }
+/* no room beside the Easy / Pro toggle: one row higher */
+@container viewport (max-width: 480px) { #viewBar { bottom: 48px; } body:not(.camview) #navWidget { bottom: 86px; } }
+#viewBar button { position: relative; padding: 2px 7px; border-radius: 12px; background: none; border-color: transparent; font-size: 11px; }
+#viewBar .tip { position: absolute; right: 0; bottom: calc(100% + 10px); white-space: pre; padding: 4px 8px; border-radius: 6px; font-size: 12px; color: var(--text);
+  background: #111316; border: 1px solid var(--line); pointer-events: none; opacity: 0; transition: opacity .12s; }
+#viewBar button:hover .tip { opacity: 1; }
+#viewBar .tipKey { margin-left: 8px; }
+body.camview #viewBar { display: none; }
+body.camview #camHint { padding: 0 64px; line-height: 1.9; }
+
+/* mouse / trackpad icons (js/input-icons.js) */
+#viewport svg.inIcon, svg.inIcon { display: inline-block; width: 16px; height: 16px; margin-right: 4px; vertical-align: -3px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+#viewport #navWidget svg.inIcon { width: 16px; height: 16px; }
+svg.inIcon .on { fill: var(--accent); stroke: none; }
+
 /* hover */
-#viewport canvas.hovering { cursor: pointer; }
+#viewport canvas.hovering { cursor: grab; }
 #nameLayer div.hover { background: #fff; color: #1d1f23; z-index: 1; }
 
 /* navigation mode */
-#easyBar { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 4; display: none; gap: 2px; padding: 4px;
-  background: rgba(29,31,35,.94); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
-body.nav-easy #easyBar { display: flex; }
-#easyBar button { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 58px; padding: 6px 0 4px; font-size: 11px; background: none; border-color: transparent; }
-#easyBar button:hover { background: var(--panel-2); }
-#easyBar button.active { background: #3a332a; border-color: var(--accent); color: var(--accent); }
-#easyBar svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-body.nav-easy #navRotate, body.nav-easy #navPan, body.nav-easy #navZoomOut, body.nav-easy #navZoomIn { display: none; }
-body.nav-easy #editBar { bottom: 76px; }
-#viewport.easy-orbit canvas, #viewport.easy-pan canvas { cursor: grab; }
-#viewport.easy-zoom canvas { cursor: ns-resize; }
+body.nav-easy #navRotate, body.nav-easy #navPan, body.nav-easy #navZoomOut, body.nav-easy #navZoomIn { display: none !important; }
+/* easy mode pointer: orbit, unless it is over something */
+body.nav-easy #viewport canvas { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cg stroke='white' stroke-width='4'%3E%3Cpath d='M20 12a8 8 0 1 1-2.34-5.66'/%3E%3Cpath d='M20 4v5h-5'/%3E%3Ccircle cx='12' cy='12' r='1.6'/%3E%3C/g%3E%3Cg stroke='%231d1f23' stroke-width='2'%3E%3Cpath d='M20 12a8 8 0 1 1-2.34-5.66'/%3E%3Cpath d='M20 4v5h-5'/%3E%3Ccircle cx='12' cy='12' r='1.6'/%3E%3C/g%3E%3C/svg%3E") 14 14, all-scroll; }
+body.nav-easy #viewport canvas.hovering { cursor: grab; }
+#viewport canvas.joint, #viewport canvas.gizmo-hot, body.nav-easy #viewport canvas.joint, body.nav-easy #viewport canvas.gizmo-hot { cursor: pointer; }
+body.dragging-obj #viewport canvas { cursor: grabbing !important; }
+body.nav-easy #viewport.nav-space canvas { cursor: grab; }
+
+/* name and details of the selected object */
+#nameLayer div.sel { display: flex; flex-direction: column; gap: 1px; padding: 4px 9px; background: rgba(29,31,35,.92); z-index: 2; font-weight: 400; line-height: 1.4; }
+#nameLayer div.sel[hidden] { display: none; }
+#nameLayer div.sel b { text-align: center; font-size: 12px; }
+#nameLayer div.sel span { max-width: 240px; overflow: hidden; text-overflow: ellipsis; color: #cfd3d8; }
+
+#nameLayer div.sel input { width: 150px; padding: 2px 6px; pointer-events: auto; text-align: center; font-weight: 600; border-color: var(--accent); }
+
+/* change posture: big pill under the selected puppet */
+#btnPose { position: absolute; left: 0; top: 0; z-index: 3; display: flex; align-items: center; height: 36px; padding: 0 14px;
+  border-radius: 18px; background: var(--accent); border: 1.5px solid #fff; color: #1d1f23; font-size: 12px; font-weight: 700; box-shadow: 0 4px 12px rgba(0,0,0,.35); }
+#btnPose[hidden] { display: none; }
+#btnPose:hover:not(:disabled) { background: #f5b061; border-color: #fff; }
+
+.simPill { align-self: flex-start; display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 11px; font-style: normal; font-weight: 600;
+  color: var(--accent-2); background: rgba(75,163,240,.14); border: 1px solid rgba(75,163,240,.5); }
+.navAskOpts button kbd { color: #1d1f23; }
 #navMode { position: absolute; left: 52px; bottom: 10px; z-index: 4; height: 32px; display: flex; align-items: center; gap: 2px; padding: 0 3px 0 10px;
   background: rgba(29,31,35,.92); border: 1px solid var(--line); border-radius: 16px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
-#navMode span { color: var(--muted); margin-right: 6px; }
+#navMode svg { width: 20px; height: 20px; margin-right: 6px; color: var(--muted); fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 #navMode button { padding: 2px 10px; border-radius: 12px; background: none; border-color: transparent; }
 #navMode button.active { background: var(--panel-2); border-color: var(--accent); }
 body.camview #navMode { left: 10px; }
-/* too narrow for the toggle and the bar next to each other */
-@media (max-width: 1100px) { #navMode span { display: none; } #navMode { padding-left: 3px; } body.nav-easy #navMode { bottom: 50px; left: 10px; } body.nav-easy.camview #navMode { bottom: 76px; } }
 #help { z-index: 6; }
 #btnTutorial { margin: 0 0 8px; }
 #navAsk { position: fixed; inset: 0; z-index: 16; display: grid; place-items: center; padding: 24px; background: rgba(0,0,0,.6); }
@@ -58,3 +104,21 @@ body.camview #navMode { left: 10px; }
 .navAskOpts button span { color: var(--muted); }
 .navAskOpts button:focus-visible { outline: 2px solid var(--accent); }
 @media (max-width: 520px) { .navAskOpts { grid-template-columns: 1fr; } }
+
+/* single-select toggles (Easy / Pro, standard views): equal segments in one track, the chosen one filled */
+#navMode, #viewBar { gap: 0; padding: 2px; border-radius: 9px; box-sizing: border-box; background: #111316; }
+#navMode svg, #viewBar svg { margin: 0 8px; }
+#viewBar svg { flex: none; width: 18px; height: 18px; color: var(--muted); fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+#navMode button, #viewBar button { height: 100%; padding: 0 10px; border: 0; border-radius: 7px; background: none; color: var(--muted); font-weight: 600; transition: background .15s, color .15s; }
+#viewBar button { min-width: 44px; padding: 0 5px; }
+#navMode button { min-width: 46px; }
+#viewBar button + button::before, #navMode button + button::before { content: ""; position: absolute; left: 0; top: 25%; height: 50%; width: 1px; background: var(--line); }
+#navMode button { position: relative; }
+#viewBar button.active::before, #viewBar button.active + button::before, #navMode button.active::before, #navMode button.active + button::before { display: none; }
+#navMode button:hover, #viewBar button:hover { color: var(--text); background: rgba(255,255,255,.07); }
+#navMode button.active, #viewBar button.active { background: var(--accent); color: #1d1f23; }
+#navMode button:focus-visible, #viewBar button:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 1px; }
+
+/* clicking a name on the canvas edits it */
+#viewport canvas.over-name, body.nav-easy #viewport canvas.over-name { cursor: text; }
+body.panning #viewport canvas { cursor: move !important; }

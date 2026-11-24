@@ -8,6 +8,7 @@ import { exportText } from './relations.js';
 import { naturalText, renderNatural } from './natural.js';
 import { renderWarnings } from './consistency.js';
 import { fixedLines } from './prompt-rules.js';
+import { showTab } from './side-tabs.js';
 import { markDirty } from './prompt-panel.js';
 
 /* =====================================================================
@@ -69,6 +70,7 @@ export function goTo(target) {
     orbit.target.copy(c);
   } else deselect();
   $('#btnExport').blur();
+  showTab(target.kind === 'environment' ? 'env' : 'scene');
   (target.kind === 'finalImage' ? $('#imageSection') : target.kind === 'environment' ? $('#worldSection') : target.kind === 'camera' ? $('#camSection') : $('#context')).scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
 document.addEventListener('vpg:goto', (e) => goTo(e.detail));

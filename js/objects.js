@@ -30,21 +30,6 @@ export function nextName(base = 'doll') {
 }
 export function scaleRange(o) { return TYPES[o.type].scaleRange || [0.3, 3]; }
 export function objHeight(o) { return (TYPES[o.type].height?.(o) ?? DOLL_HEIGHT) * o.root.scale.y; }
-// half the width of an object on the floor
-function footprint(root) {
-  const s = new THREE.Box3().setFromObject(root).getSize(new THREE.Vector3());
-  return Math.max(0.3, s.x / 2, s.z / 2);
-}
-export function freeSpot(root) {
-  // side by side along x first (0, 1, -1, 2, -2, …), then further rows back
-  const taken = state.objects.map((o) => ({ p: o.root.position, r: footprint(o.root) })), r = footprint(root);
-  for (const z of [0, -1, -2, -3, 1, 2]) for (let i = 0; i < 9; i++) {
-    const x = i % 2 ? (i + 1) / 2 : -i / 2;
-    if (!taken.some((t) => Math.hypot(t.p.x - x, t.p.z - z) < t.r + r)) return [x, 0, z];
-  }
-  return [0, 0, 0];
-}
-
 export function addObject(type, data = {}) {
   const T = TYPES[type];
   const accent = data.accent || ACCENTS[state.objects.length % ACCENTS.length];
@@ -53,7 +38,7 @@ export function addObject(type, data = {}) {
   obj.details.custom = (obj.details.custom || []).map((c) => ({ ...c }));
   if (!obj.details.name) obj.details.name = nextName(T.baseName);
   obj.meshes.forEach((m) => { m.userData.objId = obj.id; });
-  obj.root.position.set(...(data.pos || freeSpot(obj.root)));
+  obj.root.position.set(...(data.pos || [0, 0, 0]));
   if (data.quat) obj.root.quaternion.set(...data.quat);
   if (Array.isArray(data.scale)) obj.root.scale.fromArray(data.scale); else obj.root.scale.setScalar(data.scale || 1);
   obj.root.visible = !obj.hidden;
