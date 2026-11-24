@@ -22,14 +22,30 @@ export function applyDim(on) {
     for (const m of o.mats) { m.opacity = dim ? 0.15 : 1; m.depthWrite = !dim; }
   }
 }
+const easyNav = () => document.body.classList.contains('nav-easy');
+// joint dots: Pro has one per joint, Easy the ones that can be pulled. The active one is white.
+let activeDot = null;
+function showHandles() {
+  const o = state.editing;
+  if (!o) return;
+  const key = easyNav() ? 'pulls' : 'handle', mine = (h) => !!state.joint && h.userData[key] === state.joint;
+  const on = activeDot && o.handles.includes(activeDot) && mine(activeDot) ? activeDot : o.handles.find(mine);
+  o.handles.forEach((h) => { h.visible = !!h.userData[key]; h.material.color.set(h === on ? '#ffffff' : '#ff9f43'); });
+}
+// the navigation mode changed
+export function refreshPosing() {
+  if (state.mode !== 'edit') return;
+  showHandles(); updateGizmo(); renderContext();
+}
 // point the gizmo at whatever is selected: move + rotate together, or scale
 export function updateGizmo() {
   if (state.cameraView) { detachGizmo(); return; }
-  if (state.mode === 'edit' && state.joint) {
+  if (state.mode === 'edit' && state.joint && !easyNav()) {   // in Easy, limbs are pulled (pull-limb.js)
     rc.setSpace('local');
     attachGizmo(state.editing.joints[state.joint], { move: false });
     return;
   }
+  if (state.mode === 'edit') { detachGizmo(); return; }   // posing: only a joint gets rings
   const camera = state.selected?.kind === 'camera';
   if (camera) state.tool = 'transform';   // the camera cannot be scaled
   const scaling = state.tool === 'scale';
@@ -175,7 +191,7 @@ export function enterEdit(o) {
   showTab('scene');
   state.joint = null;
   updateGizmo();
-  o.handles.forEach((h) => { h.visible = true; });
+  showHandles();
   applyDim(true);
   overviewView = { pos: editCam.position.clone(), target: orbit.target.clone() };   // restored on exit
   const c = new THREE.Vector3();
@@ -199,10 +215,10 @@ export function exitEdit({ restoreView = true } = {}) {
   updateModeBadge();
   selectObject(o);
 }
-export function selectJoint(name) {
-  const o = state.editing;
+export function selectJoint(name, dot = null) {
   state.joint = name;
-  o.handles.forEach((h) => h.material.color.set(h.userData.handle === name ? '#ffffff' : '#ff9f43'));
+  activeDot = dot;
+  showHandles();
   updateGizmo();
   renderContext();
 }
@@ -227,8 +243,8 @@ export function renderHelp() {
   const nav = rows(easy ? EASY_KEYS : PRO_KEYS);
   const html = state.mode === 'edit'
     ? `<h3>Edit mode — ${esc(state.editing.details.name)}</h3>
-       <p>Change the posture: click a joint (orange dot) or a body part and drag the rings to rotate it, or pick a preset. Everything else keeps working; click another object or empty space to stop.</p>
-       <h4>Keys</h4>${rows([['Click', 'select a joint; anything else: stop editing'], ['Ctrl + Z', 'undo'], ['Ctrl + Y', 'redo'], ['Esc', 'deselect the joint, press again to finish']])}
+       <p>Change the posture: ${easy ? 'pull an orange dot or a body part' : 'click a joint (orange dot) or a body part and drag the rings to rotate it'}, or pick a preset. Everything else keeps working; click another object or empty space to stop.</p>
+       <h4>Keys</h4>${rows([...(easy ? [['Drag', 'a dot to turn what it hangs from (the elbow swings the upper arm), or a body part']] : []), ['Click', 'select a joint; anything else: stop editing'], ['Ctrl + Z', 'undo'], ['Ctrl + Y', 'redo'], ['Esc', 'deselect the joint, press again to finish']])}
        <h4>View</h4>${nav}`
     : `<h3>Compose mode</h3>
        <button id="btnTutorial">Start the tutorial</button>
@@ -293,10 +309,13 @@ export function pickCompose(e) {
   if (hit.object.userData.isCamera) return { camera: true, point: hit.point };
   return { point: hit.point, obj: state.objects.find((o) => o.id === hit.object.userData.objId) };
 }
-// the joint dot under the pointer (they are drawn on top of everything)
-export function pickHandle(e) {
+// the joint dot under the pointer (they are drawn on top of everything), and the joint it turns
+export function pickDot(e) {
   rayFrom(e);
-  return raycaster.intersectObjects(state.editing.handles, false)[0]?.object.userData.handle || null;
+  return raycaster.intersectObjects(state.editing.handles.filter((h) => h.visible), false)[0]?.object || null;
+}
+export function pickHandle(e) {
+  return pickDot(e)?.userData[easyNav() ? 'pulls' : 'handle'] || null;
 }
 export function pickJoint(e) {
   const h = pickHandle(e);

@@ -11,7 +11,7 @@ import { renderObjectList } from './left-panel.js';
 import { closeExport, editPrompt, exportOpen, openExport, promptText, resetPrompt } from './export-modal.js';
 import { startNaming, toggleNames } from './labels.js';
 import './nav.js';
-import './easy-drag.js';
+import './easy-drag.js'; import './pull-limb.js';
 import './arrow-keys.js'; import './views.js';
 import './tooltips.js';
 import { showTab } from './side-tabs.js';

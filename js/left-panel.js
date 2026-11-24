@@ -624,7 +624,7 @@ export function renderEditPanel(el) {
     <div class="presetGrid">${presets}</div>
     <div class="row"><button id="btnResetJoint" ${state.joint ? '' : 'disabled'}>Reset ${state.joint || 'joint'}</button><button id="btnMirror">Mirror L↔R</button><button id="btnResetPose">Reset posture</button></div>
     <div class="field" style="margin-top:8px"><label>Hip height</label><input type="range" id="hipY" min="0.2" max="1.1" step="0.01" value="${o.joints.pelvis.position.y}"></div>
-    <p class="hint">${state.joint ? `Rotating <b>${state.joint}</b> — drag the rings.` : 'Click a joint (orange dot) or a body part to rotate it.'}</p>
+    <p class="hint">${document.body.classList.contains('nav-easy') ? 'Pull an orange dot or a body part to move it.' : state.joint ? `Rotating <b>${state.joint}</b> — drag the rings.` : 'Click a joint (orange dot) or a body part to rotate it.'}</p>
     <p class="hint">Press <kbd>Esc</kbd>, or click another object or empty space, to stop.</p>`;
   el.querySelectorAll('[data-pose]').forEach((b) => { b.onclick = () => applyPose(o, b.dataset.pose); });
   el.querySelector('#btnResetJoint').onclick = () => { if (state.joint) { o.joints[state.joint].rotation.set(0, 0, 0); markDirty(); } };

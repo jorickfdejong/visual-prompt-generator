@@ -246,10 +246,10 @@ details summary { cursor: pointer; color: var(--muted); }
 /* toast */
 #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #111; border: 1px solid var(--line); padding: 8px 14px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20; }
 #toast.show { opacity: 1; }
-/* camera view: back button top-left, controls hint under the frame */
+/* camera view: back button top-left, controls hint bottom-right */
 #btnBackEditor, #camHint { display: none; position: absolute; z-index: 3; }
 body.camview #btnBackEditor { display: flex; align-items: center; gap: 8px; top: 10px; left: 10px; }
-body.camview #camHint { display: block; left: 0; right: 0; text-align: center; color: var(--accent-2); font-weight: 600; pointer-events: none; }
+body.camview #camHint { display: grid; grid-template-columns: repeat(3, auto); gap: 5px 14px; align-items: center; right: 10px; bottom: 10px; color: var(--accent-2); font-size: 12px; font-weight: 600; white-space: nowrap; pointer-events: none; }
 body.exporting #inset { display: none; }
 
 /* ---------- export modal, object names ---------- */
