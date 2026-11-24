@@ -12,8 +12,8 @@ import { toast } from './clipboard.js';
    OBJECTS
    ===================================================================== */
 export let idCounter = 1;
-export function uniqueName(base) {
-  const names = new Set(state.objects.map((o) => o.details.name));
+export function uniqueName(base, except) {
+  const names = new Set(state.objects.filter((o) => o !== except).map((o) => o.details.name));
   if (!names.has(base)) return base;
   // "doll1" → "doll2", "chair" → "chair2": count up the trailing number instead of appending one
   const m = base.match(/^(.*?)(\d+)$/);

@@ -2,7 +2,6 @@
 #sideHead { display: flex; justify-content: flex-end; padding: 8px 14px; border-bottom: 1px solid var(--line); flex: none; }
 #btnExport { width: auto; padding: 4px 10px; display: flex; align-items: center; gap: 6px; }
 #btnExport svg, .editTag svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.repHint { margin: 0 0 10px; }
 
 /* export window: text and image side by side on top */
 .modalBox { width: min(1080px, 100%); }

@@ -1,4 +1,5 @@
 import { state } from './state.js';
+import { PROPS } from './props.js';
 
 /* =====================================================================
    PROMPT RULES — fixed lines and sentence templates (no scene calculations)
@@ -6,7 +7,7 @@ import { state } from './state.js';
 export const REFERENCE_LINE = 'Use the reference image for composition, pose and camera only. Ignore its colours, materials and textures.';
 export const FULL_COLOUR_LINE = 'Full-colour image, natural colours.';
 
-const GEOMETRY = new Set(['cube', 'ball', 'cylinder', 'pyramid', 'cone']);
+const GEOMETRY = new Set(PROPS.filter((prop) => prop.group === 'geometry').map((prop) => prop.type));
 const a = (s) => (/^(a|an|the|some) /i.test(s) || /^[A-Z]/.test(s) ? s : (/^[aeiou]/i.test(s) ? 'an ' : 'a ') + s);
 // shapes and puppets stand in for real things: say so, and say for what
 export function standInLines() {
