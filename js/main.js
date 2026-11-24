@@ -257,4 +257,4 @@ function frame() {
 }
 
 frame();
-askNavMode().then((first) => { if (first || !tutorialDone()) startTutorial({ required: true }); });   // first visit: pick a navigation, then the tour
+askNavMode().then((first) => { if (first || !tutorialDone()) startTutorial(); });   // first visit: pick a navigation, then the tour

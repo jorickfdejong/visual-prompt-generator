@@ -89,7 +89,7 @@ function gather() {
       case 'orientation': if (inf) inf.orient.push(t.parts[0]); break;
       case 'facing': if (inf) inf.facing = t.parts[0]; break;
       case 'facingRel':
-        if (ids.length === 2 && byId.has(ids[0]) && byId.has(ids[1])) g.faces.push([ids[0], ids[1], t.rel === 'facingAway']);
+        if (ids.length === 2 && byId.has(ids[0]) && byId.has(ids[1])) g.faces.push([ids[0], ids[1], t.rel]);
         break;
       case 'between':
         if (ids.length === 3 && ids.every((i) => byId.has(i))) g.between.push(ids);
@@ -297,7 +297,10 @@ function layoutSentences(g) {
   }
   for (const [a, b, rel] of byOrder(g.stand)) say(a, TEMPLATES[rel], b);
   for (const [a, b, c] of byOrder(g.between)) out.push([ref(a), ' is between ', ref(b), ' and ', ref(c), '.']);
-  for (const [a, b, away] of byOrder(g.faces)) say(a, away ? TEMPLATES.facingAway : TEMPLATES.facing, b);
+  for (const [a, b, rel] of byOrder(g.faces)) {
+    if (rel === 'facingEachOther') out.push([ref(a), ' and ', ref(b), ' face each other.']);
+    else say(a, TEMPLATES[rel], b);
+  }
   return out;
 }
 

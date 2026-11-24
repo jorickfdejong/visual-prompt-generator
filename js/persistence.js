@@ -1,4 +1,4 @@
-import { $, ENV_DEFAULT, state, STORE_SCENE } from './state.js';
+import { $, ENV_DEFAULT, FAMILIES, state, STORE_SCENE } from './state.js';
 import { editCam, floor, orbit, scene } from './scene.js';
 import { imageStore } from './images.js';
 import { applyRoom, rebuildGrid, ROOM_DEFAULT } from './room.js';
@@ -52,9 +52,13 @@ export function deserializeScene(s) {
   const room = ROOM_DEFAULT(), sr = s.settings?.room || {};
   const fam = { ...(s.settings?.families || {}) };
   // older scenes had one switch for each of these pairs
-  for (const [from, to] of [['size', 'sizeRel'], ['facing', 'facingRel'], ['vertical', 'onTop']]) if (from in fam && !(to in fam)) fam[to] = fam[from];
+  for (const [from, to] of [['size', 'sizeRel'], ['facing', 'facingRel']]) if (from in fam && !(to in fam)) fam[to] = fam[from];
+  // scenes from before the leaner prompt: the kinds that are now off by default go off once, and on top of goes on
+  const known = s.settings?.promptDefaults || 0;
+  if (known < 2) { fam.onTop = true; for (const k in FAMILIES) if (FAMILIES[k].off) fam[k] = false; }
   state.settings = {
-    ...state.settings, reference: 'clay', ...(s.settings || {}),
+    ...state.settings, reference: 'depth', ...(s.settings || {}), promptDefaults: 3,
+    ...(known < 3 && s.settings?.reference !== 'colour' ? { reference: 'depth' } : {}),   // clay grey was the standard before
     families: { ...state.settings.families, ...fam },
     room: { ...room, ...sr, floor: { ...room.floor, ...(sr.floor || {}) }, walls: { ...room.walls, ...(sr.walls || {}) }, light: { ...room.light, ...(sr.light && 'shadows' in sr.light ? { shadows: sr.light.shadows } : {}) } },
   };
@@ -79,7 +83,7 @@ export function syncSettingsUI() {
   $('#notes').value = state.notes;
   $('#visualStyle').value = state.visualStyle;
   $('#format').value = state.settings.format || 'both';
-  $('#reference').value = state.settings.reference || 'clay';
+  $('#reference').value = state.settings.reference || 'depth';
 }
 export let warnedImgStore = false;
 export function saveScene() {

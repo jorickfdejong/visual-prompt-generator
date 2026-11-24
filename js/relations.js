@@ -180,6 +180,7 @@ export function computeTuples() {
   // facing (extension)
   const fwd = (o) => { const v = new THREE.Vector3(0, 0, 1).applyQuaternion(o.root.quaternion); v.y = 0; return v.normalize(); };
   const flatDir = (from, to) => { const v = to.clone().sub(from); v.y = 0; return v.normalize(); };
+  const fronts = [];
   vis.forEach((o, i) => {
     const ori = orients[i];
     if ((TYPES[o.type].symmetry || 'none') !== 'none') return;   // no front
@@ -191,12 +192,13 @@ export function computeTuples() {
     const name = ang < 20 ? 'facingCamera' : ang < 65 ? 'threeQuarter' + side : ang < 115 ? 'profile' + side
       : ang < 160 ? 'threeQuarterBack' + side : 'backToCamera';
     push([name, ids[i]], 'facing', { objIds: [o.id] });
-    vis.forEach((p, j) => {
-      if (i === j) return;
-      const t = flatDir(o.root.position, p.root.position);
-      if (f.angleTo(t) / DEG < 30) push([ids[i], 'facing', ids[j]], 'facingRel', { objIds: [o.id, p.id] });
-    });
+    fronts[i] = f;
   });
+  // facing each other: both turned towards the other one
+  const turnedTo = (i, j) => fronts[i] && fronts[i].angleTo(flatDir(vis[i].root.position, vis[j].root.position)) / DEG < 30;
+  for (let i = 0; i < vis.length; i++) for (let j = i + 1; j < vis.length; j++) {
+    if (turnedTo(i, j) && turnedTo(j, i)) push([ids[i], 'facingEachOther', ids[j]], 'facingRel', { objIds: [vis[i].id, vis[j].id] });
+  }
 
   // camera
   const dir = shotCam.getWorldDirection(new THREE.Vector3());

@@ -25,11 +25,11 @@ export const FAMILIES = {
   frontBack: { label: 'Front / back', color: '#26a69a', group: 'Relationships' },
   adjacent: { label: 'Next to', color: '#8bc34a', group: 'Relationships' },
   onTop: { label: 'On top of', color: '#ff8a65', group: 'Relationships' },
-  facingRel: { label: 'Facing each other', color: '#ffe082', group: 'Relationships', hint: 'One object faces another' },
   vertical: { label: 'Above / below', color: '#f06292', group: 'Relationships', hint: 'above, same level', off: true },
   sameRowCol: { label: 'Same row / column', color: '#78909c', group: 'Relationships', hint: 'Mainly in the tuples; the written prompt only uses relations you changed by hand', off: true },
   between: { label: 'Between', color: '#ffb74d', group: 'Relationships', off: true },
   sizeRel: { label: 'Height', color: '#b39ddb', group: 'Relationships', hint: 'taller, shorter, same height (upright objects only)', off: true },
+  facingRel: { label: 'Facing each other', color: '#ffe082', group: 'Relationships', hint: 'Two objects turned towards each other', off: true },
   environment: { label: 'Environment', color: '#a5d6a7', group: 'Scene', hint: 'Environment, temperature and lighting' },
   finalImage: { label: 'Visual style', color: '#fff176', group: 'Scene' },
   camera: { label: 'Camera', color: '#90caf9', group: 'Scene', hint: 'Shot size, angle, lens, aspect ratio' },
@@ -44,7 +44,7 @@ export const ALTS = {
   vertical: ['above', 'below', 'onTopOf', 'sameLevel'],
   onTop: ['above', 'below', 'onTopOf', 'sameLevel'],
   sizeRel: ['taller', 'shorter', 'sameHeight'],
-  facingRel: ['facing', 'facingAway'],
+  facingRel: ['facingEachOther', 'facing', 'facingAway'],
 };
 
 export const SKIN_TONES = [
@@ -85,7 +85,7 @@ export const state = {
   promptEdit: null,        // { text, base } when the prompt was edited by hand in Export
   environment: ENV_DEFAULT(),
   visualStyle: '',         // look of the final image (Final image panel)
-  settings: { cell: 0.5, showNames: false, families: Object.fromEntries(Object.keys(FAMILIES).map((k) => [k, !FAMILIES[k].off])) },
+  settings: { cell: 0.5, showNames: false, promptDefaults: 3, reference: 'depth', families: Object.fromEntries(Object.keys(FAMILIES).map((k) => [k, !FAMILIES[k].off])) },
   overrides: {},           // tupleKey -> { off?: true, rel?: string }
   custom: [],              // [{ text, off }]
   tuples: [],
