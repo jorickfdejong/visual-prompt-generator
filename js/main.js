@@ -9,19 +9,23 @@ import { PROPS } from './props.js';
 import { camel, exportText } from './relations.js';
 import { renderObjectList } from './left-panel.js';
 import { closeExport, editPrompt, exportOpen, openExport, promptText, resetPrompt } from './export-modal.js';
-import { toggleNames } from './labels.js';
+import { startNaming, toggleNames } from './labels.js';
 import './nav.js';
+import './easy-drag.js';
+import './arrow-keys.js'; import './views.js';
+import './tooltips.js';
+import { showTab } from './side-tabs.js';
 import { addCustomTuple, markDirty, refreshDerived, takeDirty } from './prompt-panel.js';
-import { copyImage, copyText, download, downloadZip, toast } from './clipboard.js';
+import { copyImage, copyText, download, downloadBoth, toast } from './clipboard.js';
 import { askNavMode } from './nav-mode.js';
-import { startTutorial } from './tutorial.js';
+import { startTutorial, tutorialDone } from './tutorial.js';
 import { commitHistory, deserializeScene, loadStored, renderSceneName, serializeScene, stepHistory } from './persistence.js';
 
 /* =====================================================================
    WIRING
    ===================================================================== */
 $('#camRow').onclick = selectCamera;
-function addOne(type) { if (state.mode === 'edit') exitEdit(); const o = addObject(type); selectObject(o); markDirty(); }
+function addOne(type) { if (state.mode === 'edit') exitEdit(); const o = addObject(type); selectObject(o); showTab('scene'); startNaming(o); markDirty(); }
 function toggleAddMenu(open = $('#addDrop').hidden) {
   $('#addDrop').hidden = !open;
   $('#btnAdd').classList.toggle('open', open);
@@ -49,13 +53,13 @@ function addImageObject(id) {
   const base = camel((e?.name || '').replace(/\.[^.]+$/, '')).replace(/^\d+/, '') || 'image';
   const o = addObject('image', { imageId: id, details: { name: uniqueName(base) } });
   if (state.mode === 'edit') exitEdit();
-  selectObject(o); renderObjectList(); markDirty();
+  selectObject(o); showTab('scene'); renderObjectList(); markDirty();
   return o;
 }
 $('#btnAddImage').onclick = async () => {
   toggleAddMenu(false);
   const id = await pickImage();
-  if (id) addImageObject(id);
+  if (id) startNaming(addImageObject(id));
 };
 document.addEventListener('pointerdown', (e) => { if (!$('#addDrop').hidden && !e.target.closest('#btnAdd, #addDrop')) toggleAddMenu(false); });
 $('#focal').addEventListener('input', (e) => { state.camera.focal = +e.target.value; applyCamera(); markDirty(); });
@@ -68,7 +72,7 @@ $('#btnEditDone').onclick = exitEdit;
 $('#btnCopyImg').onclick = copyImage;
 $('#btnDlPng').onclick = () => download('reference.png', takeScreenshot());
 $('#btnCopyText').onclick = () => copyText();
-$('#btnZip').onclick = downloadZip;
+$('#btnBoth').onclick = downloadBoth;
 $('#promptEdit').addEventListener('input', editPrompt);
 $('#btnPromptReset').onclick = resetPrompt;
 $('#helpPanel').addEventListener('click', (e) => { if (e.target.id === 'btnTutorial') { toggleHelp(false); startTutorial(); } });
@@ -175,7 +179,7 @@ window.addEventListener('drop', async (e) => {
   if (state.cameraView) exitCameraView();
   const made = [];
   for (const f of imgs) { const id = await importImageFile(f); if (id) made.push(addImageObject(id)); }
-  if (made.length > 1) selectMany(made);
+  if (made.length > 1) selectMany(made); else if (made.length) startNaming(made[0]);
 });
 window.addEventListener('keydown', (e) => {
   if (!(e.ctrlKey || e.metaKey)) return;
@@ -211,12 +215,12 @@ window.addEventListener('keydown', (e) => {
     stepHistory(k === 'y' || e.shiftKey ? 1 : -1);
     return;
   }
-  if (state.mode === 'compose') {
+  {
     if (k === 'n' && !e.ctrlKey && !e.metaKey && !e.repeat) toggleNames();
     else if (k === 'w' || k === 'r') setTool('transform');
     else if (k === 'k' && !e.ctrlKey && !e.metaKey) setTool('scale');
     else if ((k === 'delete' || k === 'backspace') && selObjs().length) deleteSelection();
-    else if (k === 'enter' && state.selected?.obj) enterEdit(state.selected.obj);
+    else if (k === 'enter' && state.mode === 'compose' && e.target.tagName !== 'BUTTON' && state.selected?.obj) enterEdit(state.selected.obj);
     else if (k === 'd' && (e.ctrlKey || e.metaKey) && selObjs().length) { e.preventDefault(); duplicateSelection(); }
     else if (k === 'c' && (e.ctrlKey || e.metaKey)) { if (selObjs().length) { e.preventDefault(); copySelection(); } }
     else if (k === 'x' && (e.ctrlKey || e.metaKey)) { if (selObjs().length) { e.preventDefault(); cutSelection(); } }
@@ -253,4 +257,4 @@ function frame() {
 }
 
 frame();
-askNavMode().then((first) => { if (first) startTutorial(); });   // first visit: pick a navigation, then the tour
+askNavMode().then((first) => { if (first || !tutorialDone()) startTutorial({ required: true }); });   // first visit: pick a navigation, then the tour

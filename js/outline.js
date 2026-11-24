@@ -47,9 +47,8 @@ export function brightAccent(hex) {
   return new THREE.Color().setHSL(hsl.h, 1, 0.55);
 }
 export function renderOutline(w, h) {
-  if (state.mode !== 'compose') return;
   const hov = hovered();
-  const objs = [...new Set([...selObjs(), ...(hov ? [hov] : [])])].filter((o) => !o.hidden);
+  const objs = [...new Set([...(state.mode === 'edit' ? [] : selObjs()), ...(hov ? [hov] : [])])].filter((o) => !o.hidden);
   if (!objs.length) return;
   const pr = renderer.getPixelRatio(), W = Math.round(w * pr), H = Math.round(h * pr);
   if (!mask) mask = new THREE.WebGLRenderTarget(W, H);

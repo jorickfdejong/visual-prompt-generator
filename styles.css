@@ -23,7 +23,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* ---------- sidebar ---------- */
 .panel { background: var(--panel); overflow-y: auto; border-left: 1px solid var(--line); }
-#tabs { display: flex; position: sticky; top: 0; z-index: 3; background: var(--panel); border-bottom: 1px solid var(--line); }
+#side[data-tab=scene] #worldSection, #side[data-tab=env] #sideBody > section:not(#worldSection) { display: none; }
+#tabs { display: flex; flex: none; position: sticky; top: 0; z-index: 3; background: var(--panel); border-bottom: 1px solid var(--line); }
 #tabs button { flex: 1; background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 9px 0; color: var(--muted); font-weight: 600; }
 #tabs button:hover { background: var(--panel-2); color: var(--text); }
 #tabs button.on { color: var(--accent); border-bottom-color: var(--accent); }
@@ -59,7 +60,7 @@ input[type=text], input[type=number], select, textarea {
 textarea { resize: vertical; min-height: 54px; }
 input[type=range] { width: 100%; accent-color: var(--accent); }
 input[type=checkbox] { accent-color: var(--accent); }
-kbd { background: #1f2226; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font-size: 11px; }
+kbd { display: inline-block; background: #e4e6e9; border: 1px solid #9aa0a8; border-radius: 5px; padding: 0 5px; font-family: inherit; font-size: 11px; line-height: 1.45; color: #1d1f23; }
 
 /* objects list */
 #objectList { list-style: none; margin: 0; padding: 0; }
@@ -105,7 +106,6 @@ kbd { background: #1f2226; border: 1px solid var(--line); border-radius: 4px; pa
 #fileDrop[hidden] { display: none; }
 #fileDrop button { display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: left; background: none; border-color: transparent; padding: 7px 10px; }
 #fileDrop button:hover { background: var(--panel-2); }
-#fileDrop kbd { color: var(--muted); font-size: 11px; }
 body.camview #fileMenu { display: none; }
 #outliner .camRow .name { flex: 1; }
 #outliner #camSummary { font-size: 10px; }
@@ -114,7 +114,7 @@ body.camview #fileMenu { display: none; }
 #objectList li:hover .eye, #objectList .hidden-obj .eye { opacity: 1; }
 /* floating tool buttons at the left edge: add (top), transform tools (below) */
 #toolStrip { position: absolute; top: 52px; left: 10px; z-index: 4; display: flex; flex-direction: column; gap: 3px; }
-body.camview #toolStrip, body.editing #toolStrip { display: none; }
+body.camview #toolStrip { display: none; }
 #toolStrip button {
   position: relative; width: 42px; height: 42px; padding: 0; display: grid; place-items: center;
   background: rgba(29,31,35,.92); border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.3);
@@ -122,16 +122,16 @@ body.camview #toolStrip, body.editing #toolStrip { display: none; }
 #toolStrip button.active { border-color: var(--accent); color: var(--accent); }
 #toolStrip button:disabled { opacity: .35; cursor: default; }
 #toolStrip svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-#toolStrip button::after {
-  content: attr(data-tip) "   " attr(data-key);
+#toolStrip .tip {
   position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%);
   white-space: pre; padding: 4px 8px; border-radius: 6px; font-size: 12px; color: var(--text);
   background: #111316; border: 1px solid var(--line); pointer-events: none; opacity: 0; transition: opacity .12s;
 }
-#toolStrip button:hover::after { opacity: 1; }
-#toolStrip button:disabled::after { content: attr(data-tip) " — not for the camera"; }
+#toolStrip button:hover .tip { opacity: 1; }
+#toolStrip button:disabled .tip::after { content: " — not for the camera"; }
+#toolStrip button:disabled .tipKey { display: none; }
 #btnAdd.open { border-color: var(--accent); color: var(--accent); }
-#btnAdd.open::after { display: none; }
+#btnAdd.open .tip { display: none; }
 /* add menu: opens to the right of the + button */
 #addDrop { position: absolute; top: 0; left: 52px; min-width: 160px; display: flex; flex-direction: column; padding: 4px; gap: 2px;
   background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.45); }
@@ -140,7 +140,6 @@ body.camview #toolStrip, body.editing #toolStrip { display: none; }
 #toolStrip #addDrop button { width: auto; height: auto; display: flex; align-items: center; gap: 10px; padding: 7px 10px;
   background: none; border-color: transparent; box-shadow: none; text-align: left; }
 #toolStrip #addDrop button:hover, #toolStrip #addDrop button:focus-visible { background: var(--panel-2); }
-#toolStrip #addDrop button::after { display: none; }
 #addDrop svg { width: 18px; height: 18px; }
 #context[hidden], #imageSection[hidden], #worldSection[hidden] { display: none; }
 /* world settings */
@@ -186,7 +185,7 @@ body.camview #help { display: none; }
   background: rgba(29,31,35,.92); border-color: var(--line); box-shadow: 0 4px 14px rgba(0,0,0,.3);
 }
 #helpPanel {
-  position: absolute; left: 0; bottom: 42px; width: 340px; max-height: min(70vh, 560px); overflow-y: auto;
+  position: absolute; left: 0; bottom: 42px; width: 360px; max-width: calc(100vw - 20px); max-height: min(70vh, 560px); overflow-y: auto;
   background: rgba(29,31,35,.97); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;
   box-shadow: 0 10px 30px rgba(0,0,0,.4); font-size: 12px; line-height: 1.45;
 }
@@ -194,7 +193,7 @@ body.camview #help { display: none; }
 #helpPanel h3 { margin: 0 0 6px; font-size: 13px; }
 #helpPanel h4 { margin: 12px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
 #helpPanel p { margin: 0 0 6px; color: var(--muted); }
-#helpPanel dl { display: grid; grid-template-columns: 128px 1fr; gap: 5px 12px; margin: 0; align-items: center; }
+#helpPanel dl { display: grid; grid-template-columns: max-content 1fr; gap: 5px 12px; margin: 0; align-items: center; }
 #helpPanel dt { white-space: nowrap; color: var(--muted); }
 #helpPanel dd { margin: 0; }
 #helpPanel .foot { margin: 12px 0 0; font-size: 11px; }
@@ -225,7 +224,7 @@ body.camview #help { display: none; }
   background: rgba(29,31,35,.9); border: 1px solid var(--line); border-radius: 10px; padding: 6px;
 }
 #editBar button { padding: 7px 22px; font-size: 14px; }
-#editBar kbd { color: var(--text); margin-left: 4px; }
+#editBar kbd { margin-left: 4px; }
 body.editing #editBar { display: flex; }
 body.camview #inset { display: none; }
 
@@ -274,25 +273,24 @@ body.exporting #inset { display: none; }
 #navWidget { position: absolute; right: 10px; bottom: 10px; z-index: 4; display: flex; flex-direction: column; gap: 3px; }
 #navWidget button {
   position: relative; width: 42px; height: 42px; padding: 0; display: grid; place-items: center;
-  background: rgba(29,31,35,.92); border-radius: 8px; box-shadow: 0 4px 14px rgba(0,0,0,.3);
+  background: rgba(29,31,35,.92); border-radius: 50%; box-shadow: 0 4px 14px rgba(0,0,0,.3);
   touch-action: none; user-select: none; -webkit-user-select: none;
 }
 #navWidget #navRotate, #navWidget #navPan { cursor: grab; }
-body.camview #navWidget #btnNames, body.editing #navWidget #btnNames { display: none; }
+body.camview #navWidget #btnNames { display: none; }
 #navWidget button.active, #navWidget button.held { border-color: var(--accent); color: var(--accent); }
 #navWidget #navRotate.held, #navWidget #navPan.held { cursor: grabbing; }
 #navWidget svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
-#navWidget button::after {
-  content: attr(data-tip) "\A" attr(data-key);
+#navWidget .tip {
   position: absolute; right: calc(100% + 10px); top: 50%; transform: translateY(-50%);
   white-space: pre; text-align: left; line-height: 1.5; padding: 4px 8px; border-radius: 6px; font-size: 12px; color: var(--text);
   background: #111316; border: 1px solid var(--line); pointer-events: none; opacity: 0; transition: opacity .12s;
 }
-#navWidget button:hover::after, #navWidget button:focus-visible::after { opacity: 1; }
+#navWidget button:hover .tip, #navWidget button:focus-visible .tip { opacity: 1; }
 #viewport.nav-space canvas { cursor: grab; }
 @media (max-height: 520px) { #navWidget { flex-direction: row; } #navWidget button { position: static; width: 38px; height: 38px; }
   /* the row has no room beside a button: show the hint above the whole row */
-  #navWidget button::after { top: auto; right: 0; bottom: calc(100% + 8px); transform: none; } }
+  #navWidget .tip { top: auto; right: 0; bottom: calc(100% + 8px); transform: none; } }
 
 /* include / leave out checkboxes (Export) */
 #includeList { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }

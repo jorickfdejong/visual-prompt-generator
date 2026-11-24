@@ -52,7 +52,7 @@ export function blenderControls(c) {
 // stop the browser's middle-click autoscroll on the canvas
 renderer.domElement.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); });
 
-// Gizmo: two controls drawn as one. `tc` moves (arrows + centre dot) or scales, `rc` rotates (three rings).
+// Gizmo: two controls drawn as one. `tc` moves (arrows) or scales, `rc` rotates (three rings).
 export const tc = new TransformControls(editCam, renderer.domElement);
 export const rc = new TransformControls(editCam, renderer.domElement);
 rc.setMode('rotate');
@@ -84,9 +84,6 @@ function buildGizmo() {
     add(turn, a, ringAxis[a](ring(0.011, 6)), mat(AXIS_COLORS[a]));
     add(turnPick, a, ringAxis[a](ring(0.06, 6)), invisible);
   }
-  // centre dot: slides over the floor plane
-  add(move, 'XZ', new THREE.SphereGeometry(0.06, 20, 14), mat('#ffffff'));
-  add(movePick, 'XZ', new THREE.SphereGeometry(0.11, 12, 8), invisible);
   // scale: a diagonal line keeps the proportions; three boxes stretch along one axis (only objects that can be stretched)
   const size = tc._gizmo.gizmo.scale, sizePick = tc._gizmo.picker.scale;
   for (const g of [size, sizePick, tc._gizmo.helper.scale]) g.clear();
@@ -109,12 +106,16 @@ function buildGizmo() {
   }
 }
 buildGizmo();
+// lets another module keep the handles from catching the pointer (joint dots win in edit mode)
+let hoverBlocked = () => false;
+export function setGizmoBlocker(fn) { hoverBlocked = fn; }
 // only one of the two may respond at a time (tc's listeners run first, so arrows win over rings)
 for (const [c, other] of [[tc, rc], [rc, tc]]) {
   const hover = c.pointerHover.bind(c);
   c.pointerHover = (p) => {
     if (other.dragging || (c === rc && tc.object && tc.axis)) { c.axis = null; return; }
     hover(p);
+    if (c.axis && hoverBlocked()) c.axis = null;
   };
   c.setSize(0.9);
   c.addEventListener('dragging-changed', (e) => { orbit.enabled = !e.value; });
