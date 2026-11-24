@@ -61,6 +61,8 @@ gizmo.add(tc, rc);
 scene.add(gizmo);
 const AXIS_COLORS = { X: '#e5484d', Y: '#46a758', Z: '#3e7bfa' };
 const RING_R = 0.5;
+let stretchHandles = false;
+export function showStretch(on) { stretchHandles = on; }
 function buildGizmo() {
   const mat = (color) => new THREE.MeshBasicMaterial({ color, depthTest: false, depthWrite: false, fog: false, toneMapped: false, transparent: true });
   const invisible = mat('#ffffff');
@@ -85,7 +87,7 @@ function buildGizmo() {
   // centre dot: slides over the floor plane
   add(move, 'XZ', new THREE.SphereGeometry(0.06, 20, 14), mat('#ffffff'));
   add(movePick, 'XZ', new THREE.SphereGeometry(0.11, 12, 8), invisible);
-  // scaling is always uniform, so one line is enough: from the centre diagonally up on screen, whatever the view angle
+  // scale: a diagonal line keeps the proportions; three boxes stretch along one axis (only objects that can be stretched)
   const size = tc._gizmo.gizmo.scale, sizePick = tc._gizmo.picker.scale;
   for (const g of [size, sizePick, tc._gizmo.helper.scale]) g.clear();
   const diagonal = (g) => g.rotateZ(-Math.PI / 4), orange = mat('#f0a04b');
@@ -94,6 +96,16 @@ function buildGizmo() {
   add(sizePick, 'XYZ', diagonal(new THREE.CylinderGeometry(0.1, 0.06, 0.6, 8).translate(0, 0.5, 0)), invisible);   // starts off-centre: grabbing at the centre would scale wildly
   for (const h of [...size.children, ...sizePick.children]) {
     h.updateMatrix = function () { this.quaternion.copy(editCam.quaternion); THREE.Mesh.prototype.updateMatrix.call(this); };
+  }
+  for (const a of ['X', 'Y', 'Z']) {
+    const m = mat(AXIS_COLORS[a]);
+    add(size, a, toAxis[a](new THREE.CylinderGeometry(0.012, 0.012, 0.55, 8).translate(0, 0.275, 0)), m);
+    add(size, a, toAxis[a](new THREE.BoxGeometry(0.09, 0.09, 0.09).translate(0, 0.55, 0)), m);
+    add(sizePick, a, toAxis[a](new THREE.CylinderGeometry(0.09, 0.09, 0.45, 8).translate(0, 0.42, 0)), invisible);
+  }
+  for (const h of [...size.children, ...sizePick.children]) {
+    if (h.name === 'XYZ') continue;
+    h.updateMatrix = function () { if (!stretchHandles) this.visible = false; THREE.Mesh.prototype.updateMatrix.call(this); };
   }
 }
 buildGizmo();

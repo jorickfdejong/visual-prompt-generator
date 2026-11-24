@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { $, ASPECTS, DEG, state } from './state.js';
 import { blenderControls, orbit, renderer, scene, setHelper, detachGizmo } from './scene.js';
 import { exitEdit, selectCamera, selectMany, selectObject, updateModeBadge } from './selection.js';
+import { onCameraView } from './nav-mode.js';
 import { layoutInset } from './rendering.js';
 import { markDirty } from './prompt-panel.js';
 
@@ -80,6 +81,7 @@ export function enterCameraView() {
   pilot.enableDamping = true;
   pilot.update();
   pilot.addEventListener('change', () => markDirty());
+  onCameraView(true);
   updateModeBadge();
 }
 export function exitCameraView() {
@@ -87,6 +89,7 @@ export function exitCameraView() {
   document.body.classList.remove('camview');
   pilot?.dispose(); pilot = null;
   orbit.enabled = true;
+  onCameraView(false);
   if (state.selected?.kind === 'camera') selectCamera();
   else if (state.selected?.obj) selectObject(state.selected.obj);
   else if (state.selected?.kind === 'multi') selectMany(state.selected.objs);

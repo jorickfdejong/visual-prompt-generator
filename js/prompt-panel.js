@@ -3,7 +3,7 @@ import { gizmoDragging } from './scene.js';
 import { grid } from './room.js';
 import { schedulePreview } from './rendering.js';
 import { computeTuples, finalTuples } from './relations.js';
-import { exportOpen, promptText } from './export-modal.js';
+import { exportOpen, renderPromptEdit } from './export-modal.js';
 import { renderNatural } from './natural.js';
 import { renderWarnings } from './consistency.js';
 import { esc } from './left-panel.js';
@@ -81,7 +81,7 @@ export function addCustomTuple() {
   markDirty(true);
 }
 
-export let dirty = true, forceTupleRender = true, saveTimer = null, lastSig = '', lastExport = null;
+export let dirty = true, forceTupleRender = true, saveTimer = null, lastSig = '';
 // read-and-clear the dirty flag (used by the render loop)
 export function takeDirty() { const d = dirty; dirty = false; return d; }
 // save + record an undo step right now if a change is still waiting for settle()
@@ -104,11 +104,7 @@ export function refreshDerived() {
   state.tuples = computeTuples();
   const sig = JSON.stringify([state.tuples.map((t) => t.key), state.settings.families]);
   if (sig !== lastSig || forceTupleRender) { lastSig = sig; forceTupleRender = false; renderTuples(); }
-  const text = promptText();
+  if (exportOpen()) renderPromptEdit();
   if (exportOpen()) { renderNatural($('#naturalPrompt')); renderWarnings(); }
-  if (text !== lastExport) {
-    lastExport = text;
-    $('#exportPreview').textContent = text;
-  }
   $('#tupleCount').textContent = finalTuples().length + ' lines';
 }

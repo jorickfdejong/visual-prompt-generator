@@ -1,6 +1,7 @@
 import { state } from './state.js';
 import { activeTuples, exportId } from './relations.js';
 import { depthWord, footprintsOverlap, leftToRight } from './world-facts.js';
+import { TYPES } from './types.js';
 import { fixedLines, TEMPLATES, tupleParts } from './prompt-rules.js';
 
 /* =====================================================================
@@ -149,7 +150,8 @@ function nounPhrase(o, inf) {
   const gender = inf.fields.gender, age = inf.fields.age, race = inf.fields.race ? inf.fields.race + ' ' : '';
   const a = age ? age.toLowerCase() : '';
   let noun = null;
-  if (gender || age) {
+  if (inf.noun && inf.noun !== 'person') noun = [a, race.trim(), (gender || '').toLowerCase(), inf.noun].filter(Boolean).join(' ');
+  else if (gender || age) {
     const g = (gender || '').toLowerCase();
     const kid = a === 'child' || a === 'teenager';
     const adj = a === 'teenager' ? 'teenage' : a === 'child' ? '' : a;
@@ -299,7 +301,7 @@ function layoutSentences(g) {
 
 /* ---------- which object is which: by place and pose in the frame, never by colour ---------- */
 const ORDINAL = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth'];
-const kindOf = (o) => (o.type === 'mannequin' ? 'figure' : o.type === 'image' ? 'picture' : o.type);
+const kindOf = (o) => (o.type === 'mannequin' ? 'figure' : o.type === 'image' ? 'picture' : TYPES[o.type].geometry ? o.type + '-shaped stand-in' : o.type);
 function poseWord(o, inf) {
   if (o.type !== 'mannequin') return '';
   const n = inf.orient.find((x) => /^(lying|leaning|upsideDown)/.test(x));

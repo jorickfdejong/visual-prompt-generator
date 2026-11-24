@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { $, state } from './state.js';
-import { attachGizmo, detachGizmo, editCam, floor, gizmoDragging, gizmoHot, orbit, raycaster, rc, renderer, scene, tc, vp } from './scene.js';
+import { attachGizmo, detachGizmo, editCam, floor, gizmoDragging, gizmoHot, orbit, raycaster, rc, renderer, scene, showStretch, tc, vp } from './scene.js';
 import { grid } from './room.js';
 import { camModel, shotCam } from './camera.js';
 import { TYPES } from './types.js';
 import { scaleRange } from './objects.js';
+import { canStretch, scaleLimits } from './stretch.js';
 import { esc, renderContext, renderObjectList, syncTransformInputs } from './left-panel.js';
 import { markDirty } from './prompt-panel.js';
 
@@ -32,6 +33,7 @@ export function updateGizmo() {
   if (camera) state.tool = 'transform';   // the camera cannot be scaled
   const scaling = state.tool === 'scale';
   tc.setMode(scaling ? 'scale' : 'translate');
+  showStretch(scaling && !!stretchTarget());
   rc.setSpace(camera ? 'local' : 'world');
   if (camera) attachGizmo(shotCam);
   else if (selObjs().some((o) => !o.hidden)) { placePivot(); attachGizmo(pivot, { turn: !scaling }); }
@@ -57,6 +59,8 @@ export function objCentre(o) {
   }
   return all.isEmpty() ? o.root.position.clone() : all.getCenter(new THREE.Vector3()).applyMatrix4(o.root.matrixWorld);
 }
+// the single selected object whose sides can be pulled separately (the scale gizmo then turns along with it)
+function stretchTarget() { const s = state.selected; return s?.kind === 'obj' && canStretch(s.obj) ? s.obj : null; }
 // called every frame, so the gizmo stays centred when a value is typed or the object changes shape
 export function placePivot() {
   const objs = selObjs();
@@ -64,7 +68,9 @@ export function placePivot() {
   pivot.position.set(0, 0, 0);
   objs.forEach((o) => pivot.position.add(objCentre(o)));
   pivot.position.divideScalar(objs.length);
-  pivot.quaternion.identity(); pivot.scale.set(1, 1, 1);
+  const st = state.tool === 'scale' && stretchTarget();
+  if (st) pivot.quaternion.copy(st.root.quaternion); else pivot.quaternion.identity();
+  pivot.scale.set(1, 1, 1);
   pivot.updateMatrixWorld(true);
 }
 export function selectMany(objs) {
@@ -97,7 +103,7 @@ function onDragStart(e) {
   scaleAnchor.set(0, 0, 0);
   for (const o of objs) {
     o.root.updateMatrixWorld(true);
-    groupRel.set(o, { rel: inv.clone().multiply(o.root.matrixWorld), p: o.root.position.clone(), s: o.root.scale.x });
+    groupRel.set(o, { rel: inv.clone().multiply(o.root.matrixWorld), p: o.root.position.clone(), s: o.root.scale.clone() });
     scaleAnchor.add(o.root.position);
   }
   // scaling grows from the base (a single object) or the floor (several), so nothing sinks through the floor
@@ -107,14 +113,23 @@ function onDragStart(e) {
 for (const c of [tc, rc]) c.addEventListener('mouseDown', onDragStart);
 export function applyGroupTransform() {
   if (tc.mode === 'scale') {
+    if (tc.axis?.length === 1) {   // one side of a single object
+      const k = tc.axis.toLowerCase();
+      for (const [o, { s }] of groupRel) {
+        const v = THREE.MathUtils.clamp(s[k] * pivot.scale[k], ...scaleRange(o));
+        o.root.scale[k] = v;
+        pivot.scale[k] = v / s[k];
+      }
+      return;
+    }
     // uniform scale, clamped so every object stays within its type's range
     let lo = 0, hi = Infinity;
-    for (const [o, { s }] of groupRel) { const [a, b] = scaleRange(o); lo = Math.max(lo, a / s); hi = Math.min(hi, b / s); }
+    for (const [o, { s }] of groupRel) { const [a, b] = scaleLimits(o, s); lo = Math.max(lo, a); hi = Math.min(hi, b); }
     const f = THREE.MathUtils.clamp(uniformScale(pivot.scale), lo, hi);
     pivot.scale.setScalar(f);
     for (const [o, { p, s }] of groupRel) {
       o.root.position.copy(p).sub(scaleAnchor).multiplyScalar(f).add(scaleAnchor);
-      o.root.scale.setScalar(s * f);
+      o.root.scale.copy(s).multiplyScalar(f);
     }
     return;
   }
@@ -123,7 +138,7 @@ export function applyGroupTransform() {
   for (const [o, { rel, s }] of groupRel) {
     m.multiplyMatrices(pivot.matrixWorld, rel);
     m.decompose(o.root.position, o.root.quaternion, o.root.scale);
-    o.root.scale.setScalar(s);
+    o.root.scale.copy(s);
   }
 }
 export function selectObject(o) {
@@ -193,21 +208,23 @@ export function updateModeBadge() {
   renderHelp();
 }
 
+const EASY_KEYS = [['Space', 'Select tool'], ['O', 'Orbit tool: drag to look around'], ['H', 'Pan tool: drag to slide the view'], ['Z', 'Zoom tool: drag up or down'], ['Wheel', 'zoom towards the pointer'], ['Middle mouse', 'orbit (Shift: pan)']];
 /* Help: a "?" button in the viewport corner that opens the shortcuts and an explanation for the current mode */
 export function renderHelp() {
   const rows = (list) => `<dl>${list.map(([k, t]) => `<dt>${k.split(' + ').map((x) => `<kbd>${x}</kbd>`).join(' + ')}</dt><dd>${t}</dd>`).join('')}</dl>`;
-  const nav = rows([['Two fingers', 'zoom (trackpad, or pinch)'], ['Shift + Two fingers', 'pan (trackpad)'], ['Ctrl + Two fingers', 'orbit (trackpad)'], ['Middle mouse', 'orbit (also Alt + left drag)'], ['Shift + Middle mouse', 'pan (also right drag, or Space + left drag)'], ['Wheel', 'zoom']]);
+  const nav = rows(document.body.classList.contains('nav-easy') ? EASY_KEYS : [['Two fingers', 'zoom (trackpad, or pinch)'], ['Shift + Two fingers', 'pan (trackpad)'], ['Ctrl + Two fingers', 'orbit (trackpad)'], ['Middle mouse', 'orbit (also Alt + left drag)'], ['Shift + Middle mouse', 'pan (also right drag, or Space + left drag)'], ['Wheel', 'zoom']]);
   const html = state.mode === 'edit'
     ? `<h3>Edit mode — ${esc(state.editing.details.name)}</h3>
-       <p>Pose the doll: click a joint (orange dot) or a body part and drag the rings to rotate it, or pick a preset. Name and details are edited in the object panel when you select it.</p>
+       <p>Change the posture: click a joint (orange dot) or a body part and drag the rings to rotate it, or pick a preset. Name and details are edited in the object panel when you select it.</p>
        <h4>Keys</h4>${rows([['Click', 'select a joint'], ['Ctrl + Z', 'undo'], ['Ctrl + Y', 'redo'], ['Esc', 'deselect the joint, press again to finish']])}
        <h4>View</h4>${nav}`
     : `<h3>Compose mode</h3>
+       <button id="btnTutorial">Start the tutorial</button>
        <p>Arrange the objects and the shot camera. Spatial relations (left of, in front of, between…) are read from the camera's point of view on the grid and become prompt tuples in the Export window. Nothing is decided for you: every tuple can be switched off or overridden.</p>
        <p>With nothing selected the panel on the right edits the final image (visual style) and the environment: labels, background, floor and walls. Select an object or the camera to edit it, or type exact values.</p>
        <h4>Selecting</h4>${rows([['Click', 'select an object or the camera'], ['Drag', 'box-select on empty space'], ['Shift + Click', 'add to the selection'], ['Ctrl + Click', 'toggle one object'], ['Ctrl + A', 'select all objects'], ['Esc', 'deselect']])}
-       <h4>Transform</h4>${rows([['W', 'move and rotate (also R): drag an arrow, a ring, or the centre dot to slide over the floor'], ['K', 'scale'], ['Drag X / Y / Z', 'in the panel to scrub a value (Shift = finer)']])}
-       <h4>Objects</h4>${rows([['A', 'open the add menu'], ['N', 'show or hide object names'], ['Enter', 'pose a doll (also double-click)'], ['Ctrl + C', 'copy'], ['Ctrl + X', 'cut'], ['Ctrl + V', 'paste'], ['Ctrl + D', 'duplicate'], ['Del', 'delete']])}
+       <h4>Transform</h4>${rows([['W', 'move and rotate (also R): drag an arrow, a ring, or the centre dot to slide over the floor'], ['K', 'scale: the orange handle keeps the proportions, a coloured box stretches one side'], ['Drag X / Y / Z', 'in the panel to scrub a value (Shift = finer)']])}
+       <h4>Objects</h4>${rows([['A', 'open the add menu'], ['N', 'show or hide object names'], ['Enter', 'change the posture of a puppet (also double-click)'], ['Ctrl + C', 'copy'], ['Ctrl + X', 'cut'], ['Ctrl + V', 'paste'], ['Ctrl + D', 'duplicate'], ['Del', 'delete']])}
        <h4>History</h4>${rows([['Ctrl + Z', 'undo'], ['Ctrl + Y', 'redo (also Ctrl + Shift + Z)']])}
        <h4>View</h4>${nav}
        <h4>File</h4>${rows([['Ctrl + S', 'save the scene as a .json file'], ['Ctrl + O', 'open a scene file (or drop it on the page)'], ['Drop', 'JPG / PNG files on the page to add them as images']])}`;

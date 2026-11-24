@@ -1,6 +1,7 @@
-import { $ } from './state.js';
+import { $, state } from './state.js';
 import { dataURLtoBlob, takeScreenshot } from './rendering.js';
 import { promptText } from './export-modal.js';
+import { makeZip } from './zip.js';
 
 /* =====================================================================
    CLIPBOARD & DOWNLOADS
@@ -29,13 +30,14 @@ export async function copyImage() {
   try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': dataURLtoBlob(url) })]); toast('Reference image copied'); }
   catch { download('reference.png', url); toast('Clipboard blocked — downloaded reference.png instead'); }
 }
-export async function copyBoth() {
-  const url = takeScreenshot(), text = promptText();
+// reference image + prompt in one zip (most apps paste only one of two copied things)
+export async function downloadZip() {
   try {
-    await navigator.clipboard.write([new ClipboardItem({ 'image/png': dataURLtoBlob(url), 'text/plain': new Blob([text], { type: 'text/plain' }) })]);
-    toast('Image + text copied (some apps paste only one — use the separate buttons then)');
-  } catch {
-    download('reference.png', url); downloadText('prompt.txt', text);
-    toast('Clipboard blocked — downloaded both files instead');
-  }
+    const image = new Uint8Array(await dataURLtoBlob(takeScreenshot()).arrayBuffer());
+    const url = URL.createObjectURL(makeZip([{ name: 'reference.png', data: image }, { name: 'prompt.txt', data: promptText() }]));
+    const name = (state.fileName || 'New File').replace(/[\\/:*?"<>|]/g, '-') + '.zip';
+    download(name, url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast(`Downloaded “${name}” with the image and the text`);
+  } catch { toast('Could not make the zip file'); }
 }

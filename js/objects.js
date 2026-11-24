@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { $, ACCENTS, DOLL_HEIGHT, state } from './state.js';
 import { scene } from './scene.js';
 import { TYPES } from './types.js';
+import { saveScale } from './stretch.js';
 import { deselect, exitEdit, selectMany, selectObject, selObjs } from './selection.js';
 import { renderContext, renderObjectList } from './left-panel.js';
 import { markDirty } from './prompt-panel.js';
@@ -28,7 +29,7 @@ export function nextName(base = 'doll') {
   return base + i;
 }
 export function scaleRange(o) { return TYPES[o.type].scaleRange || [0.3, 3]; }
-export function objHeight(o) { return (TYPES[o.type].height?.(o) ?? DOLL_HEIGHT) * o.root.scale.x; }
+export function objHeight(o) { return (TYPES[o.type].height?.(o) ?? DOLL_HEIGHT) * o.root.scale.y; }
 // half the width of an object on the floor
 function footprint(root) {
   const s = new THREE.Box3().setFromObject(root).getSize(new THREE.Vector3());
@@ -54,8 +55,7 @@ export function addObject(type, data = {}) {
   obj.meshes.forEach((m) => { m.userData.objId = obj.id; });
   obj.root.position.set(...(data.pos || freeSpot(obj.root)));
   if (data.quat) obj.root.quaternion.set(...data.quat);
-  obj.root.scale.setScalar(data.scale || 1);
-  obj.root.userData.prevS = data.scale || 1;
+  if (Array.isArray(data.scale)) obj.root.scale.fromArray(data.scale); else obj.root.scale.setScalar(data.scale || 1);
   obj.root.visible = !obj.hidden;
   T.applyExtra(obj, data);
   scene.add(obj.root);
@@ -68,7 +68,7 @@ export function serializeObject(o) {
     details: JSON.parse(JSON.stringify(o.details)),
     pos: o.root.position.toArray().map((v) => +v.toFixed(4)),
     quat: o.root.quaternion.toArray().map((v) => +v.toFixed(5)),
-    scale: +o.root.scale.x.toFixed(3),
+    scale: saveScale(o),
     ...TYPES[o.type].serializeExtra(o),
   };
 }

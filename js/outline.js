@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { state } from './state.js';
 import { editCam, renderer } from './scene.js';
+import { hovered } from './hover.js';
 import { selObjs } from './selection.js';
 
 /* =====================================================================
@@ -47,7 +48,8 @@ export function brightAccent(hex) {
 }
 export function renderOutline(w, h) {
   if (state.mode !== 'compose') return;
-  const objs = selObjs().filter((o) => !o.hidden);
+  const hov = hovered();
+  const objs = [...new Set([...selObjs(), ...(hov ? [hov] : [])])].filter((o) => !o.hidden);
   if (!objs.length) return;
   const pr = renderer.getPixelRatio(), W = Math.round(w * pr), H = Math.round(h * pr);
   if (!mask) mask = new THREE.WebGLRenderTarget(W, H);
@@ -62,6 +64,7 @@ export function renderOutline(w, h) {
   renderer.shadowMap.enabled = false;
   for (const o of objs) {
     maskMat.uniforms.color.value.copy(brightAccent(o.accent));
+    if (!selObjs().includes(o)) maskMat.uniforms.color.value.set('#ffffff');   // only hovered
     for (const m of o.meshes) {
       const own = m.material, tex = own.map;
       maskMat.uniforms.map.value = tex || null;

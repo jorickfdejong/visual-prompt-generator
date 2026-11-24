@@ -91,7 +91,7 @@ const createHouse = maker((add, light) => {
 const geometry = (make, y = 0.5) => maker((add, light) => { add(make(), light, 0, y, 0); });
 
 const FIELDS = [
-  { key: 'subject', label: 'Represents', type: 'text', placeholder: 'e.g. what it stands for', asNoun: true },
+  { key: 'subject', label: 'Represents', type: 'text', placeholder: 'e.g. flower pot', asNoun: true },
   { key: 'color', label: 'Colour', type: 'text', placeholder: 'e.g. dark green' },
   { key: 'material', label: 'Material', type: 'text', placeholder: 'e.g. brick' },
   { key: 'description', label: 'Description', type: 'text', placeholder: 'e.g. old and weathered' },
@@ -111,9 +111,11 @@ const LIST = [
 export const PROPS = LIST.map(([type, label, group, , , , icon]) => ({ type, label, group, icon }));
 // camel is passed in because relations.js imports types.js (a cycle)
 export function propTypes(camel) {
-  return Object.fromEntries(LIST.map(([type, , , h, symmetry, create]) => [type, {
-    noun: type,
-    nounOf: (o) => camel(o.details.subject || '') || type,
+  return Object.fromEntries(LIST.map(([type, , group, h, symmetry, create]) => [type, {
+    noun: group === 'geometry' ? 'object' : type,   // a shape only stands in for something
+    geometry: group === 'geometry',
+    stretch: true,
+    nounOf: (o) => camel(o.details.subject || '') || (group === 'geometry' ? 'object' : type),
     baseName: type,
     scaleRange: [0.1, 10],
     height: () => h,

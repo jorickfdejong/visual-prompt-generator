@@ -7,10 +7,12 @@ import { shotCam } from './camera.js';
 import { PELVIS_Y, POSES } from './mannequin.js';
 import { buildImageCard, IMG_H } from './image-card.js';
 import { TYPES } from './types.js';
-import { scaleRange, uniqueName } from './objects.js';
+import { nextName, scaleRange, uniqueName } from './objects.js';
 import { enterEdit, exitEdit, placePivot, selectMany, selectObject, selObjs, setTool, toggleInSelection, updateModeBadge } from './selection.js';
 import { camel } from './relations.js';
+import { canStretch, scaleLimits, sizeOf } from './stretch.js';
 import { markDirty } from './prompt-panel.js';
+import { detailCount, incompleteDetail } from './details.js';
 
 /* =====================================================================
    UI — LEFT PANEL
@@ -27,7 +29,8 @@ export function renderObjectList() {
     const li = document.createElement('li');
     if (selObjs().includes(o)) li.classList.add('selected');
     if (o.hidden) li.classList.add('hidden-obj');
-    li.innerHTML = `<span class="dot" style="background:${o.accent}"></span><span class="name" title="Double-click to rename">${esc(o.details.name)}</span>
+    li.dataset.obj = o.id;
+    li.innerHTML = `<span class="dot" style="background:${o.accent}"></span><span class="name" title="Double-click to rename">${esc(o.details.name)}</span><span class="detailCount">${detailCountText(o)}</span>
       <button class="icon eye" data-act="eye" title="${o.hidden ? 'Show' : 'Hide'}">${o.hidden ? '◌' : '👁'}</button>`;
     li.addEventListener('click', (e) => {
       const act = e.target.closest('button')?.dataset.act;
@@ -38,6 +41,19 @@ export function renderObjectList() {
     li.querySelector('.name').addEventListener('dblclick', (e) => { e.stopPropagation(); startRename(li, o); });
     ul.appendChild(li);
   }
+  updateDetailCounts();
+}
+function detailCountText(o) {
+  const n = detailCount(o);
+  return n ? `${n} detail${n === 1 ? '' : 's'}` : 'no details';
+}
+// Refresh the "n details" pills in the object list without re-rendering it
+export function updateDetailCounts() {
+  document.querySelectorAll('#objectList li[data-obj]').forEach((li) => {
+    const o = state.objects.find((x) => String(x.id) === li.dataset.obj);
+    const pill = li.querySelector('.detailCount');
+    if (o && pill) { const t = detailCountText(o); if (pill.textContent !== t) pill.textContent = t; }
+  });
 }
 export function startRename(li, o) {
   const span = li.querySelector('.name');
@@ -49,8 +65,15 @@ export function startRename(li, o) {
   inp.addEventListener('blur', done);
   inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') inp.blur(); if (e.key === 'Escape') { inp.value = o.details.name; inp.blur(); } e.stopPropagation(); });
 }
+// The name of an object is what it represents: the words go to the prompt, a short unique id made of them to the list.
 export function setName(o, raw) {
-  const clean = camel(raw) || o.details.name;
+  raw = raw.trim();
+  if (raw === o.details.name || (raw && raw === o.details.subject)) return;
+  const base = TYPES[o.type].baseName;
+  const auto = !raw || new RegExp('^' + base + '\\d+$', 'i').test(raw);   // "cylinder1" says nothing about what it is
+  o.details.subject = auto ? '' : raw.replace(/([a-z])([A-Z])/g, '$1 $2');
+  const own = new RegExp('^' + base + '\\d+$').test(o.details.name);
+  const clean = camel(raw) || (own ? o.details.name : nextName(base));
   o.details.name = clean;
   if (state.objects.some((x) => x !== o && x.details.name === clean)) {
     o.details.name = '';
@@ -89,15 +112,16 @@ export function renderContext() {
     multi.bind(el);
   } else if (sel?.kind === 'obj') {
     const o = sel.obj;
-    el.innerHTML = `<div class="field"><label>Name</label><input type="text" id="objName" value="${esc(o.details.name)}"></div>
-      ${TYPES[o.type].poseable ? `<button id="btnPose" class="primary" style="width:100%;margin:2px 0 12px" title="Pose the joints (Enter or double-click it)">Pose</button>` : ''}
+    el.innerHTML = `<div class="field"><label for="objName">Represents</label><input type="text" id="objName" value="${esc(o.details.subject || (TYPES[o.type].geometry || o.details.name.startsWith(TYPES[o.type].baseName) ? '' : o.details.name))}" placeholder="${esc((TYPES[o.type].fields.find((f) => f.asNoun) || {}).placeholder || '')}"></div>
+      <p class="hint repHint">${TYPES[o.type].geometry ? `Say what this ${o.type} stands for, so it is not drawn as a ${o.type}.` : 'This is its name, and what the image generator will draw.'}</p>
+      ${TYPES[o.type].poseable ? `<button id="btnPose" class="primary" style="width:100%;margin:2px 0 12px" title="Change the posture (Enter or double-click it)">Change posture</button>` : ''}
       ${transformHTML(sel)}
       ${o.type === 'image' ? imagePanelHTML(o) : ''}
       ${detailsHTML(o)}`;
     el.querySelector('#btnPose')?.addEventListener('click', () => enterEdit(o));
     if (o.type === 'image') bindImagePanel(el, o);
     const nameInput = el.querySelector('#objName');
-    nameInput.addEventListener('change', () => { setName(o, nameInput.value); nameInput.value = o.details.name; renderObjectList(); });
+    nameInput.addEventListener('change', () => { setName(o, nameInput.value); renderObjectList(); });
     bindDetails(el, o);
   } else {
     el.innerHTML = `<p class="hint" style="margin:0">Select the camera or an object in the scene list above. Drag over empty space to select several objects.</p>`;
@@ -125,7 +149,7 @@ export function transformValues(sel = state.selected) {
   const t = transformTarget(sel);
   if (t) {
     const v = { px: t.position.x, py: t.position.y, pz: t.position.z, rx: t.rotation.x / DEG, ry: t.rotation.y / DEG, rz: t.rotation.z / DEG };
-    if (sel.kind === 'obj') v.s = t.scale.x;
+    if (sel.kind === 'obj') { v.s = sizeOf(sel.obj); if (canStretch(sel.obj)) { v.sx = t.scale.x; v.sy = t.scale.y; v.sz = t.scale.z; } }
     return v;
   }
   if (sel?.kind === 'multi') { const c = groupCentre(); return { px: c.x, py: c.y, pz: c.z, s: groupScale ? groupScale.f : 1 }; }
@@ -139,6 +163,7 @@ export function transformHTML(sel) {
   const group = (label, unit, body) => `<div class="tfGroup"><div class="tfLabel">${label}<span class="unit">${unit}</span></div>${body}</div>`;
   let html = group(sel.kind === 'multi' ? 'Centre' : 'Position', 'm', trio('p', 0.05));
   if ('rx' in v) html += group('Rotation', '°', trio('r', 5));
+  if ('sx' in v) html += group('Stretch', '× per side', trio('s', 0.05));
   if ('s' in v) html += group('Scale', '×', `<div class="tfRow">${field('s', '↔', 0.05)}</div>`);
   return `<div class="transform">${html}</div>`;
 }
@@ -199,7 +224,7 @@ export function beginGroupScale() {
   if (groupScale || state.selected?.kind !== 'multi') return;
   const objs = selObjs();
   let lo = 0, hi = Infinity;
-  const items = objs.map((o) => { const s = o.root.scale.x, [a, b] = scaleRange(o); lo = Math.max(lo, a / s); hi = Math.min(hi, b / s); return { o, p: o.root.position.clone(), s }; });
+  const items = objs.map((o) => { const s = o.root.scale.clone(), [a, b] = scaleLimits(o); lo = Math.max(lo, a); hi = Math.min(hi, b); return { o, p: o.root.position.clone(), s }; });
   groupScale = { centre: groupCentre(), items, lo, hi, f: 1 };
 }
 export function endGroupScale() {
@@ -214,7 +239,8 @@ export function applyTransformInput(k, n) {
   const axis = k[1];
   const t = transformTarget(sel);
   if (t) {
-    if (k === 's') { const v = THREE.MathUtils.clamp(n, ...scaleRange(sel.obj)); t.scale.setScalar(v); t.userData.prevS = v; }
+    if (k === 's') t.scale.multiplyScalar(THREE.MathUtils.clamp(n / sizeOf(sel.obj), ...scaleLimits(sel.obj)));
+    else if (k[0] === 's') t.scale[axis] = THREE.MathUtils.clamp(n, ...scaleRange(sel.obj));
     else if (k[0] === 'p') t.position[axis] = n;
     else t.rotation[axis] = n * DEG;
     t.updateMatrixWorld(true);
@@ -227,7 +253,7 @@ export function applyTransformInput(k, n) {
       g.f = f;
       for (const { o, p, s } of g.items) {
         o.root.position.copy(g.centre).addScaledVector(p.clone().sub(g.centre), f);
-        o.root.scale.setScalar(s * f);
+        o.root.scale.copy(s).multiplyScalar(f);
         o.root.updateMatrixWorld(true);
       }
       placePivot();
@@ -351,8 +377,8 @@ export function renderWorldPanel() {
 
 // Image card: the picture, its stand and its real size
 export function imageSizeText(o) {
-  const e = imageStore[o.imageId], s = o.root.scale.x;
-  const h = IMG_H * s, w = h * (e ? e.w / e.h : 1);
+  const e = imageStore[o.imageId], s = o.root.scale;
+  const h = IMG_H * s.y, w = IMG_H * s.x * (e ? e.w / e.h : 1);
   return `${w.toFixed(2)} × ${h.toFixed(2)} m`;
 }
 export function imagePanelHTML(o) {
@@ -428,38 +454,89 @@ export function bindImagePanel(el, o) {
 // Details of one object (name lives above them). Fields come from the object's type.
 export function detailsHTML(o) {
   const d = o.details;
-  const fields = (TYPES[o.type].fields || []).map((f) => {
+  const fields = (TYPES[o.type].fields || []).filter((f) => !f.asNoun).map((f) => {   // Represents is at the top of the panel
     if (f.type === 'select') return `<div class="field"><label>${f.label}</label><select data-k="${f.key}">${f.options.map((v) => `<option value="${v}" ${d[f.key] === v ? 'selected' : ''}>${v || '—'}</option>`).join('')}</select></div>`;
     if (f.type === 'skin') return `<div class="field"><label>${f.label}</label><div><input type="text" data-k="skin" value="${esc(d.skin)}" placeholder="e.g. olive">
       <div class="swatches">${SKIN_TONES.map(([n, c]) => `<button class="swatch ${d.skin === n ? 'on' : ''}" data-skin="${n}" title="${n}" style="background:${c}"></button>`).join('')}</div></div></div>`;
     return `<div class="field"><label>${f.label}</label><input type="text" data-k="${f.key}" value="${esc(d[f.key])}" placeholder="${f.placeholder || ''}"></div>`;
   }).join('');
-  const custom = d.custom.map((c, i) => `<div class="customRow"><input type="text" data-ck="${i}" value="${esc(c.key)}" placeholder="detail (e.g. glasses)"><input type="text" data-cv="${i}" value="${esc(c.value)}" placeholder="value (e.g. round)"><button class="icon danger" data-crm="${i}">✕</button></div>`).join('');
-  return `<h2 style="margin-top:14px">Details</h2>
+  const custom = d.custom.map((c, i) => `<div class="customItem" data-i="${i}"><div class="customRow"><input type="text" data-ck="${i}" value="${esc(c.key)}" placeholder="detail (e.g. glasses)"><input type="text" data-cv="${i}" value="${esc(c.value)}" placeholder="value (e.g. round)"><button class="icon danger" data-crm="${i}">✕</button></div></div>`).join('');
+  return `${detailsHead()}
     ${fields}
-    <div style="margin-top:4px">${custom}</div>
-    <button id="btnAddDetail">+ Add detail</button>`;
+    <div style="margin-top:4px">${d.custom.length ? CUSTOM_HEAD : ''}${custom}</div>
+    <button id="btnAddDetail">+ Add your own detail</button>`;
+}
+const detailsHead = () => `<h2 style="margin-top:14px">Details <span class="optTag">optional</span></h2>
+    <p class="hint detailsHint">Skip this if you like. Anything you fill in is added to the prompt.</p>`;
+const CUSTOM_HEAD = '<div class="customHead"><span>Detail</span><span>Value</span><span class="gap">✕</span></div>';
+
+/* Error handling for custom detail rows (shared by one object and several).
+   status(i) -> { k, v }: is the name / value of row i empty (judged on the real entries).
+   `fresh` = index of a row that was just added (no error until focus leaves it).
+   Returns a function that reveals the error of row i and focuses its empty field. */
+let freshEntry = null;   // custom entry added by the last "+ Add your own detail" click
+function wireRowErrors(el, status, fresh) {
+  const refresh = (item) => {
+    const { k, v } = status(+item.dataset.i), bad = k || v;
+    const [ki, vi] = item.querySelectorAll('.customRow input');
+    for (const [inp, on] of [[ki, k], [vi, v]]) {
+      inp.classList.toggle('invalid', on);
+      if (on) inp.setAttribute('aria-invalid', 'true'); else inp.removeAttribute('aria-invalid');
+    }
+    let p = item.querySelector('.fieldError');
+    if (!bad) { p?.remove(); return; }
+    if (!p) { p = document.createElement('p'); p.className = 'fieldError'; p.setAttribute('role', 'alert'); item.appendChild(p); }
+    const msg = k && v ? 'Fill in both fields, or remove this detail with ✕.' : v ? 'Fill in the value, or remove this detail with ✕.' : 'Fill in the detail name, or remove this detail with ✕.';
+    if (p.textContent !== msg) p.textContent = msg;
+  };
+  el.querySelectorAll('.customItem').forEach((item) => {
+    if (+item.dataset.i !== fresh) { const { k, v } = status(+item.dataset.i); if (k || v) { item.dataset.touched = '1'; refresh(item); } }
+    item.addEventListener('input', () => { if (item.dataset.touched) refresh(item); });   // clears (or updates) live while typing
+    item.addEventListener('focusout', (e) => {
+      const to = e.relatedTarget;
+      if (to && item.contains(to)) return;
+      if (to?.closest?.('[data-crm],[data-mcrm],#btnAddDetail')) return;   // let that click land; it handles errors itself
+      item.dataset.touched = '1'; refresh(item);
+    });
+  });
+  return (i) => {
+    const item = el.querySelector(`.customItem[data-i="${i}"]`);
+    if (!item) return;
+    item.dataset.touched = '1'; refresh(item);
+    const { k } = status(i);
+    item.querySelector(k ? '.customRow input:first-child' : '.customRow input:nth-child(2)')?.focus();
+  };
 }
 export function bindDetails(el, o) {
   const d = o.details;
+  const fresh = d.custom.indexOf(freshEntry);
+  freshEntry = null;
+  const reveal = wireRowErrors(el, (i) => ({ k: !d.custom[i].key.trim(), v: !d.custom[i].value.trim() }), fresh);
   el.querySelectorAll('[data-k]').forEach((inp) => {
     inp.addEventListener('input', () => {
       d[inp.dataset.k] = inp.value;
       if (inp.dataset.k === 'skin') el.querySelectorAll('.swatch').forEach((s) => s.classList.toggle('on', s.dataset.skin === inp.value));
-      markDirty();
+      markDirty(); updateDetailCounts();
     });
   });
   el.querySelectorAll('[data-skin]').forEach((b) => { b.onclick = () => { d.skin = d.skin === b.dataset.skin ? '' : b.dataset.skin; markDirty(); renderContext(); }; });
-  el.querySelectorAll('[data-ck]').forEach((inp) => inp.addEventListener('input', () => { d.custom[+inp.dataset.ck].key = inp.value; markDirty(); }));
-  el.querySelectorAll('[data-cv]').forEach((inp) => inp.addEventListener('input', () => { d.custom[+inp.dataset.cv].value = inp.value; markDirty(); }));
+  el.querySelectorAll('[data-ck]').forEach((inp) => inp.addEventListener('input', () => { d.custom[+inp.dataset.ck].key = inp.value; markDirty(); updateDetailCounts(); }));
+  el.querySelectorAll('[data-cv]').forEach((inp) => inp.addEventListener('input', () => { d.custom[+inp.dataset.cv].value = inp.value; markDirty(); updateDetailCounts(); }));
   el.querySelectorAll('[data-crm]').forEach((b) => { b.onclick = () => { d.custom.splice(+b.dataset.crm, 1); markDirty(); renderContext(); }; });
-  el.querySelector('#btnAddDetail').onclick = () => { d.custom.push({ key: '', value: '' }); renderContext(); el.querySelector(`[data-ck="${d.custom.length - 1}"]`)?.focus(); };
+  el.querySelector('#btnAddDetail').onclick = () => {
+    const bad = d.custom.findIndex(incompleteDetail);
+    if (bad >= 0) { reveal(bad); return; }   // finish the open row first
+    const e = { key: '', value: '' };
+    d.custom.push(e); freshEntry = e;
+    renderContext(); el.querySelector(`[data-ck="${d.custom.length - 1}"]`)?.focus();
+  };
+  updateDetailCounts();
 }
 
 // Details of several objects at once. Fields = those every selected object's type has; "Mixed" where values differ.
 let multiFocusEntry = null;   // custom entry to focus after the next render
 export function multiDetails(objs) {
-  const defs = (TYPES[objs[0].type].fields || []).filter((f) => objs.every((o) => (TYPES[o.type].fields || []).some((g) => g.key === f.key)));
+  const defs = (TYPES[objs[0].type].fields || []).filter((f) => !f.asNoun && objs.every((o) => (TYPES[o.type].fields || []).some((g) => g.key === f.key)));
   const val = (o, k) => o.details[k] ?? '';
   const fields = defs.map((f) => {
     const vals = objs.map((o) => val(o, f.key)), same = vals.every((v) => v === vals[0]), cur = same ? vals[0] : '';
@@ -483,18 +560,22 @@ export function multiDetails(objs) {
   const rows = [...groups.values()];
   const rowHTML = rows.map((m, i) => {
     const es = [...m.values()], full = es.length === objs.length && es.every((e) => e.value === es[0].value);
-    return `<div class="customRow"><input type="text" data-mck="${i}" value="${esc(es[0].key)}" placeholder="detail (e.g. glasses)"><input type="text" data-mcv="${i}" value="${full ? esc(es[0].value) : ''}" placeholder="${full ? 'value (e.g. round)' : 'Mixed'}"><button class="icon danger" data-mcrm="${i}">✕</button></div>`;
+    return `<div class="customItem" data-i="${i}"><div class="customRow"><input type="text" data-mck="${i}" value="${esc(es[0].key)}" placeholder="detail (e.g. glasses)"><input type="text" data-mcv="${i}" value="${full ? esc(es[0].value) : ''}" placeholder="${full ? 'value (e.g. round)' : 'Mixed'}"><button class="icon danger" data-mcrm="${i}">✕</button></div></div>`;
   }).join('');
-  const html = `<h2 style="margin-top:14px">Details</h2>
+  const html = `${detailsHead()}
     ${fields}
-    <div style="margin-top:4px">${rowHTML}</div>
-    <button id="btnAddDetail">+ Add detail</button>`;
+    <div style="margin-top:4px">${rows.length ? CUSTOM_HEAD : ''}${rowHTML}</div>
+    <button id="btnAddDetail">+ Add your own detail</button>`;
+  // judge a row by its real entries: "Mixed" values that merely differ are fine
+  const rowBad = (i) => [...rows[i].values()].some(incompleteDetail);
   const bind = (el) => {
+    const fresh = rows.findIndex((m) => [...m.values()].includes(multiFocusEntry));
+    const reveal = wireRowErrors(el, (i) => { const es = [...rows[i].values()]; return { k: es.some((e) => !e.key.trim()), v: es.some((e) => !e.value.trim()) }; }, fresh);
     el.querySelectorAll('[data-mk]').forEach((inp) => inp.addEventListener('input', () => {
       if (inp.value === '__mixed') return;
       objs.forEach((o) => { o.details[inp.dataset.mk] = inp.value; });
       if (inp.dataset.mk === 'skin') el.querySelectorAll('[data-mskin]').forEach((s) => s.classList.toggle('on', s.dataset.mskin === inp.value));
-      markDirty();
+      markDirty(); updateDetailCounts();
     }));
     el.querySelectorAll('[data-mskin]').forEach((b) => {
       b.onclick = () => {
@@ -505,7 +586,7 @@ export function multiDetails(objs) {
     });
     el.querySelectorAll('[data-mck]').forEach((inp) => inp.addEventListener('input', () => {
       for (const e of rows[+inp.dataset.mck].values()) e.key = inp.value;
-      markDirty();
+      markDirty(); updateDetailCounts();
     }));
     el.querySelectorAll('[data-mcv]').forEach((inp) => inp.addEventListener('input', () => {
       const m = rows[+inp.dataset.mcv], key = el.querySelector(`[data-mck="${inp.dataset.mcv}"]`).value;
@@ -514,7 +595,7 @@ export function multiDetails(objs) {
         if (!e) { e = { key, value: '' }; o.details.custom.push(e); m.set(o, e); }
         e.value = inp.value;
       }
-      markDirty();
+      markDirty(); updateDetailCounts();
     }));
     el.querySelectorAll('[data-mcrm]').forEach((b) => {
       b.onclick = () => {
@@ -523,6 +604,8 @@ export function multiDetails(objs) {
       };
     });
     el.querySelector('#btnAddDetail').onclick = () => {
+      const bad = rows.findIndex((_, i) => rowBad(i));
+      if (bad >= 0) { reveal(bad); return; }   // finish the open row first
       objs.forEach((o) => { const e = { key: '', value: '' }; o.details.custom.push(e); if (o === objs[0]) multiFocusEntry = e; });
       markDirty(); renderContext();
     };
@@ -531,6 +614,7 @@ export function multiDetails(objs) {
       multiFocusEntry = null;
       if (i >= 0) el.querySelector(`[data-mck="${i}"]`)?.focus();
     }
+    updateDetailCounts();
   };
   return { html, bind };
 }
@@ -539,10 +623,10 @@ export function multiDetails(objs) {
 export function renderEditPanel(el) {
   const o = state.editing;
   const presets = Object.keys(POSES).map((p) => `<button data-pose="${p}">${p}</button>`).join('');
-  el.innerHTML = `<h2>Posing <span style="color:var(--accent);text-transform:none;letter-spacing:0">${esc(o.details.name)}</span></h2>
+  el.innerHTML = `<h2>Changing posture of <span style="color:var(--accent);text-transform:none;letter-spacing:0">${esc(o.details.name)}</span></h2>
     <h2 style="margin-top:12px">Presets</h2>
     <div class="presetGrid">${presets}</div>
-    <div class="row"><button id="btnResetJoint" ${state.joint ? '' : 'disabled'}>Reset ${state.joint || 'joint'}</button><button id="btnMirror">Mirror L↔R</button><button id="btnResetPose">Reset pose</button></div>
+    <div class="row"><button id="btnResetJoint" ${state.joint ? '' : 'disabled'}>Reset ${state.joint || 'joint'}</button><button id="btnMirror">Mirror L↔R</button><button id="btnResetPose">Reset posture</button></div>
     <div class="field" style="margin-top:8px"><label>Hip height</label><input type="range" id="hipY" min="0.2" max="1.1" step="0.01" value="${o.joints.pelvis.position.y}"></div>
     <p class="hint">${state.joint ? `Rotating <b>${state.joint}</b> — drag the rings.` : 'Click a joint (orange dot) or a body part to rotate it.'}</p>
     <p class="hint">Name and details (gender, clothing…) are in the object panel: press <b>Esc</b> to go back.</p>`;
@@ -559,7 +643,7 @@ export function applyPose(o, name) {
   for (const [j, r] of Object.entries(p.joints)) o.joints[j].rotation.set(r[0] * DEG, r[1] * DEG, r[2] * DEG);
   o.joints.pelvis.position.y = p.pelvisY ?? PELVIS_Y;
   o.details.pose = p.label;
-  markDirty(); renderContext();
+  markDirty(); renderContext(); updateDetailCounts();
 }
 export function mirrorPose(o) {
   const saved = {};
