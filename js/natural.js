@@ -58,7 +58,7 @@ function gather() {
   const vis = leftToRight(facts).filter((o) => !o.hidden && state.objects.includes(o));
   const byId = new Map(vis.map((o) => [o.id, o]));
   const info = new Map(vis.map((o) => [o.id, { noun: null, fields: {}, custom: [], size: null, facing: null, orient: [], placement: null }]));
-  const g = { facts, same: new Set(), vis, byId, info, edges: { left: [], front: [], vert: [], larger: [] }, stand: [], between: [], faces: [], camera: [], env: {}, style: '', custom: [], adj: new Set(), dirPairs: new Set() };
+  const g = { facts, same: new Set(), vis, byId, info, edges: { left: [], front: [], vert: [], larger: [] }, stand: [], between: [], faces: [], camera: [], env: {}, style: '', custom: [], adj: new Set() };
   const pairKey = (a, b) => (a < b ? a + '|' + b : b + '|' + a);
   g.pairKey = pairKey;
   // how the objects really stand, also when their orientation is left out of the prompt
@@ -81,9 +81,9 @@ function gather() {
       case 'size': if (inf) inf.size = t.parts[0]; break;
       case 'sizeRel':
         if (ids.length !== 2 || !byId.has(ids[0]) || !byId.has(ids[1])) break;
-        if (t.rel === 'larger') g.edges.larger.push([ids[0], ids[1], 'larger', t.overridden]);
-        else if (t.rel === 'smaller') g.edges.larger.push([ids[1], ids[0], 'larger', t.overridden]);
-        else if (t.rel === 'sameSize') g.same.add(pairKey(ids[0], ids[1]));
+        if (t.rel === 'taller') g.edges.larger.push([ids[0], ids[1], 'larger', t.overridden]);
+        else if (t.rel === 'shorter') g.edges.larger.push([ids[1], ids[0], 'larger', t.overridden]);
+        else if (t.rel === 'sameHeight') g.same.add(pairKey(ids[0], ids[1]));
         break;
       case 'placement': if (inf) inf.placement = t.parts[0]; break;
       case 'orientation': if (inf) inf.orient.push(t.parts[0]); break;
@@ -99,13 +99,11 @@ function gather() {
         const [a, b] = ids;
         if (t.family === 'leftRight') {
           if (t.rel === 'rightOf') g.edges.left.push([b, a, 'left']); else if (t.rel === 'leftOf') g.edges.left.push([a, b, 'left']);
-          g.dirPairs.add(pairKey(a, b));
         } else if (t.family === 'frontBack') {
           if (t.rel === 'frontOf') g.edges.front.push([a, b, 'front', t.overridden]); else if (t.rel === 'backOf') g.edges.front.push([b, a, 'front', t.overridden]);
-          g.dirPairs.add(pairKey(a, b));
         } else if (t.family === 'sameRowCol') {
           if (t.overridden) g.stand.push([a, b, t.rel]);
-        } else if (t.family === 'vertical') {
+        } else if (t.family === 'vertical' || t.family === 'onTop') {
           if (t.rel === 'above') g.edges.vert.push([a, b, 'above', t.overridden]);
           else if (t.rel === 'below') g.edges.vert.push([b, a, 'above', t.overridden]);
           else if (t.rel === 'onTopOf') g.edges.vert.push([a, b, 'onTop', t.overridden]);
@@ -260,9 +258,13 @@ function layoutSentences(g) {
   const byOrder = (edges) => [...edges].sort((p, q) => order.get(p[0]) - order.get(q[0]) || order.get(p[1]) - order.get(q[1]));
   const say = (a, words, b, tail = '') => out.push([ref(a), ' ' + words + ' ', ref(b), tail + '.']);
   const fact = (id) => g.facts.get(id);
-  const { upright } = g;
 
-  for (const [a, b] of byOrder(g.reduced.left)) say(a, g.adj.has(g.pairKey(a, b)) ? 'is immediately to the left of' : TEMPLATES.leftOf, b);
+  const nextSaid = new Set();   // "immediately to the left of" already says that they are next to each other
+  for (const [a, b] of byOrder(g.reduced.left)) {
+    const k = g.pairKey(a, b);
+    if (g.adj.has(k)) nextSaid.add(k);
+    say(a, g.adj.has(k) ? 'is immediately to the left of' : TEMPLATES.leftOf, b);
+  }
   for (const [f, k, , over] of byOrder(g.reduced.front)) {   // f is in front of k
     if (over) { say(f, TEMPLATES.frontOf, k); continue; }
     const F = fact(f), K = fact(k);
@@ -270,7 +272,7 @@ function layoutSentences(g) {
   }
   if (out.length) out[0].unshift("From the camera's point of view, ");
   for (const k of g.adj) {
-    if (g.dirPairs.has(k)) continue;
+    if (nextSaid.has(k)) continue;
     const [a, b] = k.split('|').sort((x, y) => order.get(x) - order.get(y));
     say(a, TEMPLATES.adjacent, b);
   }
@@ -279,19 +281,19 @@ function layoutSentences(g) {
     if (!over && kind === 'above' && fact(a).on && !footprintsOverlap(fact(a), fact(b))) continue;
     say(a, kind === 'onTop' ? TEMPLATES.onTopOf : over || footprintsOverlap(fact(a), fact(b)) ? TEMPLATES.above : 'is higher up than', b);
   }
-  // sizes: objects of the same size form a group, which is compared with the others only once
+  // heights: objects of the same height form a group, which is compared with the others only once
   const groups = [];
   for (const o of g.vis) {
     const grp = groups.find((x) => x.every((id) => g.same.has(g.pairKey(id, o.id))));
     if (grp) grp.push(o.id); else groups.push([o.id]);
   }
   const rep = new Map(groups.flatMap((x) => x.map((id) => [id, x[0]])));
-  for (const x of groups) if (x.length > 1) out.push([...listAnd(x.map((id) => [ref(id)])), x.every(upright) ? ' are about the same height.' : ' are about the same size.']);
+  for (const x of groups) if (x.length > 1) out.push([...listAnd(x.map((id) => [ref(id)])), ' are about the same height.']);
   const has = new Set(g.edges.larger.map((e) => e[0] + '>' + e[1]));
   const sizes = reduceEdges(dedupe(g.edges.larger.filter(([a, b, , over]) => over || (rep.get(a) === a && rep.get(b) === b) || !has.has(rep.get(a) + '>' + rep.get(b)))));
   for (const [a, b, , over] of byOrder(sizes)) {
     const much = !over && fact(a).height / fact(b).height >= 1.5 ? 'much ' : '';
-    say(a, 'is ' + much + (upright(a) && upright(b) ? 'taller' : 'larger') + ' than', b);
+    say(a, 'is ' + much + 'taller than', b);
   }
   for (const [a, b, rel] of byOrder(g.stand)) say(a, TEMPLATES[rel], b);
   for (const [a, b, c] of byOrder(g.between)) out.push([ref(a), ' is between ', ref(b), ' and ', ref(c), '.']);

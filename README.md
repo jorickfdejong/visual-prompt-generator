@@ -45,7 +45,7 @@ The same controls frame the shot in **Camera view**.
 | **Environment** | Its own tab in the sidebar: labels for environment, temperature and lighting, floor, walls and shadows. |
 | **Export** | The button at the top of the sidebar: an editable prompt next to the camera image, with the notes, checkboxes and tuples it is made from below. |
 | **Prompt tuples** | Shows every computed tuple. Untick a line to leave it out, use a dropdown to override a relation, add your own tuples, and add scene notes. |
-| **Include in the prompt** | Checkboxes in Export that include or leave out a kind of information (size, size relationships, left / right, cameraâ€¦), in both the written prompt and the tuples. The group checkbox switches all of it. |
+| **Include in the prompt** | Checkboxes in Export that include or leave out a kind of information (size, height, left / right, cameraâ€¦), in both the written prompt and the tuples. The group checkbox switches all of it. |
 | **Variants** | **Save as variant** stores the whole setup with a thumbnail and its prompt. Load a variant, change it, and save again to iterate. Tick `cmp` on two cards and click **Compare** to see both images and a diff of their tuples. |
 
 Everything autosaves in your browser (localStorage). **New scene** clears the working setup; your variants are kept.
@@ -58,7 +58,7 @@ Everything autosaves in your browser (localStorage). **New scene** clears the wo
 - Every other predicate that holds is listed:
   - `rightOf` / `leftOf`, `frontOf` / `backOf`, `sameRow` / `sameCol`
   - `adjacent`, `between`
-  - `small` / `medium` / `large`, `larger` / `sameSize`
+  - `small` / `medium` / `large`, `taller` / `sameHeight` (upright objects only)
   - 3D: `above`, `onTopOf`, `sameLevel`
   - Placement: `onGround`, `floating` (read from the real positions)
   - Extensions: `facing`, `facingCamera` / `threeQuarterLeft` / `profileLeft` / `backToCamera`; rotation such as `lyingOnBack`, `leaningLeft`, `upsideDown`

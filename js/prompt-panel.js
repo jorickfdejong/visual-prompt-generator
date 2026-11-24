@@ -2,7 +2,8 @@ import { $, FAMILIES, state } from './state.js';
 import { gizmoDragging } from './scene.js';
 import { grid } from './room.js';
 import { schedulePreview } from './rendering.js';
-import { computeTuples, finalTuples } from './relations.js';
+import { activeTuples, computeTuples, finalTuples } from './relations.js';
+import { impliedLeftRight } from './tuple-trim.js';
 import { exportOpen, renderPromptEdit } from './export-modal.js';
 import { renderNatural } from './natural.js';
 import { renderWarnings } from './consistency.js';
@@ -37,9 +38,9 @@ export function renderIncludes() {
 export function renderTuples() {
   const el = $('#tupleList');
   el.innerHTML = '';
-  const rows = [];
+  const rows = [], implied = impliedLeftRight(activeTuples());
   for (const t of state.tuples) {
-    if (!state.settings.families[t.family]) continue;
+    if (!state.settings.families[t.family] || implied.has(t.key)) continue;
     const o = state.overrides[t.key] || {};
     const div = document.createElement('div');
     div.className = 'tuple' + (o.off ? ' off' : '') + (o.rel ? ' overridden' : '');

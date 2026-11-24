@@ -39,12 +39,13 @@ export const TEMPLATES = {
   above: 'is above', below: 'is below', onTopOf: 'is resting on top of', sameLevel: 'is at the same height as',
   sameRow: 'is in the same row as', sameCol: 'is in the same column as', adjacent: 'is next to',
   larger: 'is larger than', smaller: 'is smaller than', sameSize: 'is the same size as',
+  taller: 'is taller than', shorter: 'is shorter than', sameHeight: 'is about as tall as',
   facing: 'faces', facingAway: 'faces away from',
 };
-const INVERSE = { leftOf: 'rightOf', backOf: 'frontOf', below: 'above', smaller: 'larger' };
-const SYMMETRIC = new Set(['sameRow', 'sameCol', 'sameLevel', 'sameSize', 'adjacent']);
+const INVERSE = { leftOf: 'rightOf', backOf: 'frontOf', below: 'above', smaller: 'larger', shorter: 'taller' };
+const SYMMETRIC = new Set(['sameRow', 'sameCol', 'sameLevel', 'sameSize', 'sameHeight', 'adjacent']);
 // relations on the same topic: two different ones for the same pair contradict each other
-const TOPIC = { rightOf: 'left/right', frontOf: 'front/back', above: 'height', onTopOf: 'height', sameLevel: 'height', larger: 'size', sameSize: 'size', facing: 'facing', facingAway: 'facing' };
+const TOPIC = { rightOf: 'left/right', frontOf: 'front/back', above: 'height', onTopOf: 'height', sameLevel: 'height', larger: 'size', sameSize: 'size', taller: 'tallness', sameHeight: 'tallness', facing: 'facing', facingAway: 'facing' };
 
 // one form per fact: (B, leftOf, A) and (A, rightOf, B) give the same result
 export function canonical([a, rel, b]) {
