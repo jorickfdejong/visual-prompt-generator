@@ -61,7 +61,7 @@ Everything autosaves in your browser (localStorage). **New scene** clears the wo
   - `small` / `medium` / `large`, `taller` / `sameHeight` (upright objects only)
   - 3D: `above`, `onTopOf`, `sameLevel`
   - Placement: `onGround`, `floating` (read from the real positions)
-  - Extensions: `facing`, `facingCamera` / `threeQuarterLeft` / `profileLeft` / `backToCamera`; rotation such as `lyingOnBack`, `leaningLeft`, `upsideDown`
+  - Extensions: `facingEachOther`, `facingCamera` / `threeQuarterLeft` / `profileLeft` / `backToCamera`; rotation such as `lyingOnBack`, `leaningLeft`, `upsideDown`
   - Camera: shot size, angle, lens, aspect ratio
 
 Example export:
@@ -76,12 +76,12 @@ sunny park, golden hour, 35mm film photo
 (person, man)
 (man, rightOf, woman)
 (woman, frontOf, man)
-(woman, facing, man)
+(woman, facingEachOther, man)
 (fullShot, camera)
 (eyeLevel, camera)
 (16:9, camera)
 
-Use the reference image for composition, pose and camera only. Ignore its colours, materials and textures.
+The reference image is a depth map: light is close to the camera, dark is far away, black is empty background. Use it for composition, pose, distance and camera only. Its grey values are not colours or lighting, and the result must not look like a depth map.
 Full-colour image, natural colours.
 ```
 
@@ -89,7 +89,7 @@ Full-colour image, natural colours.
 
 Fixed sentence templates, in this order: scene, objects from left to right (each named by its place and pose in the frame), layout, camera, lighting, additional notes, reference line. Sizes and distances are written in words, not metres. Warnings above it point out likely misreadings and are never exported.
 
-**Reference image** in Export picks a neutral grey render (default) or the coloured one. With the grey one the prompt also asks for full colour, unless the notes ask for black and white.
+**Reference image** in Export picks a depth map (default: light is near, dark is far), a neutral grey render or the coloured one. With the first two the prompt also asks for full colour, unless the notes ask for black and white.
 
 ## Copying to an image generator
 
@@ -113,6 +113,7 @@ Fixed sentence templates, in this order: scene, objects from left to right (each
 | `types.js` | The object **type registry** (`TYPES`) |
 | `objects.js` | Adding, duplicating, copy/paste and deleting objects |
 | `selection.js` | Compose/edit modes, selection, gizmo, help panel |
+| `depth-map.js` | The depth map used as reference image |
 | `rendering.js` | Viewport and shot rendering, screenshots, live preview |
 | `relations.js` | Spatial relations (Tarski's World) and the prompt text |
 | `world-facts.js` | Real positions read from the scene: support, depth, place in the frame, what hides what |

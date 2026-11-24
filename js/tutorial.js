@@ -94,14 +94,13 @@ const STEPS = [
   },
 ];
 
-let root = null, ring = null, card = null, els = null, idx = 0, raf = 0, ctx = {}, lastKey = '', required = false;
+let root = null, ring = null, card = null, els = null, idx = 0, raf = 0, ctx = {}, lastKey = '';
 
 export function tutorialDone() { try { return !!localStorage.getItem(DONE_KEY); } catch { return true; } }
 
-// required: the first time, when it cannot be closed before every step is done
-export function startTutorial(opts = {}) {
+// skipping counts as done: it does not come back on the next visit (it can be started again from the ? panel)
+export function startTutorial() {
   if (root) return;
-  required = !!opts.required;
   root = document.createElement('div');
   root.id = 'tutRoot';
   ring = document.createElement('div');
@@ -113,7 +112,7 @@ export function startTutorial(opts = {}) {
   card.setAttribute('aria-labelledby', 'tutTitle');
   card.innerHTML = `<div class="tutTop"><span class="tutStep" id="tutStepLbl"></span><span class="simPill" id="tutLike"></span></div><h3 id="tutTitle"></h3>
     <p id="tutText"></p><ul id="tutTasks" aria-live="polite"></ul><p id="tutHint" class="tutHint" aria-live="polite"></p>
-    <div class="tutBtns"><button type="button" id="tutClose" class="tutGhost">Close</button><button type="button" id="tutNext" class="tutPrimary">Next</button></div>`;
+    <div class="tutBtns"><button type="button" id="tutClose" class="tutGhost">Skip tutorial</button><button type="button" id="tutNext" class="tutPrimary">Next</button></div>`;
   root.append(ring, card);
   document.body.appendChild(root);
   els = {
@@ -121,7 +120,6 @@ export function startTutorial(opts = {}) {
     tasks: card.querySelector('#tutTasks'), hint: card.querySelector('#tutHint'), next: card.querySelector('#tutNext'), close: card.querySelector('#tutClose'),
   };
   els.next.onclick = () => (idx >= STEPS.length - 1 ? endTutorial() : go(idx + 1));
-  els.close.hidden = required;
   els.close.onclick = endTutorial;
   go(0);
   loop();

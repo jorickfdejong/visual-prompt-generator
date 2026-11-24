@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { $, ASPECTS, state } from './state.js';
-import { clayReference } from './prompt-rules.js';
+import { clayReference, depthReference } from './prompt-rules.js';
+import { renderDepth } from './depth-map.js';
 import { wallGroup } from './room.js';
 import { editCam, floor, hemi, gizmo, renderer, scene, vp } from './scene.js';
 import { shotCam } from './camera.js';
@@ -112,6 +113,10 @@ export function renderShot(longSide, type = 'image/png', quality) {
   }
   shotRenderer.setSize(w, h, false);
   const draw = () => shotRenderer.render(scene, shotCam);
+  if (depthReference()) {
+    cleanRender(() => renderDepth(shotRenderer, shotCam));
+    return shotRenderer.domElement.toDataURL(type, quality);
+  }
   if (clayReference()) {
     cleanRender(() => clayRender(draw));
     return greyURL(shotRenderer.domElement, type, quality);
