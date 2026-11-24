@@ -65,20 +65,14 @@ export function startRename(li, o) {
   inp.addEventListener('blur', done);
   inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') inp.blur(); if (e.key === 'Escape') { inp.value = o.details.name; inp.blur(); } e.stopPropagation(); });
 }
-// The name of an object is what it represents: the words go to the prompt, a short unique id made of them to the list.
-export function setName(o, raw) {
+function setName(o, raw) {
   raw = raw.trim();
-  if (raw === o.details.name || (raw && raw === o.details.subject)) return;
+  if (raw === o.details.name) return;
   const base = TYPES[o.type].baseName;
-  const auto = !raw || new RegExp('^' + base + '\\d+$', 'i').test(raw);   // "cylinder1" says nothing about what it is
-  o.details.subject = auto ? '' : raw.replace(/([a-z])([A-Z])/g, '$1 $2');
-  const own = new RegExp('^' + base + '\\d+$').test(o.details.name);
-  const clean = camel(raw) || (own ? o.details.name : nextName(base));
-  o.details.name = clean;
-  if (state.objects.some((x) => x !== o && x.details.name === clean)) {
-    o.details.name = '';
-    o.details.name = uniqueName(clean);
-  }
+  const defaultName = new RegExp('^' + base + '\\d+$', 'i');
+  o.details.subject = defaultName.test(raw) ? '' : raw.replace(/([a-z])([A-Z])/g, '$1 $2');
+  const name = camel(raw) || (defaultName.test(o.details.name) ? o.details.name : nextName(base));
+  o.details.name = uniqueName(name, o);
   updateModeBadge(); markDirty();
 }
 
@@ -112,16 +106,12 @@ export function renderContext() {
     multi.bind(el);
   } else if (sel?.kind === 'obj') {
     const o = sel.obj;
-    el.innerHTML = `<div class="field"><label for="objName">Represents</label><input type="text" id="objName" value="${esc(o.details.subject || (TYPES[o.type].geometry || o.details.name.startsWith(TYPES[o.type].baseName) ? '' : o.details.name))}" placeholder="${esc((TYPES[o.type].fields.find((f) => f.asNoun) || {}).placeholder || '')}"></div>
-      <p class="hint repHint">${TYPES[o.type].geometry ? `Say what this ${o.type} stands for, so it is not drawn as a ${o.type}.` : 'This is its name, and what the image generator will draw.'}</p>
-      ${TYPES[o.type].poseable ? `<button id="btnPose" class="primary" style="width:100%;margin:2px 0 12px" title="Change the posture (Enter or double-click it)">Change posture</button>` : ''}
+    el.innerHTML = `${TYPES[o.type].poseable ? `<button id="btnPose" class="primary" style="width:100%;margin:2px 0 12px" title="Change the posture (Enter or double-click it)">Change posture</button>` : ''}
       ${transformHTML(sel)}
       ${o.type === 'image' ? imagePanelHTML(o) : ''}
       ${detailsHTML(o)}`;
     el.querySelector('#btnPose')?.addEventListener('click', () => enterEdit(o));
     if (o.type === 'image') bindImagePanel(el, o);
-    const nameInput = el.querySelector('#objName');
-    nameInput.addEventListener('change', () => { setName(o, nameInput.value); renderObjectList(); });
     bindDetails(el, o);
   } else {
     el.innerHTML = `<p class="hint" style="margin:0">Select the camera or an object in the scene list above. Drag over empty space to select several objects.</p>`;
@@ -451,10 +441,10 @@ export function bindImagePanel(el, o) {
   };
 }
 
-// Details of one object (name lives above them). Fields come from the object's type.
+// Details of one object. Fields come from the object's type.
 export function detailsHTML(o) {
   const d = o.details;
-  const fields = (TYPES[o.type].fields || []).filter((f) => !f.asNoun).map((f) => {   // Represents is at the top of the panel
+  const fields = (TYPES[o.type].fields || []).filter((f) => !f.asNoun).map((f) => {
     if (f.type === 'select') return `<div class="field"><label>${f.label}</label><select data-k="${f.key}">${f.options.map((v) => `<option value="${v}" ${d[f.key] === v ? 'selected' : ''}>${v || '—'}</option>`).join('')}</select></div>`;
     if (f.type === 'skin') return `<div class="field"><label>${f.label}</label><div><input type="text" data-k="skin" value="${esc(d.skin)}" placeholder="e.g. olive">
       <div class="swatches">${SKIN_TONES.map(([n, c]) => `<button class="swatch ${d.skin === n ? 'on' : ''}" data-skin="${n}" title="${n}" style="background:${c}"></button>`).join('')}</div></div></div>`;
@@ -462,6 +452,7 @@ export function detailsHTML(o) {
   }).join('');
   const custom = d.custom.map((c, i) => `<div class="customItem" data-i="${i}"><div class="customRow"><input type="text" data-ck="${i}" value="${esc(c.key)}" placeholder="detail (e.g. glasses)"><input type="text" data-cv="${i}" value="${esc(c.value)}" placeholder="value (e.g. round)"><button class="icon danger" data-crm="${i}">✕</button></div></div>`).join('');
   return `${detailsHead()}
+    <div class="field"><label for="objName">Name</label><input type="text" id="objName" value="${esc(d.name)}"></div>
     ${fields}
     <div style="margin-top:4px">${d.custom.length ? CUSTOM_HEAD : ''}${custom}</div>
     <button id="btnAddDetail">+ Add your own detail</button>`;
@@ -509,6 +500,21 @@ function wireRowErrors(el, status, fresh) {
 }
 export function bindDetails(el, o) {
   const d = o.details;
+  const nameInput = el.querySelector('#objName');
+  const applyName = () => {
+    setName(o, nameInput.value);
+    nameInput.value = d.name;
+    const rowName = $('#objectList').querySelector(`li[data-obj="${CSS.escape(o.id)}"] .name`);
+    if (rowName) rowName.textContent = d.name;
+    updateDetailCounts();
+  };
+  nameInput.addEventListener('change', applyName);
+  nameInput.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    applyName();
+    nameInput.blur();
+  });
   const fresh = d.custom.indexOf(freshEntry);
   freshEntry = null;
   const reveal = wireRowErrors(el, (i) => ({ k: !d.custom[i].key.trim(), v: !d.custom[i].value.trim() }), fresh);
