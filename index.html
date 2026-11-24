@@ -3,8 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Visual Prompt Generator</title>
+<title>Visual Prompt Generator · New File</title>
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="details.css">
+<link rel="stylesheet" href="tutorial.css">
+<link rel="stylesheet" href="feedback.css">
 <script type="importmap">
 {
   "imports": {
@@ -21,12 +24,12 @@
     <div id="viewport">
       <div id="fileMenu">
         <button id="btnFile" title="File menu · double-click to rename" aria-haspopup="menu" aria-expanded="false">
-          <span id="sceneName">Untitled</span><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          <span id="sceneName">New File</span><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
         </button>
-        <input id="nameInput" type="text" maxlength="60" placeholder="Untitled" aria-label="Scene name" spellcheck="false" hidden>
+        <input id="nameInput" type="text" maxlength="60" placeholder="New File" aria-label="Scene name" spellcheck="false" hidden>
         <div id="fileDrop" role="menu" hidden>
           <button id="btnRename" role="menuitem">Rename…</button>
-          <button id="btnNewScene" role="menuitem">New scene</button>
+          <button id="btnNewScene" role="menuitem">New file <span class="hint">in a new tab</span></button>
           <button id="btnOpenScene" role="menuitem">Open… <kbd>Ctrl O</kbd></button>
           <button id="btnSaveScene" role="menuitem">Save as JSON file <kbd>Ctrl S</kbd></button>
         </div>
@@ -50,13 +53,14 @@
         </div>
         <input type="file" id="imageFile" accept=".png,.jpg,.jpeg,image/png,image/jpeg" hidden>
         <button data-tool="transform" data-tip="Move &amp; rotate" data-key="W" aria-label="Move and rotate (W)"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg></button>
-        <button data-tool="scale" data-tip="Scale" data-key="K" aria-label="Scale (K)"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="10" height="10" rx="1"/><path d="M11 13l9-9M14 4h6v6"/></svg></button>
+        <button data-tool="scale" data-tip="Scale &amp; stretch" data-key="K" aria-label="Scale and stretch (K)"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="10" height="10" rx="1"/><path d="M11 13l9-9M14 4h6v6"/></svg></button>
       </div>
     </div>
   </main>
 
   <!-- ================= SIDEBAR (right) ================= -->
   <aside id="side" class="panel">
+    <div id="sideHead"><button id="btnExport" title="Export the image and the prompt"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4M5 14v5h14v-5"/></svg>Export</button></div>
     <div id="sideBody">
     <section id="outliner">
       <h2><span>Scene</span><span class="hint" id="objCount"></span></h2>
@@ -83,7 +87,6 @@
     <section id="worldSection"></section>
     </div>
 
-  <div id="sideFoot"><button id="btnExport" class="primary">Export…</button></div>
   </aside>
 </div>
 
@@ -91,16 +94,29 @@
   <div class="modalBox">
     <header><h1 id="exportTitle">Export</h1><button id="btnCloseExport" class="icon" aria-label="Close">✕</button></header>
     <div class="modalBody">
-    <section>
-      <h2>Camera</h2>
-      <img id="shotPreview" alt="Camera preview" title="Live view of the shot camera">
-      <div class="field" style="margin-top:8px"><label for="reference">Reference image</label><select id="reference"><option value="clay">Clay grey</option><option value="colour">Coloured</option></select></div>
-      <div class="row" style="margin-top:8px">
-        <button id="btnCopyImg">Copy image</button>
-        <button id="btnDlPng">Download PNG</button>
+    <div class="exportTop">
+    <section id="exportText">
+      <h2><label for="promptEdit">Prompt text</label><span class="editTag"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Editable: click and type</span></h2>
+      <textarea id="promptEdit" spellcheck="false"></textarea>
+      <div class="row editRow"><span id="promptEditState" class="hint" role="status" hidden></span><button id="btnPromptReset" hidden>Reset to generated text</button></div>
+      <div class="row">
+        <button id="btnCopyText">Copy text</button>
+        <select id="format" aria-label="Text format"><option value="both">Written prompt + tuples</option><option value="natural">Written prompt</option><option value="tuples">Tuples</option></select>
       </div>
     </section>
+    <section id="exportImage">
+      <h2>Reference image</h2>
+      <img id="shotPreview" alt="Camera preview" title="Live view of the shot camera">
+      <div class="row">
+        <button id="btnCopyImg">Copy image</button>
+        <button id="btnDlPng">Download PNG</button>
+        <select id="reference" aria-label="Reference image look"><option value="clay">Clay grey</option><option value="colour">Coloured</option></select>
+      </div>
+    </section>
+    </div>
+    <ul id="promptWarnings" aria-label="Warnings" hidden></ul>
 
+    <h2 class="genTitle">Change what the text is made from</h2>
     <section>
       <h2>Scene notes</h2>
       <textarea id="notes" placeholder="Anything else the image needs…"></textarea>
@@ -111,12 +127,11 @@
       <div id="includeList"></div>
     </section>
 
-    <section>
-      <h2>Written prompt</h2>
-      <ul id="promptWarnings" aria-label="Warnings" hidden></ul>
+    <details class="sec">
+      <summary><h2><span><span class="chev">▸</span> Find an object from the text</span></h2></summary>
+      <p class="hint" style="margin:0">Click a name to go to that object.</p>
       <div id="naturalPrompt"></div>
-      <p class="hint" style="margin:8px 0 0">Click a name to go to that object.</p>
-    </section>
+    </details>
 
     <details class="sec" id="tupleSec">
       <summary><h2><span><span class="chev">▸</span> Prompt tuples</span> <span class="hint" id="tupleCount"></span></h2></summary>
@@ -127,21 +142,8 @@
       </div>
       <p class="hint" style="margin:8px 0 0">Untick a line to leave it out. Use the dropdowns to override a computed relation.</p>
     </details>
-
-    <section>
-      <h2>Text</h2>
-      <div class="field"><label>Format</label><select id="format"><option value="both">Written prompt + tuples</option><option value="natural">Written prompt</option><option value="tuples">Tuples</option></select></div>
-      <div class="row">
-        <button id="btnCopyText" class="primary">Copy text</button>
-        <button id="btnCopyBoth">Copy image + text</button>
-        <button id="btnDlTxt">Download .txt</button>
-      </div>
-      <details style="margin-top:10px" open>
-        <summary>Preview</summary>
-        <pre id="exportPreview"></pre>
-      </details>
-    </section>
     </div>
+    <footer><span class="hint">The zip holds reference.png and prompt.txt. Add both to your image generator.</span><button id="btnZip" class="primary">Download ZIP (image + text)</button></footer>
   </div>
 </div>
 

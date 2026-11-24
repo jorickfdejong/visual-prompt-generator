@@ -33,7 +33,7 @@ export const FAMILIES = {
   finalImage: { label: 'Visual style', color: '#fff176', group: 'Scene' },
   camera: { label: 'Camera', color: '#90caf9', group: 'Scene', hint: 'Shot size, angle, lens, aspect ratio' },
   custom: { label: 'Your own tuples', color: '#ffffff', group: 'Scene' },
-  closing: { label: 'Closing lines', color: '#eeeeee', group: 'Scene', hint: 'How to use the reference image, and full colour' },
+  closing: { label: 'Closing lines', color: '#eeeeee', group: 'Scene', hint: 'How to use the reference image, shapes as stand-ins, and full colour' },
 };
 // Alternatives offered in a relation's override dropdown
 export const ALTS = {
@@ -58,7 +58,7 @@ export const DETAIL_FIELDS = [
   { key: 'hair', label: 'Hair', type: 'text', placeholder: 'e.g. long curly red', suffix: 'hair' },
   { key: 'clothing', label: 'Clothing', type: 'text', placeholder: 'e.g. blue denim jacket' },
   { key: 'expression', label: 'Expression', type: 'text', placeholder: 'e.g. smiling' },
-  { key: 'pose', label: 'Pose', type: 'text', placeholder: 'e.g. sitting' },
+  { key: 'pose', label: 'Posture', type: 'text', placeholder: 'e.g. sitting' },
   { key: 'action', label: 'Action', type: 'text', placeholder: 'e.g. holding a coffee cup' },
 ];
 
@@ -80,6 +80,7 @@ export const state = {
   cameraView: false,
   camera: { focal: 35, aspect: '16:9' },
   notes: '',
+  promptEdit: null,        // { text, base } when the prompt was edited by hand in Export
   environment: ENV_DEFAULT(),
   visualStyle: '',         // look of the final image (Final image panel)
   settings: { cell: 0.5, showNames: false, families: Object.fromEntries(Object.keys(FAMILIES).map((k) => [k, true])) },

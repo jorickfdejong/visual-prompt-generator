@@ -8,11 +8,13 @@ import { inset, render, resize, takeScreenshot } from './rendering.js';
 import { PROPS } from './props.js';
 import { camel, exportText } from './relations.js';
 import { renderObjectList } from './left-panel.js';
-import { closeExport, exportOpen, openExport, promptText } from './export-modal.js';
+import { closeExport, editPrompt, exportOpen, openExport, promptText, resetPrompt } from './export-modal.js';
 import { toggleNames } from './labels.js';
 import './nav.js';
 import { addCustomTuple, markDirty, refreshDerived, takeDirty } from './prompt-panel.js';
-import { copyBoth, copyImage, copyText, download, downloadText, toast } from './clipboard.js';
+import { copyImage, copyText, download, downloadZip, toast } from './clipboard.js';
+import { askNavMode } from './nav-mode.js';
+import { startTutorial } from './tutorial.js';
 import { commitHistory, deserializeScene, loadStored, renderSceneName, serializeScene, stepHistory } from './persistence.js';
 
 /* =====================================================================
@@ -66,8 +68,10 @@ $('#btnEditDone').onclick = exitEdit;
 $('#btnCopyImg').onclick = copyImage;
 $('#btnDlPng').onclick = () => download('reference.png', takeScreenshot());
 $('#btnCopyText').onclick = () => copyText();
-$('#btnCopyBoth').onclick = copyBoth;
-$('#btnDlTxt').onclick = () => downloadText('prompt.txt', promptText());
+$('#btnZip').onclick = downloadZip;
+$('#promptEdit').addEventListener('input', editPrompt);
+$('#btnPromptReset').onclick = resetPrompt;
+$('#helpPanel').addEventListener('click', (e) => { if (e.target.id === 'btnTutorial') { toggleHelp(false); startTutorial(); } });
 $('#notes').addEventListener('input', (e) => { state.notes = e.target.value; markDirty(); });
 $('#visualStyle').addEventListener('input', (e) => { state.visualStyle = e.target.value; markDirty(); });
 $('#btnAddTuple').onclick = addCustomTuple;
@@ -80,8 +84,10 @@ $('#exportModal').addEventListener('keydown', (e) => { if (e.key === 'Escape') {
 $('#reference').addEventListener('change', (e) => { state.settings.reference = e.target.value; markDirty(); });
 $('#format').addEventListener('change', (e) => { state.settings.format = e.target.value; markDirty(); });
 function newScene() {
-  if (!confirm('Start an empty scene? Anything you have not saved to a file is lost.')) return;
-  deserializeScene({ objects: [], notes: '', settings: { ...state.settings, cell: 0.5 } });
+  // a new browser tab with its own autosave; this one keeps its scene
+  const u = new URL(location.href);
+  u.searchParams.set('new', '1');
+  window.open(u, '_blank', 'noopener');
 }
 async function saveSceneFile() {
   const json = JSON.stringify(serializeScene(), null, 2);
@@ -180,6 +186,7 @@ window.addEventListener('keydown', (e) => {
 
 window.addEventListener('keydown', (e) => {
   const tag = e.target.tagName;
+  if (document.querySelector('#navAsk')) return;
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return;
   const k = e.key.toLowerCase();
   if (exportOpen()) { if (k === 'escape') closeExport(); return; }   // the modal owns the keyboard
@@ -222,12 +229,14 @@ window.addEventListener('keydown', (e) => {
 /* =====================================================================
    START
    ===================================================================== */
-const stored = loadStored(STORE_SCENE);
+const isNew = new URLSearchParams(location.search).has('new');   // opened by File → New file
+if (isNew) { const u = new URL(location.href); u.searchParams.delete('new'); history.replaceState(null, '', u); }
+const stored = isNew ? null : loadStored(STORE_SCENE);
 if (stored) deserializeScene(stored);
 else {
   resetCamera();
   deserializeScene({ camera: { pos: shotCam.position.toArray(), quat: shotCam.quaternion.toArray(), focal: 35, aspect: '16:9' }, objects: [], notes: '' });
-  addObject('mannequin');
+  if (!isNew) addObject('mannequin');
   renderObjectList(); markDirty();
 }
 updateModeBadge();
@@ -244,3 +253,4 @@ function frame() {
 }
 
 frame();
+askNavMode().then((first) => { if (first) startTutorial(); });   // first visit: pick a navigation, then the tour

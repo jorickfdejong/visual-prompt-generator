@@ -1,0 +1,61 @@
+/* export button: top right of the sidebar */
+#sideHead { display: flex; justify-content: flex-end; padding: 8px 14px; border-bottom: 1px solid var(--line); flex: none; }
+#btnExport { width: auto; padding: 4px 10px; display: flex; align-items: center; gap: 6px; }
+#btnExport svg, .editTag svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.repHint { margin: 0 0 10px; }
+
+/* export window: text and image side by side on top */
+.modalBox { width: min(1080px, 100%); }
+.exportTop { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--line); }
+.exportTop section { border: 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.exportTop section h2 { margin: 0; }
+.exportTop .row { margin: 0; }
+.exportTop select { width: auto; flex: 1; min-width: 120px; }
+#promptEdit { flex: 1; min-height: 300px; font-size: 13px; line-height: 1.5; border: 2px solid var(--accent); padding: 10px; cursor: text; }
+#promptEdit:focus { outline: 2px solid rgba(240,160,75,.35); }
+.editTag { display: inline-flex; align-items: center; gap: 5px; color: var(--accent); text-transform: none; letter-spacing: 0; font-size: 12px; }
+.editRow:not(:has(> :not([hidden]))) { display: none; }
+#promptEditState { flex: 1; }
+#promptEditState[hidden], #btnPromptReset[hidden] { display: none; }
+#exportImage #shotPreview { flex: 1; max-height: 420px; min-height: 0; }
+#exportModal #promptWarnings { margin: 12px 14px; }
+#exportModal .genTitle { font-size: 13px; margin: 14px 14px 0; }
+.modalBox footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--line); }
+@media (max-width: 760px) { .exportTop { grid-template-columns: 1fr; } .modalBox footer .hint { display: none; } }
+
+/* hover */
+#viewport canvas.hovering { cursor: pointer; }
+#nameLayer div.hover { background: #fff; color: #1d1f23; z-index: 1; }
+
+/* navigation mode */
+#easyBar { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 4; display: none; gap: 2px; padding: 4px;
+  background: rgba(29,31,35,.94); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
+body.nav-easy #easyBar { display: flex; }
+#easyBar button { display: flex; flex-direction: column; align-items: center; gap: 2px; width: 58px; padding: 6px 0 4px; font-size: 11px; background: none; border-color: transparent; }
+#easyBar button:hover { background: var(--panel-2); }
+#easyBar button.active { background: #3a332a; border-color: var(--accent); color: var(--accent); }
+#easyBar svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+body.nav-easy #navRotate, body.nav-easy #navPan, body.nav-easy #navZoomOut, body.nav-easy #navZoomIn { display: none; }
+body.nav-easy #editBar { bottom: 76px; }
+#viewport.easy-orbit canvas, #viewport.easy-pan canvas { cursor: grab; }
+#viewport.easy-zoom canvas { cursor: ns-resize; }
+#navMode { position: absolute; left: 52px; bottom: 10px; z-index: 4; height: 32px; display: flex; align-items: center; gap: 2px; padding: 0 3px 0 10px;
+  background: rgba(29,31,35,.92); border: 1px solid var(--line); border-radius: 16px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
+#navMode span { color: var(--muted); margin-right: 6px; }
+#navMode button { padding: 2px 10px; border-radius: 12px; background: none; border-color: transparent; }
+#navMode button.active { background: var(--panel-2); border-color: var(--accent); }
+body.camview #navMode { left: 10px; }
+/* too narrow for the toggle and the bar next to each other */
+@media (max-width: 1100px) { #navMode span { display: none; } #navMode { padding-left: 3px; } body.nav-easy #navMode { bottom: 50px; left: 10px; } body.nav-easy.camview #navMode { bottom: 76px; } }
+#help { z-index: 6; }
+#btnTutorial { margin: 0 0 8px; }
+#navAsk { position: fixed; inset: 0; z-index: 16; display: grid; place-items: center; padding: 24px; background: rgba(0,0,0,.6); }
+.navAskBox { width: min(560px, 100%); padding: 22px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+.navAskBox h1 { font-size: 18px; margin: 0 0 4px; }
+.navAskBox p { margin: 0 0 16px; }
+.navAskOpts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.navAskOpts button { display: flex; flex-direction: column; gap: 6px; padding: 14px; text-align: left; white-space: normal; line-height: 1.4; }
+.navAskOpts button b { font-size: 15px; }
+.navAskOpts button span { color: var(--muted); }
+.navAskOpts button:focus-visible { outline: 2px solid var(--accent); }
+@media (max-width: 520px) { .navAskOpts { grid-template-columns: 1fr; } }

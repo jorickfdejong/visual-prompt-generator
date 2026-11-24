@@ -15,7 +15,9 @@ The tool contains no AI and calls no external service. You paste its output into
 
 Double-clicking `index.html` does **not** work: the code is split into JavaScript modules (`js/`), and browsers refuse to load those from a `file://` page. An internet connection is needed to load Three.js from a CDN.
 
-## Navigation (Blender-style)
+## Navigation
+
+Picked on the first visit, switched with the toggle at the bottom of the view. **Easy**: pick Select (Space), Orbit (O), Pan (H) or Zoom (Z) and drag with the left mouse button; the wheel zooms towards the pointer. **Pro** (Blender-style):
 
 | Input | Action |
 |---|---|
@@ -37,7 +39,7 @@ The same controls frame the shot in **Camera view**.
 | **Objects** | Puppets, pictures, wooden toys (tree, car, house) and shapes (cube, ball, cylinder, pyramid, cone). Select several to edit their shared details together; differing values show as Mixed. |
 | **Final image** | Shown when nothing is selected: the visual style of the image to generate. |
 | **Environment** | Shown when nothing is selected: labels for environment, temperature and lighting, floor, walls and shadows. |
-| **Export** | The button at the bottom of the sidebar: camera image, a written prompt whose names jump to the object, and the tuples below. |
+| **Export** | The button at the top of the sidebar: an editable prompt next to the camera image, with the notes, checkboxes and tuples it is made from below. |
 | **Prompt tuples** | Shows every computed tuple. Untick a line to leave it out, use a dropdown to override a relation, add your own tuples, and add scene notes. |
 | **Include in the prompt** | Checkboxes in Export that include or leave out a kind of information (size, size relationships, left / right, cameraâ€¦), in both the written prompt and the tuples. The group checkbox switches all of it. |
 | **Variants** | **Save as variant** stores the whole setup with a thumbnail and its prompt. Load a variant, change it, and save again to iterate. Tick `cmp` on two cards and click **Compare** to see both images and a diff of their tuples. |
@@ -87,7 +89,7 @@ Fixed sentence templates, in this order: scene, objects from left to right (each
 
 ## Copying to an image generator
 
-- **Copy image + text** puts both on the clipboard. Many apps paste only one of the two; if so, use **Copy image** and **Copy text** separately.
+- **Download ZIP** gives one file with `reference.png` and `prompt.txt`; add both to the generator. **Copy image** and **Copy text** copy one of them.
 - If the browser blocks the clipboard, the files are downloaded instead (`reference.png`, `prompt.txt`).
 - To re-export an older variant's image, **Load** it and take a screenshot. **Copy** on a card copies that variant's prompt text directly.
 
@@ -117,6 +119,12 @@ Fixed sentence templates, in this order: scene, objects from left to right (each
 | `prompt-panel.js` | Export tab: tuples, overrides, notes; `markDirty()` |
 | `clipboard.js` | Copy / download, toast messages |
 | `persistence.js` | Autosave, scene files, undo/redo |
+| `stretch.js` | Scaling width, height and depth separately |
+| `hover.js` | Outline and name of the object under the pointer |
+| `nav-mode.js` | Easy / Pro navigation |
+| `tutorial.js` | Guided tour (also from the ? panel) |
+| `details.js` | Counting and checking details |
+| `zip.js` | Zip writer |
 | `main.js` | Wires up buttons, menus and shortcuts; starts the app |
 
 Scene objects go through a small **type registry** (`TYPES` in `types.js`): a new object type only needs a new registry entry. Relations, export and saving work on all objects.

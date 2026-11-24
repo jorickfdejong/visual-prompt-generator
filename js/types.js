@@ -6,16 +6,20 @@ import { scaleRange } from './objects.js';
 import { camel } from './relations.js';
 import { propTypes } from './props.js';
 
+// what a puppet represents: a role ("waiter"); a proper name ("Anna") only names the puppet
+const roleOf = (o) => { const s = (o.details.subject || '').trim(); return /^[A-Z]/.test(s) ? '' : camel(s); };
+
 export const TYPES = {
   ...propTypes((s) => camel(s)),
   image: {
     noun: 'image',
     nounOf: (o) => camel(o.details.subject || '') || 'image',   // what the picture shows becomes its noun
     baseName: 'image',
+    stretch: true,
     scaleRange: [0.1, 10],
     height: () => IMG_H + STAND.h - STAND.slotDepth,
     fields: [
-      { key: 'subject', label: 'Depicts', type: 'text', placeholder: 'e.g. red vintage car', asNoun: true },
+      { key: 'subject', label: 'Represents', type: 'text', placeholder: 'e.g. red vintage car', asNoun: true },
       { key: 'description', label: 'Description', type: 'text', placeholder: 'e.g. parked, rusty' },
     ],
     create: createImageCard,
@@ -30,12 +34,13 @@ export const TYPES = {
   },
   mannequin: {
     noun: 'person',
+    nounOf: (o) => roleOf(o) || 'person',
     baseName: 'doll',
     height: () => DOLL_HEIGHT,
-    poseable: true,          // has joints: shows the Pose button / edit mode
-    fields: DETAIL_FIELDS,   // detail fields shown in the object panel and exported as attributes
+    poseable: true,          // has joints: shows the Change posture button / edit mode
+    fields: [{ key: 'subject', label: 'Represents', type: 'text', placeholder: 'e.g. waiter, or a name', asNoun: true }, ...DETAIL_FIELDS],   // detail fields shown in the object panel and exported as attributes
     create: createMannequin,
-    defaultDetails: () => ({ name: '', gender: '', age: '', race: '', body: '', skin: '', hair: '', clothing: '', expression: '', pose: 'standing', action: '', custom: [] }),
+    defaultDetails: () => ({ name: '', subject: '', gender: '', age: '', race: '', body: '', skin: '', hair: '', clothing: '', expression: '', pose: 'standing', action: '', custom: [] }),
     serializeExtra: (o) => ({
       joints: Object.fromEntries(Object.entries(o.joints).map(([k, g]) => [k, [g.rotation.x, g.rotation.y, g.rotation.z].map((v) => +v.toFixed(4))])),
       pelvisY: o.joints.pelvis.position.y,

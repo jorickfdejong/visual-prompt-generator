@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { state } from './state.js';
 import { editCam, orbit, renderer, vp } from './scene.js';
 import { pilot, resetCamera, shotCam } from './camera.js';
+import { easyTool, isEasy } from './nav-mode.js';
 import { markDirty } from './prompt-panel.js';
 
 /* =====================================================================
@@ -45,13 +46,21 @@ function panBy(dx, dy) {
   c.target.add(_d);
   finish(c);
 }
-function zoomBy(factor) {
+function zoomBy(factor, at = null) {
   const c = active(); if (!c) return;
   const cam = camOf(c);
   _off.copy(cam.position).sub(c.target);
+  const before = _off.length();
   const len = THREE.MathUtils.clamp(_off.length() * factor, Math.max(c.minDistance || 0, 0.05), c.maxDistance || Infinity);
   _off.setLength(len);
   cam.position.copy(c.target).add(_off);
+  if (at && c === orbit) {   // keep what is under the pointer in place
+    const r = canvas.getBoundingClientRect(), k = (before - len) * Math.tan((cam.fov / 2) * Math.PI / 180);
+    const nx = ((at.clientX - r.left) / r.width) * 2 - 1, ny = 1 - ((at.clientY - r.top) / r.height) * 2;
+    _d.set(nx * k * cam.aspect, ny * k, 0).applyQuaternion(cam.quaternion);
+    cam.position.add(_d);
+    c.target.add(_d);
+  }
   finish(c);
 }
 
@@ -77,7 +86,7 @@ function onWheel(e) {
     (e.deltaX === 0 && wd && wd % 120 === 0 && now - lastTrackpad >= 250));
   if (mouse) {
     // wheel notch: exponential zoom (Shift may turn the wheel into horizontal-only)
-    zoomBy(Math.exp(cap(dy || dx, 100) * 0.0012));
+    zoomBy(Math.exp(cap(dy || dx, 100) * 0.0012), isEasy() ? e : null);
     return;
   }
   let mode = pinch ? 'pinch' : ctrl ? 'orbit' : e.shiftKey || e.altKey ? 'pan' : 'zoom';
@@ -85,10 +94,10 @@ function onWheel(e) {
   if (mode === 'zoom' && (padMode === 'orbit' || padMode === 'pan') && now - lastTrackpad < 100) mode = padMode;
   lastTrackpad = now;
   padMode = mode;
-  if (mode === 'pinch') zoomBy(Math.exp(cap(dy, 30) * 0.012));
+  if (mode === 'pinch') zoomBy(Math.exp(cap(dy, 30) * 0.012), isEasy() ? e : null);
   else if (mode === 'orbit') orbitBy(-cap(dx, 200), -cap(dy, 200));
   else if (mode === 'pan') panBy(-cap(dx, 200), -cap(dy, 200));   // as is: Shift may deliver only deltaX
-  else zoomBy(Math.exp(cap(dy, 100) * 0.003));
+  else zoomBy(Math.exp(cap(dy, 100) * 0.003), isEasy() ? e : null);
 }
 vp.addEventListener('wheel', onWheel, { passive: false });
 
@@ -107,6 +116,7 @@ const typing = (t) => !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' 
 function setSpace(v) { space = v; vp.classList.toggle('nav-space', v); }
 window.addEventListener('keydown', (e) => {
   if (e.code !== 'Space' || typing(e.target)) return;
+  if (isEasy()) return;   // Space is the Select tool there
   if (e.target.tagName !== 'BUTTON') e.preventDefault();
   if (e.target.tagName !== 'BUTTON') setSpace(true);
 });
@@ -116,17 +126,18 @@ window.addEventListener('blur', () => setSpace(false));
 let drag = null;
 vp.addEventListener('pointerdown', (e) => {
   if (e.button !== 0 || e.target !== canvas || typing(document.activeElement)) return;
-  if (!space && !e.altKey) return;
+  const tool = isEasy() ? easyTool() : 'select';
+  if (!space && !e.altKey && tool === 'select') return;
   e.stopImmediatePropagation();
   e.preventDefault();
-  drag = { id: e.pointerId, x: e.clientX, y: e.clientY, pan: space };
+  drag = { id: e.pointerId, x: e.clientX, y: e.clientY, do: space || tool === 'pan' ? 'pan' : tool === 'zoom' ? 'zoom' : 'orbit' };
   try { canvas.setPointerCapture(e.pointerId); } catch { /* ignore */ }
 }, true);
 window.addEventListener('pointermove', (e) => {
   if (!drag || e.pointerId !== drag.id) return;
   const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
   drag.x = e.clientX; drag.y = e.clientY;
-  if (drag.pan) panBy(dx, dy); else orbitBy(dx, dy);
+  if (drag.do === 'pan') panBy(dx, dy); else if (drag.do === 'zoom') zoomBy(Math.exp(dy * 0.006)); else orbitBy(dx, dy);
 });
 const endDrag = (e) => { if (drag && e.pointerId === drag.id) drag = null; };
 window.addEventListener('pointerup', endDrag);

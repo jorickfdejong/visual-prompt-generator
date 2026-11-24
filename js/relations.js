@@ -3,6 +3,7 @@ import { ALTS, DEG, ENV_FIELDS, state } from './state.js';
 import { shotCam } from './camera.js';
 import { TYPES } from './types.js';
 import { objHeight } from './objects.js';
+import { sizeOf } from './stretch.js';
 import { computeFacts } from './world-facts.js';
 import { canonical, tupleParts } from './prompt-rules.js';
 
@@ -85,7 +86,7 @@ export function computeTuples() {
     const id = ids[i], d = o.details, oi = [o.id], ori = orients[i];
     const T = TYPES[o.type];
     const nf = (T.fields || []).find((f) => f.asNoun);
-    push([T.nounOf ? T.nounOf(o) : T.noun, id], 'attributes', { objIds: oi, field: '__noun', text: (nf && (d[nf.key] || '').trim()) || T.noun });
+    push([T.nounOf ? T.nounOf(o) : T.noun, id], 'attributes', { objIds: oi, field: '__noun', text: (T.poseable && /^[A-Z]/.test((d.subject || '').trim()) ? '' : nf && (d[nf.key] || '').trim()) || T.noun });
     for (const f of T.fields || []) {
       if (f.asNoun) continue;
       const v = (d[f.key] || '').trim();
@@ -127,7 +128,7 @@ export function computeTuples() {
         if (dir) oriPush((isDoll ? 'headPointing' : 'topPointing') + dir, (isDoll ? 'head pointing ' : 'top pointing ') + dir, { orient: 'pointing', dir });
       }
     }
-    push([sizeBucket(o.root.scale.x), id], 'size', { objIds: oi });
+    push([sizeBucket(sizeOf(o)), id], 'size', { objIds: oi });
     if (F[i].support === 'ground') push(['onGround', id], 'placement', { objIds: oi });
     else if (F[i].support === 'floating') push(['floating', id], 'placement', { objIds: oi });
   });

@@ -8,12 +8,14 @@ import { exportText } from './relations.js';
 import { naturalText, renderNatural } from './natural.js';
 import { renderWarnings } from './consistency.js';
 import { fixedLines } from './prompt-rules.js';
+import { markDirty } from './prompt-panel.js';
 
 /* =====================================================================
    EXPORT MODAL
    ===================================================================== */
 // the text that is copied / downloaded, in the chosen format
-export function promptText() {
+export function promptText() { return state.promptEdit?.text ?? generatedText(); }
+export function generatedText() {
   return [bodyText(), fixedLines().join('\n')].filter(Boolean).join('\n\n');
 }
 function bodyText() {
@@ -24,12 +26,26 @@ function bodyText() {
   const notes = state.notes.trim(), t = exportText();
   return [naturalText(), notes ? t.slice(notes.length).trimStart() : t].filter(Boolean).join('\n\n');
 }
+// the editable text: a hand-edited prompt stays as it is until it is reset
+export function editPrompt() {
+  const text = $('#promptEdit').value;
+  state.promptEdit = text === generatedText() ? null : { text, base: state.promptEdit?.base ?? generatedText() };
+  markDirty();
+}
+export function resetPrompt() { state.promptEdit = null; markDirty(); renderPromptEdit(); }
+export function renderPromptEdit() {
+  const box = $('#promptEdit'), text = promptText(), ed = state.promptEdit;
+  if (box.value !== text) box.value = text;
+  $('#promptEditState').hidden = $('#btnPromptReset').hidden = !ed;
+  if (ed) $('#promptEditState').textContent = ed.base === generatedText() ? 'Edited by you.' : 'Edited by you. The scene or options changed since: reset to get the new text.';
+}
 export function exportOpen() { return !$('#exportModal').hidden; }
 export function openExport() {
   if (exportOpen()) return;
   $('#exportModal').hidden = false;
   renderNatural($('#naturalPrompt'));
   renderWarnings();
+  renderPromptEdit();
   schedulePreview();
   $('#btnCloseExport').focus();
 }

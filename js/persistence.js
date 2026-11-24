@@ -27,6 +27,7 @@ export function serializeScene({ images = true } = {}) {
     objects: state.objects.map(serializeObject),
     camera: { pos: shotCam.position.toArray(), quat: shotCam.quaternion.toArray(), focal: state.camera.focal, aspect: state.camera.aspect },
     notes: state.notes,
+    promptEdit: state.promptEdit && { ...state.promptEdit },
     environment: { ...state.environment },
     visualStyle: state.visualStyle,
     settings: JSON.parse(JSON.stringify(state.settings)),
@@ -46,6 +47,7 @@ export function deserializeScene(s) {
   if (s.camera?.pos) { shotCam.position.fromArray(s.camera.pos); shotCam.quaternion.fromArray(s.camera.quat); } else resetCamera();
   state.fileName = s.name || ''; renderSceneName();
   state.notes = s.notes || '';
+  state.promptEdit = s.promptEdit || null;
   if (s.images) Object.assign(imageStore, s.images);
   const room = ROOM_DEFAULT(), sr = s.settings?.room || {};
   const fam = { ...(s.settings?.families || {}) };
@@ -134,9 +136,10 @@ export function loadStored(key) {
     return s ? JSON.parse(s) : null;
   } catch { return null; }
 }
-// scene name shown in the File pill and the browser tab
+const APP_NAME = 'Visual Prompt Generator', UNNAMED = 'New File';
+// scene name shown in the File pill; the browser tab shows the app and the file
 export function renderSceneName() {
-  $('#sceneName').textContent = state.fileName || 'Untitled';
+  $('#sceneName').textContent = state.fileName || UNNAMED;
   $('#sceneName').classList.toggle('untitled', !state.fileName);
-  document.title = state.fileName || 'Untitled';   // browser tab shows just the scene name
+  document.title = `${APP_NAME} · ${state.fileName || UNNAMED}`;
 }

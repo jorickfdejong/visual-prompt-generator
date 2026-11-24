@@ -1,5 +1,6 @@
 import { $, state } from './state.js';
 import { activeTuples } from './relations.js';
+import { TYPES } from './types.js';
 import { canonical, contradicts, tupleParts } from './prompt-rules.js';
 
 /* =====================================================================
@@ -12,6 +13,8 @@ export function warnings() {
     const n = name(f.o);
     if (!f.inShot) out.push(`${n} is outside the shot, but it is described in the prompt.`);
     else if (f.hidden?.part === 'fully') out.push(`${n} is completely hidden behind ${name(f.hidden.o)}.`);
+    if (TYPES[f.o.type].geometry && !(f.o.details.subject || '').trim()) out.push(`${n} is a plain ${f.o.type}: fill in “Represents” so the image generator knows what to draw.`);
+    for (const c of f.o.details.custom || []) if (!(c.key || '').trim() || !(c.value || '').trim()) out.push(`${n} has a detail with an empty field.`);
     if (f.support === 'below') out.push(`${n} goes through the floor.`);
     if (f.support === 'floating') {
       const g = all.find((p) => p !== f && p.support === 'ground' && f.inShot && p.inShot && f.depth > p.depth + 0.25 && f.y > p.y
