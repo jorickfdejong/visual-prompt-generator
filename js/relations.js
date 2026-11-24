@@ -6,6 +6,7 @@ import { objHeight } from './objects.js';
 import { sizeOf } from './stretch.js';
 import { computeFacts } from './world-facts.js';
 import { canonical, tupleParts } from './prompt-rules.js';
+import { impliedLeftRight } from './tuple-trim.js';
 
 /* =====================================================================
    SPATIAL RELATIONS — Tarski's World on a 3D grid, seen from the shot camera
@@ -147,17 +148,20 @@ export function computeTuples() {
       const [f, b] = A.row > B.row ? [i, j] : [j, i];
       if (F[b].depth - F[f].depth > 0.1) pb(f, 'frontOf', b, 'frontBack');
     } else pb(i, 'sameRow', j, 'sameRowCol');
-    if (F[i].on === vis[j]) pb(i, 'onTopOf', j, 'vertical');
-    else if (F[j].on === vis[i]) pb(j, 'onTopOf', i, 'vertical');
+    if (F[i].on === vis[j]) pb(i, 'onTopOf', j, 'onTop');
+    else if (F[j].on === vis[i]) pb(j, 'onTopOf', i, 'onTop');
     else if (A.level !== B.level) {
       const [u, l] = A.level > B.level ? [i, j] : [j, i];
       pb(u, 'above', l, 'vertical');
     } else pb(i, 'sameLevel', j, 'vertical');
     if (A.level === B.level && Math.abs(A.col - B.col) + Math.abs(A.row - B.row) === 1) pb(i, 'adjacent', j, 'adjacent');
-    const sa = objHeight(vis[i]), sb = objHeight(vis[j]);   // real heights, so a doll and a picture compare fairly
-    if (sa / sb > 1.08) pb(i, 'larger', j, 'sizeRel');
-    else if (sb / sa > 1.08) pb(j, 'larger', i, 'sizeRel');
-    else pb(i, 'sameSize', j, 'sizeRel');
+    // only heights are compared, so only for objects that stand upright
+    if (orients[i].kind === 'upright' && orients[j].kind === 'upright') {
+      const sa = objHeight(vis[i]), sb = objHeight(vis[j]);
+      if (sa / sb > 1.08) pb(i, 'taller', j, 'sizeRel');
+      else if (sb / sa > 1.08) pb(j, 'taller', i, 'sizeRel');
+      else pb(i, 'sameHeight', j, 'sizeRel');
+    }
   }
 
   // ternary: between (same row, column or diagonal, same level)
@@ -240,7 +244,8 @@ export function activeTuples() {
   return out;
 }
 export function finalTuples() {
-  return activeTuples().map((t) => (t.custom ? t.text : '(' + t.parts.join(', ') + ')'));
+  const act = activeTuples(), implied = impliedLeftRight(act);
+  return act.filter((t) => !implied.has(t.key)).map((t) => (t.custom ? t.text : '(' + t.parts.join(', ') + ')'));
 }
 export function exportText() {
   const notes = state.notes.trim();

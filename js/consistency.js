@@ -33,7 +33,7 @@ export function warnings() {
     if (hit) out.push(`${str(c)} contradicts ${str(hit)}.`);
   });
   // loops: A left of B, B left of C, C left of A
-  for (const [rel, words] of [['rightOf', 'left/right'], ['frontOf', 'front/back'], ['above', 'height'], ['larger', 'size']]) {
+  for (const [rel, words] of [['rightOf', 'left/right'], ['frontOf', 'front/back'], ['above', 'height'], ['larger', 'size'], ['taller', 'tallness']]) {
     const next = new Map();
     for (const p of [...computed, ...custom]) {
       const [a, r, b] = canonical(p);

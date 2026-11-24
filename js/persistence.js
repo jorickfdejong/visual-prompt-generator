@@ -52,7 +52,7 @@ export function deserializeScene(s) {
   const room = ROOM_DEFAULT(), sr = s.settings?.room || {};
   const fam = { ...(s.settings?.families || {}) };
   // older scenes had one switch for each of these pairs
-  for (const [from, to] of [['size', 'sizeRel'], ['facing', 'facingRel']]) if (from in fam && !(to in fam)) fam[to] = fam[from];
+  for (const [from, to] of [['size', 'sizeRel'], ['facing', 'facingRel'], ['vertical', 'onTop']]) if (from in fam && !(to in fam)) fam[to] = fam[from];
   state.settings = {
     ...state.settings, reference: 'clay', ...(s.settings || {}),
     families: { ...state.settings.families, ...fam },
@@ -62,7 +62,12 @@ export function deserializeScene(s) {
   state.environment = { ...ENV_DEFAULT(), ...(s.environment || {}) };
   state.visualStyle = s.visualStyle ?? state.environment.visualStyle ?? '';
   delete state.environment.visualStyle;   // it was an environment label for a short while
-  state.overrides = s.overrides || {};
+  // size relations were called larger / smaller / sameSize
+  const RENAMED = { larger: 'taller', smaller: 'shorter', sameSize: 'sameHeight' };
+  state.overrides = Object.fromEntries(Object.entries(s.overrides || {}).map(([k, o]) => [
+    k.replace(/^(\([^,]+, )(larger|smaller|sameSize)(, [^,]+\))$/, (_, x, rel, y) => x + RENAMED[rel] + y),
+    o.rel && RENAMED[o.rel] ? { ...o, rel: RENAMED[o.rel] } : o,
+  ]));
   state.custom = s.custom || [];
   for (const o of s.objects || []) if (TYPES[o.type]) addObject(o.type, o);
   syncSettingsUI();
