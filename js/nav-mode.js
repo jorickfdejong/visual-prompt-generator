@@ -1,7 +1,7 @@
 import { $ } from './state.js';
 import { inputIcon } from './input-icons.js';
 import { vp } from './scene.js';
-import { renderHelp } from './selection.js';
+import { refreshPosing, renderHelp } from './selection.js';
 
 /* =====================================================================
    NAVIGATION MODE — Easy: left drag orbits, or moves the object under the pointer (easy-drag.js).
@@ -24,10 +24,14 @@ function apply() {
   toggle.querySelectorAll('button').forEach((b) => { const on = (b.dataset.mode === 'easy') === easy; b.classList.toggle('active', on); b.setAttribute('aria-pressed', on); });
   const M = inputIcon('wheel'), T = inputIcon('trackpad'), K = (k) => `<kbd>${k}</kbd>`;
   const pad = { zoom: `${T}${K('Two fingers')}`, orbit: `${T}${K('Ctrl')} + ${K('Two fingers')}`, pan: `${T}${K('Shift')} + ${K('Two fingers')}` };
-  $('#camHint').innerHTML = easy
-    ? `Orbit: ${inputIcon('left drag')}${K('Left mouse')} or ${pad.orbit} · Pan: ${inputIcon('right drag')}${K('Right mouse')} or ${pad.pan} · Zoom: ${M}${K('Wheel')} or ${pad.zoom}`
-    : `Orbit: ${M}${K('Middle mouse')} or ${pad.orbit} · Pan: ${M}${K('Shift')} + ${K('Middle mouse')} or ${pad.pan} · Zoom: ${M}${K('Wheel')} or ${pad.zoom}`;
+  const mouse = easy
+    ? { orbit: `${inputIcon('left drag')}${K('Left mouse')}`, pan: `${inputIcon('right drag')}${K('Right mouse')}` }
+    : { orbit: `${M}${K('Middle mouse')}`, pan: `${M}${K('Shift')} + ${K('Middle mouse')}` };
+  mouse.zoom = `${M}${K('Wheel')}`;
+  // one row per action: name, mouse, trackpad
+  $('#camHint').innerHTML = [['Orbit', 'orbit'], ['Pan', 'pan'], ['Zoom', 'zoom']].map(([label, k]) => `<b>${label}</b><span>${mouse[k]}</span><span>${pad[k]}</span>`).join('');
   renderHelp();
+  refreshPosing();
 }
 export function setNavMode(mode) {
   easy = mode === 'easy';

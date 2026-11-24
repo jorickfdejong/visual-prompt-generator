@@ -4,12 +4,15 @@ import { editCam, orbit, vp } from './scene.js';
 
 /* =====================================================================
    STANDARD VIEWS — front, back, left, right and above, keeping the distance and the point looked at.
+   The side views look down diagonally at a point a bit above the floor, so it sits below the middle of the viewport.
    Front looks at a new doll's face (it faces +Z); left and right are as seen from there.
    ===================================================================== */
+const TILT = THREE.MathUtils.degToRad(65);   // side views look down diagonally (90 = straight from the side)
 const VIEWS = [   // label, theta, phi
-  ['Front', 0, Math.PI / 2], ['Back', Math.PI, Math.PI / 2], ['Left', -Math.PI / 2, Math.PI / 2], ['Right', Math.PI / 2, Math.PI / 2], ['Above', 0, 0.0001],
+  ['Front', 0, TILT], ['Back', Math.PI, TILT], ['Left', -Math.PI / 2, TILT], ['Right', Math.PI / 2, TILT], ['Above', 0, 0.0001],
 ];
 const TIME = 280;
+const LIFT = 0.16;   // lowest height a side view looks at, per unit of distance
 let raf = 0, count = 0;
 export const viewMoving = () => !!raf;
 export const viewCount = () => count;   // how often a view was picked
@@ -21,6 +24,8 @@ export function showView(i) {
   count++;
   const [, theta, phi] = VIEWS[i];
   const s = new THREE.Spherical().setFromVector3(editCam.position.clone().sub(orbit.target));
+  const y0 = orbit.target.y, side = phi > 0.1 && state.mode !== 'edit';   // pose mode stays on the doll
+  const y1 = side ? Math.max(y0, s.radius * LIFT) : y0;
   const t0 = performance.now(), theta0 = s.theta, phi0 = s.phi;
   const turn = THREE.MathUtils.euclideanModulo(theta - theta0 + Math.PI, 2 * Math.PI) - Math.PI;   // the short way round
   const step = () => {
@@ -28,6 +33,7 @@ export function showView(i) {
     const t = Math.min(1, (performance.now() - t0) / TIME), k = t * t * (3 - 2 * t);
     s.theta = theta0 + turn * k;
     s.phi = phi0 + (phi - phi0) * k;
+    orbit.target.y = y0 + (y1 - y0) * k;
     editCam.position.setFromSpherical(s).add(orbit.target);
     orbit.update();
     raf = t < 1 ? requestAnimationFrame(step) : 0;

@@ -13,7 +13,6 @@ import { updatePoseButton } from './pose-button.js';
    RENDERING
    ===================================================================== */
 export const inset = $('#inset');
-export const camHint = document.getElementById('camHint');
 export function layoutInset() {
   const a = ASPECTS[state.camera.aspect], max = Math.max(140, Math.min(260, vp.clientWidth * 0.38));
   const w = a >= 1 ? max : Math.round(max * a), h = a >= 1 ? Math.round(max / a) : max;
@@ -50,8 +49,6 @@ export function render() {
     let vw = w - 40, vh = vw / a;
     if (vh > h - 150) { vh = h - 150; vw = vh * a; }
     const top = 50 + (h - 150 - vh) / 2, x = (w - vw) / 2, y = h - top - vh;
-    const hintTop = Math.round(top + vh + 12) + 'px';
-    if (camHint.style.top !== hintTop) camHint.style.top = hintTop;
     renderer.setScissorTest(true);
     renderer.setScissor(x, y, vw, vh);
     renderer.setViewport(x, y, vw, vh);
