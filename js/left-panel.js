@@ -12,7 +12,7 @@ import { exitEdit, placePivot, selectMany, selectObject, selObjs, setTool, toggl
 import { camel } from './relations.js';
 import { canStretch, scaleLimits, sizeOf } from './stretch.js';
 import { markDirty } from './prompt-panel.js';
-import { detailCount, incompleteDetail } from './details.js';
+import { detailCount, incompleteDetail, typeWord } from './details.js';
 
 /* =====================================================================
    UI — LEFT PANEL
@@ -35,10 +35,12 @@ export function renderObjectList() {
     li.addEventListener('click', (e) => {
       const act = e.target.closest('button')?.dataset.act;
       if (act === 'eye') { o.hidden = !o.hidden; o.root.visible = !o.hidden; if (o.hidden && state.editing === o) exitEdit(); if (state.selected?.obj === o) selectObject(o); else if (state.selected?.kind === 'multi') selectMany(state.selected.objs); renderObjectList(); markDirty(); return; }
+      // the first click redraws the list, so a double-click is seen here as a second click on the new row
+      if (e.detail === 2 && e.target.closest('.name') && !e.shiftKey && !e.ctrlKey && !e.metaKey) { startRename(li, o); return; }
+      if (e.target.closest('input')) return;   // clicks inside the name being typed
       if (state.mode === 'edit' && state.editing !== o) exitEdit();
       if (state.mode === 'compose') { if (e.shiftKey || e.ctrlKey || e.metaKey) toggleInSelection(o); else selectObject(o); }
     });
-    li.querySelector('.name').addEventListener('dblclick', (e) => { e.stopPropagation(); startRename(li, o); });
     ul.appendChild(li);
   }
   updateDetailCounts();
@@ -443,6 +445,7 @@ export function detailsHTML(o) {
   const custom = d.custom.map((c, i) => `<div class="customItem" data-i="${i}"><div class="customRow"><input type="text" data-ck="${i}" value="${esc(c.key)}" placeholder="detail (e.g. glasses)"><input type="text" data-cv="${i}" value="${esc(c.value)}" placeholder="value (e.g. round)"><button class="icon danger" data-crm="${i}">✕</button></div></div>`).join('');
   return `${detailsHead()}
     <div class="field"><label for="objName">Name</label><input type="text" id="objName" value="${esc(d.name)}"></div>
+    <div class="field"><label for="objKind">Object type</label><input type="text" id="objKind" readonly value="${esc(typeWord(o)[0].toUpperCase() + typeWord(o).slice(1))}" title="The object type can't be changed"></div>
     ${fields}
     <div style="margin-top:4px">${d.custom.length ? CUSTOM_HEAD : ''}${custom}</div>
     <button id="btnAddDetail">+ Add your own detail</button>`;

@@ -19,6 +19,9 @@ export function detailList(o) {
 }
 export function detailCount(o) { return detailList(o).length; }
 
+// what the object itself is called in the prompt ("the doll represents a man")
+export const typeWord = (o) => TYPES[o.type].baseName;
+
 // A custom row with a blank name and/or a blank value
 export function incompleteDetail(c) {
   return blank(c.key) || blank(c.value);

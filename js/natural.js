@@ -2,6 +2,7 @@ import { state } from './state.js';
 import { activeTuples, exportId } from './relations.js';
 import { depthWord, footprintsOverlap, leftToRight } from './world-facts.js';
 import { TYPES } from './types.js';
+import { typeWord } from './details.js';
 import { fixedLines, TEMPLATES, tupleParts } from './prompt-rules.js';
 
 /* =====================================================================
@@ -358,7 +359,12 @@ function objectParagraph(g, o) {
   const poseSaid = !!id && !!inf.fields.pose && poseWord(o, inf) === inf.fields.pose.trim().toLowerCase();
   const clParts = isThing ? [] : clausesToParts(mannequinClauses(inf, p, poseSaid), 'is');
   const desc = isThing && inf.fields.description;
-  if (id || app || desc) {
+  const subject = (o.details.subject || '').trim();
+  if (subject && app) {   // named after what it stands for: "The doll represents a man."
+    if (id) sents.push([...id, '.']);
+    const proper = /^[A-Z]/.test(subject) && o.type === 'mannequin';
+    sents.push(['The ' + typeWord(o) + ' ', ...(id ? [] : [refObj(o), ' ']), 'represents ', ...(proper ? [subject + ', '] : []), app, ...(desc ? [', ', desc] : []), '.']);
+  } else if (id || app || desc) {
     const s = id ? [...id] : [refObj(o)];
     if (app) s.push(id ? ', ' : ' is ', app);
     if (desc) s.push(id || app ? ', ' : ' is ', desc);
