@@ -44,14 +44,14 @@
       <div id="editBar"><button id="btnEditDone" class="primary">✓ Done <kbd>Esc</kbd></button></div>
       <div id="help">
         <div id="helpPanel" hidden></div>
-        <button id="btnHelp" data-tip="Help &amp; shortcuts" data-key="?" aria-label="Help and keyboard shortcuts" aria-expanded="false">?</button>
+        <button id="btnHelp" data-tip="Show all shortcuts" data-key="?" aria-label="Controls" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9.5 14h5"/></svg></button>
       </div>
       <!-- floating tool buttons (left edge): add, then transform tools -->
       <div id="toolStrip">
         <button id="btnAdd" data-tip="Add object" data-key="A" aria-label="Add object (A)" aria-haspopup="menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
         <div id="addDrop" role="menu" hidden>
           <div class="dropTitle">Objects</div>
-          <button id="btnAddDoll" role="menuitem"><svg viewBox="0 0 24 24"><circle cx="12" cy="4.5" r="2.2"/><path d="M12 7.5v7M7 10.5h10M12 14.5l-3 6.5M12 14.5l3 6.5"/></svg>Puppet</button>
+          <button id="btnAddDoll" role="menuitem"><svg viewBox="0 0 24 24"><circle cx="12" cy="4.5" r="2.2"/><path d="M12 7.5v7M7 10.5h10M12 14.5l-3 6.5M12 14.5l3 6.5"/></svg>Doll</button>
           <div class="dropTitle" id="addOther">Other</div>
           <button id="btnAddImage" role="menuitem"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="13" rx="1"/><path d="M5 12l4-4 4 4 2-2 4 4"/><path d="M3 21h18v-3H3z"/></svg>Image (JPG / PNG)…</button>
         </div>
@@ -67,7 +67,7 @@
   <!-- ================= SIDEBAR (right) ================= -->
   <aside id="side" class="panel">
     <div id="sideHead"><button id="btnExport" aria-haspopup="dialog" title="Opens a window to check and export the image and the prompt"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4l2 5.500 5.500 2-5.500 2-2 5.500-2-5.500-5.500-2 5.500-2z"/><path d="M19 2.500v5M16.500 5h5M19.500 17v4M17.500 19h4"/></svg>Generate prompt</button></div>
-    <div id="tabs" role="tablist" aria-label="Sidebar"><button type="button" id="tabScene" role="tab" data-tab="scene">Scene</button><button type="button" id="tabEnv" role="tab" data-tab="env">Environment</button></div>
+    <div id="tabs" role="tablist" aria-label="Sidebar"><button type="button" id="tabScene" role="tab" data-tab="scene">Objects</button><button type="button" id="tabEnv" role="tab" data-tab="env">World</button></div>
     <div id="sideBody">
     <section id="outliner">
       <h2><span>Scene</span><span class="hint" id="objCount"></span></h2>
@@ -88,8 +88,10 @@
     <section id="context"></section>
 
     <section id="imageSection">
-      <h2>Final image</h2>
-      <div class="field"><label for="visualStyle">Visual style</label><input type="text" id="visualStyle" placeholder="e.g. watercolour painting"></div>
+      <h2>Details</h2>
+      <p class="hint detailsHint">Anything you fill in is added to the prompt.</p>
+      <div class="field"><label for="visualStyle">Visual style<span class="req" aria-hidden="true">*</span></label><input aria-required="true" type="text" id="visualStyle" placeholder="e.g. watercolour painting"></div>
+      <div id="envDetails"></div>
     </section>
     <section id="worldSection"></section>
     </div>
@@ -102,8 +104,9 @@
     <header><h1 id="exportTitle">Export</h1><button id="btnCloseExport" class="icon" aria-label="Close">✕</button></header>
     <div class="modalBody">
     <section aria-labelledby="promptCardsTitle">
-      <h2 id="promptCardsTitle">Detail of objects</h2>
+      <h2 id="promptCardsTitle">Objects and details</h2>
       <div id="promptCards" class="promptCards"></div>
+      <p id="sparseWarning" role="status" hidden>Better names and details, better prompts</p>
     </section>
     <div class="exportTop">
     <section id="exportText">

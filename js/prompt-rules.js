@@ -1,3 +1,4 @@
+import { typeWord } from './details.js';
 import { state } from './state.js';
 import { PROPS, typesIn } from './props.js';
 
@@ -11,12 +12,12 @@ export const FULL_COLOUR_LINE = 'Full-colour image, natural colours.';
 
 const GEOMETRY = new Set(PROPS.filter((prop) => prop.group === 'geometry').map((prop) => prop.type));
 const a = (s) => (/^(a|an|the|some) /i.test(s) || /^[A-Z]/.test(s) ? s : (/^[aeiou]/i.test(s) ? 'an ' : 'a ') + s);
-// shapes and puppets stand in for real things: say so, and say for what
+// shapes and dolls stand in for real things: say so, and say for what
 export function standInLines() {
   const vis = state.objects.filter((o) => !o.hidden), shapes = vis.filter((o) => typesIn(o).some((t) => GEOMETRY.has(t)));
   const out = [];
   if (shapes.length) {
-    const named = shapes.filter((o) => (o.details.subject || '').trim()).map((o) => `the ${o.type === 'group' && typesIn(o).every((t) => GEOMETRY.has(t)) ? 'group of shapes' : o.type} ${o.details.name} is ${a(o.details.subject.trim())}`);
+    const named = shapes.filter((o) => (o.details.subject || '').trim()).map((o) => `the ${o.type === 'group' && typesIn(o).every((t) => GEOMETRY.has(t)) ? 'group of shapes' : typeWord(o)} ${o.details.name} is ${a(o.details.subject.trim())}`);
     out.push('Geometric shapes in the reference images are stand-ins that only show position, size and proportions. Do not draw them as plain geometric shapes: replace each one with the real object it represents, with realistic form and detail.' + (named.length ? ' In this scene ' + named.join('; ') + '.' : ''));
   }
   if (vis.some((o) => o.type === 'mannequin')) out.push('Wooden mannequins are stand-ins for real people: do not draw them as dolls or mannequins.');

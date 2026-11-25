@@ -12,13 +12,14 @@ import { exitEdit, placePivot, selectMany, selectObject, selObjs, setTool, toggl
 import { camel } from './relations.js';
 import { canStretch, scaleLimits, sideRange, sizeOf } from './stretch.js';
 import { markDirty } from './prompt-panel.js';
-import { detailCount, incompleteDetail, typeWord } from './details.js';
+import { detailCount, incompleteDetail, panelFields, typeWord } from './details.js';
 import { objectIcon } from './object-icons.js';
 import { bindGrouping, groupHTML, ungroupHTML } from './grouping.js';
 
 /* =====================================================================
    UI — LEFT PANEL
    ===================================================================== */
+const REQ = `<span class="req" aria-hidden="true">*</span>`;   // behind the name of a field that must be filled in
 export function esc(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]); }
 
 export function renderObjectList() {
@@ -32,7 +33,7 @@ export function renderObjectList() {
     if (selObjs().includes(o)) li.classList.add('selected');
     if (o.hidden) li.classList.add('hidden-obj');
     li.dataset.obj = o.id;
-    li.innerHTML = `${objectIcon(o)}<span class="name" title="Double-click to rename">${esc(o.details.name)}</span><span class="detailCount">${detailCountText(o)}</span>
+    li.innerHTML = `${objectIcon(o)}<span class="nameCol"><span class="name" title="Double-click to rename">${esc(o.details.name)}</span><span class="detailCount">${detailCountText(o)}</span></span>
       <button class="icon eye" data-act="eye" title="${o.hidden ? 'Show' : 'Hide'}">${o.hidden ? '◌' : '👁'}</button>`;
     li.addEventListener('click', (e) => {
       const act = e.target.closest('button')?.dataset.act;
@@ -90,7 +91,7 @@ export function renderContext() {
   renderTools();
   if (editing) renderEditPanel(side); else side.innerHTML = '';   // the object's own panel stays below it
   if (sel?.kind === 'camera') {
-    el.innerHTML = `<p class="hint" style="margin-top:0">Move or rotate the camera with the gizmo<span class="typeValues"> or type exact values</span>, or open <b>Camera view</b> to frame the shot by orbiting.</p>${transformHTML(sel)}`;
+    el.innerHTML = `<p class="hint" style="margin-top:0">Move or rotate the camera with the gizmo or type exact values, or open <b>Camera view</b> to frame the shot by orbiting.</p>${transformHTML(sel)}`;
     bindTransformInputs(el);
     return;
   }
@@ -140,6 +141,7 @@ export function transformValues(sel = state.selected) {
   if (sel?.kind === 'multi') { const c = groupCentre(); return { px: c.x, py: c.y, pz: c.z, s: groupScale ? groupScale.f : 1 }; }
   return {};
 }
+let transformOpen = false;   // collapsed until opened, then as left
 export function transformHTML(sel) {
   const v = transformValues(sel);
   // each field: axis letter inside (drag it sideways to scrub the value, like Figma) + the number
@@ -150,10 +152,11 @@ export function transformHTML(sel) {
   if ('rx' in v) html += group('Rotation', '°', trio('r', 5));
   if ('sx' in v) html += group('Stretch', '× per side', trio('s', 0.05));
   if ('s' in v) html += group('Scale', '×', `<div class="tfRow">${field('s', '↔', 0.05)}</div>`);
-  return `<div class="transform">${html}</div>`;
+  return `<details class="sec transform" ${transformOpen ? 'open' : ''}><summary><h2><span><span class="chev">▸</span> Transform</span></h2></summary>${html}</details>`;
 }
 export function fmtNum(n) { return n == null ? '' : String(+(+n).toFixed(3)); }
 export function bindTransformInputs(el) {
+  el.querySelector('details.transform')?.addEventListener('toggle', (e) => { if (e.target.isConnected) transformOpen = e.target.open; });
   el.querySelectorAll('[data-tf]').forEach((inp) => {
     inp.addEventListener('change', () => applyTransformInput(inp.dataset.tf, parseFloat(inp.value)));
     inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') inp.blur(); if (e.key === 'Escape') { syncTransformInputs(); inp.blur(); } });
@@ -285,8 +288,8 @@ export function renderWorldPanel() {
       <button data-wimg="${kind}">Replace…</button></div></div>`;
   const num = (k, v) => `<input type="number" data-wnum="${k}" min="0.5" max="40" step="0.5" value="${v}">`;
   const el = $('#worldSection');
-  el.innerHTML = `<h3 class="sub" style="margin-top:0">Labels</h3>
-    ${ENV_FIELDS.map((f) => `<div class="field"><label>${f.label}</label><input type="text" data-env="${f.key}" value="${esc(state.environment[f.key] || '')}" placeholder="${esc(f.placeholder || '')}"></div>`).join('')}
+  $('#envDetails').innerHTML = ENV_FIELDS.map((f) => `<div class="field"><label>${f.label}${f.optional ? "" : REQ}</label><input type="text" ${f.optional ? "" : `aria-required="true"`} data-env="${f.key}" value="${esc(state.environment[f.key] || '')}" placeholder="${esc(f.placeholder || '')}"></div>`).join('');
+  el.innerHTML = `<h2>Room</h2>
     <div class="field"><label>Background</label><input type="color" data-wc="background" value="${R.background}"></div>
     <div class="field"><label>Size (m)</label><div class="tfRow">
       <label class="tfField" title="Width (X): floor and back wall"><span class="ax" data-wscrub="width" title="Drag to adjust">W</span>${num('width', W.width)}</label>
@@ -320,7 +323,7 @@ export function renderWorldPanel() {
     applyLight(); markDirty();
   });
   el.querySelector('#lightShadows').addEventListener('change', (e) => { R.light.shadows = e.target.checked; applyLight(); markDirty(); });
-  el.querySelectorAll('[data-env]').forEach((inp) => inp.addEventListener('input', () => { state.environment[inp.dataset.env] = inp.value; markDirty(); }));
+  $('#envDetails').querySelectorAll('[data-env]').forEach((inp) => inp.addEventListener('input', () => { state.environment[inp.dataset.env] = inp.value; markDirty(); }));
   el.querySelectorAll('[data-wall]').forEach((inp) => inp.addEventListener('change', () => { W[inp.dataset.wall] = inp.checked; changed(false); }));
   el.querySelectorAll('[data-wnum]').forEach((inp) => inp.addEventListener('change', () => {
     const v = parseFloat(inp.value);
@@ -445,16 +448,16 @@ export function bindImagePanel(el, o) {
 // Details of one object. Fields come from the object's type.
 export function detailsHTML(o) {
   const d = o.details;
-  const fields = (TYPES[o.type].fields || []).filter((f) => !f.asNoun).map((f) => {
+  const fields = panelFields(o).filter((f) => !f.asNoun).map((f) => {
     if (f.type === 'select') return `<div class="field"><label>${f.label}</label><select data-k="${f.key}">${f.options.map((v) => `<option value="${v}" ${d[f.key] === v ? 'selected' : ''}>${v || '—'}</option>`).join('')}</select></div>`;
     if (f.type === 'skin') return `<div class="field"><label>${f.label}</label><div><input type="text" data-k="skin" value="${esc(d.skin)}" placeholder="e.g. olive">
       <div class="swatches">${SKIN_TONES.map(([n, c]) => `<button class="swatch ${d.skin === n ? 'on' : ''}" data-skin="${n}" title="${n}" style="background:${c}"></button>`).join('')}</div></div></div>`;
-    return `<div class="field"><label>${f.label}</label><input type="text" data-k="${f.key}" value="${esc(d[f.key])}" placeholder="${f.placeholder || ''}"></div>`;
+    return `<div class="field"><label>${f.label}${f.required ? REQ : ''}</label><input type="text" ${f.required ? 'aria-required="true"' : ''} data-k="${f.key}" value="${esc(d[f.key])}" placeholder="${f.placeholder || ''}"></div>`;
   }).join('');
   const custom = d.custom.map((c, i) => `<div class="customItem" data-i="${i}"><div class="customRow"><input type="text" data-ck="${i}" value="${esc(c.key)}" placeholder="detail (e.g. glasses)"><input type="text" data-cv="${i}" value="${esc(c.value)}" placeholder="value (e.g. round)"><button class="icon danger" data-crm="${i}">✕</button></div></div>`).join('');
   return `${detailsHead()}
     <div class="field"><label for="objKind">Object type</label><input type="text" id="objKind" readonly value="${esc(typeWord(o)[0].toUpperCase() + typeWord(o).slice(1))}" aria-describedby="objKindTip"><span id="objKindTip" role="tooltip">The object type can't be changed</span></div>
-    <div class="field"><label for="objName">Name</label><input type="text" id="objName" value="${esc(d.name)}"></div>
+    <div class="field"><label for="objName">Name${REQ}</label><input aria-required="true" type="text" id="objName" value="${esc(d.name)}"></div>
     ${fields}
     <div style="margin-top:4px">${d.custom.length ? CUSTOM_HEAD : ''}${custom}</div>
     <button id="btnAddDetail">+ Add your own detail</button>`;
@@ -544,14 +547,14 @@ export function bindDetails(el, o) {
 // Details of several objects at once. Fields = those every selected object's type has; "Mixed" where values differ.
 let multiFocusEntry = null;   // custom entry to focus after the next render
 export function multiDetails(objs) {
-  const defs = (TYPES[objs[0].type].fields || []).filter((f) => !f.asNoun && objs.every((o) => (TYPES[o.type].fields || []).some((g) => g.key === f.key)));
+  const defs = panelFields(objs[0]).filter((f) => !f.asNoun && objs.every((o) => (TYPES[o.type].fields || []).some((g) => g.key === f.key)));
   const val = (o, k) => o.details[k] ?? '';
   const fields = defs.map((f) => {
     const vals = objs.map((o) => val(o, f.key)), same = vals.every((v) => v === vals[0]), cur = same ? vals[0] : '';
     if (f.type === 'select') return `<div class="field"><label>${f.label}</label><select data-mk="${f.key}">${same ? '' : '<option value="__mixed" disabled selected>Mixed</option>'}${f.options.map((v) => `<option value="${v}" ${same && cur === v ? 'selected' : ''}>${v || '—'}</option>`).join('')}</select></div>`;
     if (f.type === 'skin') return `<div class="field"><label>${f.label}</label><div><input type="text" data-mk="skin" value="${esc(cur)}" placeholder="${same ? 'e.g. olive' : 'Mixed'}">
       <div class="swatches">${SKIN_TONES.map(([n, c]) => `<button class="swatch ${same && cur === n ? 'on' : ''}" data-mskin="${n}" title="${n}" style="background:${c}"></button>`).join('')}</div></div></div>`;
-    return `<div class="field"><label>${f.label}</label><input type="text" data-mk="${f.key}" value="${esc(cur)}" placeholder="${same ? (f.placeholder || '') : 'Mixed'}"></div>`;
+    return `<div class="field"><label>${f.label}${f.required ? REQ : ''}</label><input type="text" ${f.required ? 'aria-required="true"' : ''} data-mk="${f.key}" value="${esc(cur)}" placeholder="${same ? (f.placeholder || '') : 'Mixed'}"></div>`;
   }).join('');
   // custom rows: named details match across objects by trimmed lower-case key; blank ones by order within each object.
   // Each row keeps the real entries it edits, so typing never has to re-match or re-render.

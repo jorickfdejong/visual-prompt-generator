@@ -29,11 +29,11 @@ export const namingObject = () => cur?.o || null;
 let idle = [];
 export const whenNamed = () => (cur ? new Promise((r) => idle.push(r)) : Promise.resolve());
 
-const noun = (o) => (o.type === 'mannequin' ? 'puppet' : TYPES[o.type]?.baseName || 'object');
+const noun = (o) => (o.type === 'mannequin' ? 'doll' : TYPES[o.type]?.baseName || 'object');
 // why this is not a name of their own ('' = it is one)
 function problem(raw) {
   const id = camel(raw);
-  if (!raw.trim()) return 'You need to fill in a name first';
+  if (!raw.trim()) return HINT;
   if (!id) return 'Use letters or numbers in the name';
   const auto = Object.values(TYPES).some((t) => new RegExp('^' + t.baseName + '\\d+$', 'i').test(id));
   return auto ? `“${raw.trim()}” is an automatic name. Think of your own name` : '';
@@ -57,18 +57,14 @@ function next() {
   box.setAttribute('role', 'dialog');
   box.setAttribute('aria-modal', 'true');
   box.setAttribute('aria-label', `Name this ${noun(o)}`);
-  box.style.borderColor = o.accent || '';
-  box.innerHTML = `<input type="text" maxlength="40" spellcheck="false" autocomplete="off" aria-describedby="nameMsg"><p id="nameMsg" role="status"></p>
+  box.innerHTML = `<label for="nameBoxInput">Name in the prompt<span class="req" aria-hidden="true">*</span></label><input aria-required="true" id="nameBoxInput" type="text" maxlength="40" spellcheck="false" autocomplete="off" aria-describedby="nameMsg"><p id="nameMsg" role="status"></p>
     <div><button type="button" class="nameRemove"></button><button type="button" class="nameOk primary">OK</button></div>`;
   const input = box.querySelector('input'), msg = box.querySelector('p');
-  input.placeholder = `Name this ${noun(o)}…`;
-  input.setAttribute('aria-label', 'Object name');
-  msg.textContent = HINT;
   Object.assign(cur, { gate, box, input, msg });
   box.querySelector('.nameRemove').textContent = opts.removeLabel || 'Remove object';
   box.querySelector('.nameRemove').onclick = () => finish(false);
   box.querySelector('.nameOk').onclick = submit;
-  input.addEventListener('input', () => { box.classList.remove('bad'); msg.textContent = HINT; });
+  input.addEventListener('input', () => { box.classList.remove('bad'); msg.textContent = ''; });
   gate.addEventListener('pointerdown', (e) => { e.preventDefault(); refuse(); });
   gate.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
   gate.addEventListener('contextmenu', (e) => e.preventDefault());

@@ -64,7 +64,7 @@ function dropGhost() {
   scene.remove(obj.root);
   obj.mats.forEach((m) => m.dispose());
   obj.handles.forEach((h) => h.material.dispose());
-  obj.parts?.traverse((m) => { if (m.isMesh) m.geometry.dispose(); });   // puppets share theirs
+  obj.parts?.traverse((m) => { if (m.isMesh) m.geometry.dispose(); });   // dolls share theirs
   hint.hidden = true;
   document.body.classList.remove('placing');
 }

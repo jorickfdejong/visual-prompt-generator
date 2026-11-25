@@ -16,7 +16,7 @@ export const SKELETON = [
   ['hipR', 'pelvis', [-0.095, -0.06, 0]], ['kneeR', 'hipR', [0, -0.43, 0]], ['ankleR', 'kneeR', [0, -0.41, 0]],
 ];
 // Easy mode: pulling a dot turns the joint it hangs from (the elbow dot swings the arm around the shoulder).
-// The dots of the pelvis, spine and hips would turn the whole puppet, so Easy leaves them out.
+// The dots of the pelvis, spine and hips would turn the whole doll, so Easy leaves them out.
 const DOT_PULLS = Object.fromEntries(SKELETON.filter(([, parent]) => parent && parent !== 'pelvis').map(([n, parent]) => [n, parent]));
 const TIP_DOTS = { head: [0, 0.25, 0], wristL: [0, -0.13, 0], wristR: [0, -0.13, 0], ankleL: [0, -0.015, 0.15], ankleR: [0, -0.015, 0.15] };
 export const PELVIS_Y = 0.95;

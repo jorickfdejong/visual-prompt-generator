@@ -5,13 +5,13 @@ import { TYPES } from './types.js';
 import { enterEdit } from './selection.js';
 
 /* =====================================================================
-   CHANGE POSTURE — a big button under the feet of the selected puppet
+   CHANGE POSTURE — a big button under the feet of the selected doll
    ===================================================================== */
 const btn = document.createElement('button');
 btn.id = 'btnPose';
 btn.type = 'button';
 btn.hidden = true;
-btn.title = 'Change the posture (Enter, or double-click the puppet)';
+btn.title = 'Change the posture (Enter, or double-click the doll)';
 btn.textContent = 'Change posture';
 vp.appendChild(btn);
 btn.addEventListener('click', () => { if (state.selected?.kind === 'obj') enterEdit(state.selected.obj); btn.blur(); });

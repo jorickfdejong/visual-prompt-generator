@@ -8,6 +8,7 @@
 
 /* export window: text and image side by side on top */
 .modalBox { width: min(1080px, 100%); }
+.modalBody { scrollbar-color: var(--line) transparent; }
 .exportTop { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--line); }
 .exportTop section { border: 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .exportTop section h2 { margin: 0; }
@@ -15,28 +16,56 @@
 .exportTop select { width: auto; flex: 1; min-width: 120px; }
 /* plain text, not a field; contain keeps a long prompt from stretching the window: it scrolls */
 #promptView { flex: 1; min-height: 300px; contain: size; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.5; padding-right: 10px; color: var(--muted); cursor: default; user-select: text; scrollbar-color: var(--line) transparent; }
+#promptView p { margin: 0 0 12px; }
+#promptView p:last-child { margin-bottom: 0; }
 #promptView:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
 #exportImage figure { margin: 0; display: flex; flex-direction: column; gap: 6px; }
 #exportImage img { width: 100%; max-height: 320px; min-height: 60px; object-fit: contain; background: #111; border-radius: 6px; display: block; }
 .exportSteps { margin: 0; padding-inline-start: 20px; line-height: 1.5; }
 .modalBox footer button { flex: none; }
 #exportModal .genTitle { font-size: 13px; margin: 14px 14px 0; }
-.promptCards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 10px; }
-.promptCard { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); min-width: 0; }
+.promptCards { display: grid; align-items: start; grid-template-columns: repeat(auto-fill, minmax(max(140px, calc(25% - 7.5px)), 1fr)); gap: 10px; }
+.promptCard { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); min-width: 0; }
 .promptCard h3, .promptCard p, .promptCard ul { margin: 0; overflow-wrap: anywhere; }
 .promptCard h3 { font-size: 13px; }
-.promptCard p, .promptCard ul { line-height: 1.5; }
+.promptCard p, .promptCard ul { line-height: 1.4; }
 .promptCard ul { padding-inline-start: 18px; }
-.promptCard textarea { min-height: 110px; }
-.promptCard button { margin-top: auto; }
+.promptCardHead { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; width: 100%; }
+.promptCardHead h3 { min-width: 0; padding-top: 3px; }
+.promptCardHead button { flex: none; padding: 2px 8px; font-size: 12px; }
+/* few details: an orange label that says so */
+.promptCard .promptCardFew { display: flex; align-items: center; gap: 5px; padding: 2px 8px 2px 5px; border-radius: 999px; background: var(--accent); color: #1d1f23; font-size: 12px; font-weight: 600; }
+.promptCardFew::before { content: "!"; display: grid; place-items: center; flex: none; width: 13px; height: 13px; border-radius: 50%; background: #1d1f23; color: var(--accent); font-size: 10px; font-weight: 700; }
+.promptCard .promptCardFew[hidden] { display: none; }
+/* all the same height: 3.5 lines, so a longer list peeks out */
+.promptCard .promptCardList { height: 4.9em; overflow: hidden; }
+/* no label: the list uses that room too */
+.promptCard:not(.sparse) .promptCardFoot { display: none; }
+.promptCard:not(.sparse) .promptCardList { height: 6.3em; margin-bottom: calc(26px - 1.4em); }
+.promptCardHead, .promptCardFoot { flex: none; }
+.promptCard.peek { position: relative; z-index: 2; overflow: hidden; border-color: #59606a; box-shadow: 0 10px 24px rgba(0,0,0,.5); }
+.promptCard.peek.peek .promptCardList { height: auto; min-height: 4.9em; -webkit-mask-image: none; mask-image: none; }
+.promptCard.cut .promptCardList { -webkit-mask-image: linear-gradient(#000 84%, rgba(0,0,0,.35)); mask-image: linear-gradient(#000 84%, rgba(0,0,0,.35)); }
+.promptCardList { width: 100%; }
+.promptCardFoot { display: flex; align-items: center; gap: 2px; width: 100%; height: 22px; }
+.promptCard .promptCardFew { white-space: nowrap; }
+.promptCardHead h3 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
+.promptCard.peek h3 { -webkit-line-clamp: none; }
+#sparseWarning { margin: 12px 0 0; padding: 13px 16px; font-size: 17px; border: 1px solid rgba(240,160,75,.45); border-radius: var(--radius); background: rgba(240,160,75,.1); font-weight: 600; }
+/* after downloading: points at the browser's downloads (js/download-guide.js) */
+#downloadGuide { position: fixed; top: 10px; right: 16px; z-index: 18; width: 290px; max-width: calc(100vw - 32px); padding-top: 62px; }
+#downloadGuide > svg { position: absolute; top: 0; right: 40px; width: 44px; height: 56px; fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 2px #000) drop-shadow(0 2px 5px rgba(0,0,0,.6)); animation: guideUp 1s ease-in-out infinite alternate; }
+#downloadGuide > div { padding: 14px; border: 2px solid var(--accent); border-radius: 12px; background: var(--panel); box-shadow: 0 10px 30px rgba(0,0,0,.5); line-height: 1.5; }
+#downloadGuide h3 { margin: 0 0 4px; font-size: 15px; }
+#downloadGuide p { margin: 0 0 10px; }
+@keyframes guideUp { to { transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { #downloadGuide > svg { animation: none; } }
 .modalBox footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--line); }
 @media (max-width: 760px) { .exportTop { grid-template-columns: 1fr; } .modalBox footer { flex-direction: column; align-items: stretch; } }
 
 /* tooltips (js/tooltips.js): placed by the button groups in styles.css */
 .tip { z-index: 5; font-weight: 400; cursor: default; }
 #toolStrip .tipKey { margin-left: 8px; }
-#navWidget .tip > span { display: block; }
-#navWidget .tipKey { margin-top: 4px; }
 #btnHelp { position: relative; }
 #btnHelp .tip { position: absolute; left: 0; bottom: calc(100% + 8px); white-space: pre; padding: 4px 8px; border-radius: 6px; font-size: 12px; color: var(--text);
   background: #111316; border: 1px solid var(--line); pointer-events: none; opacity: 0; transition: opacity .12s; }
@@ -44,30 +73,25 @@
 #btnHelp[aria-expanded="true"] .tip { display: none; }
 #btnHelp .tipKey { margin-left: 8px; }
 
-/* standard views (js/views.js): bottom right, under the camera controls */
+/* standard views (js/views.js): bottom right */
 #viewBar { position: absolute; right: 10px; bottom: 10px; z-index: 4; height: 32px; display: flex; align-items: center; padding: 0 3px;
   background: rgba(29,31,35,.92); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 4px 14px rgba(0,0,0,.3); font-size: 11px; }
 #viewBar button.active { background: var(--panel-2); border-color: var(--accent); color: var(--accent); }
 #viewport { container: viewport / inline-size; }
-body:not(.camview) #navWidget { bottom: 48px; }
 /* no room beside the Easy / Pro toggle: one row higher */
-@container viewport (max-width: 480px) { #viewBar { bottom: 48px; } body:not(.camview) #navWidget { bottom: 86px; } }
+@container viewport (max-width: 480px) { #viewBar { bottom: 48px; } }
 #viewBar button { position: relative; padding: 2px 7px; border-radius: 12px; background: none; border-color: transparent; font-size: 11px; }
 #viewBar .tip { position: absolute; right: 0; bottom: calc(100% + 10px); white-space: pre; padding: 4px 8px; border-radius: 6px; font-size: 12px; color: var(--text);
   background: #111316; border: 1px solid var(--line); pointer-events: none; opacity: 0; transition: opacity .12s; }
 #viewBar button:hover .tip { opacity: 1; }
 #viewBar .tipKey { margin-left: 8px; }
 body.camview #viewBar { display: none; }
-/* Pro: beside the round navigation buttons (a row when the window is short) */
-body.camview:not(.nav-easy) #camHint { right: 64px; }
-@media (max-height: 520px) { body.camview:not(.nav-easy) #camHint { right: 190px; } }
 /* narrow: above the Easy / Pro toggle */
 @container viewport (max-width: 460px) { body.camview.nav-easy #camHint { left: 10px; right: auto; bottom: 50px; } }
 @container viewport (max-width: 600px) { body.camview:not(.nav-easy) #camHint { left: 10px; right: auto; bottom: 50px; } }
 
 /* mouse / trackpad icons (js/input-icons.js) */
 #viewport svg.inIcon, svg.inIcon { display: inline-block; width: 16px; height: 16px; margin-right: 4px; vertical-align: -3px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
-#viewport #navWidget svg.inIcon { width: 16px; height: 16px; }
 svg.inIcon .on { fill: var(--accent); stroke: none; }
 
 /* hover */
@@ -75,8 +99,6 @@ svg.inIcon .on { fill: var(--accent); stroke: none; }
 #nameLayer div.hover { background: #fff; color: #1d1f23; z-index: 1; }
 
 /* navigation mode */
-/* easy mode: objects are moved, turned and scaled in the view, not with numbers */
-body.nav-easy #context .transform, body.nav-easy #context .typeValues { display: none; }
 /* easy mode pointer: orbit, unless it is over something */
 body.nav-easy #viewport canvas { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cg stroke='white' stroke-width='4'%3E%3Cpath d='M20 12a8 8 0 1 1-2.34-5.66'/%3E%3Cpath d='M20 4v5h-5'/%3E%3Ccircle cx='12' cy='12' r='1.6'/%3E%3C/g%3E%3Cg stroke='%231d1f23' stroke-width='2'%3E%3Cpath d='M20 12a8 8 0 1 1-2.34-5.66'/%3E%3Cpath d='M20 4v5h-5'/%3E%3Ccircle cx='12' cy='12' r='1.6'/%3E%3C/g%3E%3C/svg%3E") 14 14, all-scroll; }
 body.nav-easy #viewport canvas.hovering { cursor: grab; }
@@ -93,7 +115,7 @@ body.nav-easy #viewport.nav-space canvas { cursor: grab; }
 
 #nameLayer div.sel input { width: 150px; padding: 2px 6px; pointer-events: auto; text-align: center; font-weight: 600; border-color: var(--accent); }
 
-/* change posture: big pill under the selected puppet */
+/* change posture: big pill under the selected doll */
 #btnPose { position: absolute; left: 0; top: 0; z-index: 3; display: flex; align-items: center; height: 36px; padding: 0 14px;
   border-radius: 18px; background: var(--accent); border: 1.5px solid #fff; color: #1d1f23; font-size: 12px; font-weight: 700; box-shadow: 0 4px 12px rgba(0,0,0,.35); }
 #btnPose[hidden] { display: none; }
@@ -101,7 +123,6 @@ body.nav-easy #viewport.nav-space canvas { cursor: grab; }
 
 .simPill { align-self: flex-start; display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 11px; font-style: normal; font-weight: 600;
   color: var(--accent-2); background: rgba(75,163,240,.14); border: 1px solid rgba(75,163,240,.5); }
-.navAskOpts button kbd { color: #1d1f23; }
 #navMode { position: absolute; left: 52px; bottom: 10px; z-index: 4; height: 32px; display: flex; align-items: center; gap: 2px; padding: 0 3px 0 10px;
   background: rgba(29,31,35,.92); border: 1px solid var(--line); border-radius: 16px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
 #navMode button { padding: 2px 10px; border-radius: 12px; background: none; border-color: transparent; }
@@ -121,7 +142,7 @@ body.camview #navMode { left: 10px; }
 .navAskOpts button { display: flex; flex-direction: column; gap: 6px; padding: 14px; text-align: left; white-space: normal; line-height: 1.4; }
 .navAskOpts button b { font-size: 15px; }
 .navAskOpts button span { color: var(--muted); }
-.navAskOpts button:focus-visible { outline: 2px solid var(--accent); }
+.navAskOpts button:focus { outline: 2px solid var(--accent); }
 @media (max-width: 520px) { .navAskOpts { grid-template-columns: 1fr; } }
 
 /* single-select toggles (Easy / Pro, standard views): equal segments in one track, the chosen one filled */
@@ -150,11 +171,6 @@ body.panning #viewport canvas { cursor: move !important; }
 @container viewport (max-width: 710px) { #toolStrip, #editBar { --strip-bottom: 52px; } }
 /* the standard views moved up too */
 @container viewport (max-width: 480px) { #toolStrip, #editBar { --strip-bottom: 90px; } }
-/* short window: the round navigation buttons are a row, go above it */
-@media (max-height: 520px) {
-  @container viewport (max-width: 710px) { #toolStrip, #editBar { --strip-bottom: 96px; } }
-  @container viewport (max-width: 480px) { #toolStrip, #editBar { --strip-bottom: 134px; } }
-}
 
 /* only the controls of the device in use (js/mouse-detect.js) */
 body.has-mouse .padOnly, body.has-pad .mouseOnly { display: none !important; }
@@ -167,3 +183,19 @@ body:is(.has-mouse, .has-pad) #camHint { grid-template-columns: repeat(2, auto) 
 #toolToggle button:hover:not(:disabled) { color: var(--text); background: rgba(255,255,255,.07); }
 #toolToggle button.active, #toolToggle button.active:hover { background: var(--accent); color: #1d1f23; }
 #toolToggle button:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 1px; }
+#help #helpPanel #btnTutorial { display: block; width: 100%; padding: 8px 12px; font-size: 13px; font-weight: 600; background: var(--accent); border-color: var(--accent); color: #1d1f23; }
+#help #helpPanel #btnTutorial:hover { filter: brightness(1.1); }
+#btnHelp svg { width: 19px; height: 19px; display: block; margin: auto; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Controls: a panel where keys and actions meet on one line */
+#help #helpPanel { --keys: 168px; width: 390px; max-height: calc(100vh - 106px); padding: 16px 18px 18px; border-radius: 12px; background: var(--panel); font-size: 13px; scrollbar-color: var(--line) transparent; }
+#helpPanel h3 { margin-bottom: 10px; font-size: 16px; }
+#helpPanel h4 { margin: 12px 0 7px; padding: 12px 0 0 calc(var(--keys) + 16px); border-top: 1px solid var(--line); color: var(--accent); }
+#helpPanel #btnTutorial + h4 { border-top: 0; padding-top: 0; }
+#helpPanel dl { grid-template-columns: var(--keys) 1fr; gap: 7px 16px; }
+#helpPanel kbd { min-width: 22px; box-sizing: border-box; padding: 1px 6px; text-align: center; font-size: 12px; }
+/* the drawn mouse is a bit smaller than the keys next to it */
+#viewport #helpPanel svg.inIcon { width: 21px; height: 21px; margin: 0 2px 0 -2px; vertical-align: middle; stroke-width: 1.4; }
+#helpPanel dt kbd { vertical-align: middle; }
+/* mouse shortcuts are shorter than trackpad ones: less empty space on the left */
+body.has-mouse #help #helpPanel { --keys: 130px; width: 352px; }

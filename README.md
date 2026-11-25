@@ -40,9 +40,9 @@ The same controls frame the shot in **Camera view**.
 | **Compose mode** (default) | Arrange the space. Select a doll or the camera (in the viewport or the Objects list) and move and rotate it with one gizmo (`M`) or scale it (`S`). Add, duplicate (`Ctrl+D`), delete (`Del`), hide or rename (double-click the name) dolls. |
 | **Edit mode** | Click the **Change posture** button under the selected doll (or double-click it / press `Enter`). The posture panel opens on the right; everything else keeps working. Other dolls fade out. In Easy, pull an orange dot to turn the limb it ends (the elbow dot swings the upper arm), or pull a body part; in Pro, click a joint (orange dot) or a body part and drag the rings. Or use a pose preset, Mirror L↔R or Hip height. Fill in details: gender, age, race, body type, skin, hair, clothing, expression, pose, action, plus your own details. `Esc`, **Done** or clicking something else returns to Compose. |
 | **Shot camera** | Always visible in the top-right corner. Set focal length and aspect ratio. Click the preview (or **Camera view**) to frame the shot with the navigation controls, then take a **📸 Screenshot**. |
-| **Objects** | Puppets, pictures, wooden toys (tree, car, house) and shapes (cube, ball, cylinder, pyramid, cone). Select several to edit their shared details together; differing values show as Mixed. **Group** (`Ctrl+G`) makes several selected objects (not dolls) one object with one name and one set of details; **Ungroup** (`Ctrl+Shift+G`) brings them back with their own names and details. |
-| **Final image** | In the Environment tab: the visual style of the image to generate. |
-| **Environment** | Its own tab in the sidebar: labels for environment, temperature and lighting, floor, walls, the light direction and shadows. |
+| **Objects** | Dolls, pictures, wooden toys (tree, car, house) and shapes (cube, sphere, cylinder, pyramid, cone). Select several to edit their shared details together; differing values show as Mixed. **Group** (`Ctrl+G`) makes several selected objects (not dolls) one object with one name and one set of details; **Ungroup** (`Ctrl+Shift+G`) brings them back with their own names and details. |
+| **Final image** | In the World tab: the visual style of the image to generate. |
+| **World** | Its own tab in the sidebar: labels for world, temperature and lighting, floor, walls, the light direction and shadows. |
 | **Export** | The button at the top of the sidebar: the prompt next to the reference images, with the notes, checkboxes and tuples it is made from below. |
 | **Prompt tuples** | Shows every computed tuple. Untick a line to leave it out, use a dropdown to override a relation, add your own tuples, and add scene notes. |
 | **Include in the prompt** | Checkboxes in Export that include or leave out a kind of information (size, height, left / right, cameraâ€¦), in both the written prompt and the tuples. The group checkbox switches all of it. |
@@ -60,7 +60,6 @@ Everything autosaves in your browser (localStorage). **New scene** clears the wo
   - `adjacent`, `between`
   - `small` / `medium` / `large`, `taller` / `sameHeight` (upright objects only)
   - 3D: `above`, `onTopOf`, `sameLevel`
-  - Placement: `onGround`, `floating` (read from the real positions)
   - Extensions: `facingEachOther`, `facingCamera` / `threeQuarterLeft` / `profileLeft` / `backToCamera`; rotation such as `lyingOnBack`, `leaningLeft`, `upsideDown`
   - Camera: shot size, angle, lens, aspect ratio
 
@@ -132,8 +131,8 @@ Export always gives two **reference images**: a neutral grey render and a depth 
 | `tutorial.js` | Guided tour (also from the ? panel) |
 | `details.js` | Counting and checking details |
 | `easy-drag.js` | Easy mode: drag objects, orbit |
-| `side-tabs.js` | Sidebar tabs: Scene and Environment |
-| `pose-button.js` | Change posture button under the selected puppet |
+| `side-tabs.js` | Sidebar tabs: Objects and World |
+| `pose-button.js` | Change posture button under the selected doll |
 | `main.js` | Wires up buttons, menus and shortcuts; starts the app |
 
 Scene objects go through a small **type registry** (`TYPES` in `types.js`): a new object type only needs a new registry entry. Relations, export and saving work on all objects.

@@ -15,17 +15,20 @@ body.placing.panning #viewport canvas { cursor: grabbing; }
 /* required name of a new object (js/naming.js): the gate blocks and dims the app, the tutorial card (z-index 12) stays above it */
 #nameGate { position: fixed; inset: 0; z-index: 11; background: rgba(10,12,15,.5); touch-action: none; }
 body.naming #tutRing { visibility: hidden; }
-#nameBox { position: fixed; left: 0; top: 0; z-index: 13; width: 240px; max-width: calc(100vw - 16px); padding: 8px; border: 2px solid var(--accent); border-radius: 12px;
-  background: rgba(29,31,35,.98); box-shadow: 0 0 0 4px rgba(240,160,75,.35), 0 10px 30px rgba(0,0,0,.5); }
-#nameBox input { padding: 6px 8px; text-align: center; font-size: 14px; font-weight: 600; border: 2px solid var(--accent); }
-#nameBox input:focus { outline: 3px solid rgba(240,160,75,.35); }
-#nameBox p { margin: 6px 0 8px; text-align: center; font-size: 12px; line-height: 1.35; font-weight: 600; color: var(--accent); overflow-wrap: anywhere; }
+#nameBox { position: fixed; left: 0; top: 0; z-index: 13; width: 240px; max-width: calc(100vw - 16px); padding: 12px; border: 1px solid var(--line); border-radius: 12px;
+  background: rgba(29,31,35,.98); box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+#nameBox input { padding: 6px 8px; text-align: center; font-size: 14px; border: 1px solid #59606a; }
+#nameBox input:focus { outline: none; border-color: #8a9099; }
+#nameBox label { display: block; margin: 0 0 6px; text-align: center; font-size: 13px; font-weight: 600; }
+#nameBox > div { margin-top: 8px; }
+#nameBox p:empty { display: none; }
+#nameBox p { margin: 6px 0 8px; text-align: center; font-size: 12px; line-height: 1.35; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
 #nameBox > div { display: flex; justify-content: space-between; gap: 6px; }
 #nameBox button { font-size: 12px; }
 #nameBox button:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
 #nameBox .nameRemove { background: none; border-color: transparent; color: var(--muted); }
 #nameBox .nameRemove:hover { border-color: var(--danger); color: var(--danger); }
-#nameBox.bad input { border-color: var(--danger); outline-color: rgba(226,87,76,.35); }
+#nameBox.bad input { border-color: var(--danger); }
 #nameBox.bad p { color: #ff8a80; }
 #nameBox.shake { animation: nameShake .35s; }
 @keyframes nameShake { 20%, 60% { transform: translateX(-7px); } 40%, 80% { transform: translateX(7px); } }

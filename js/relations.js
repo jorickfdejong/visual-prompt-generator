@@ -63,7 +63,7 @@ export function computeTuples() {
   const ids = vis.map(exportId);
   const camPos = shotCam.getWorldPosition(new THREE.Vector3());
 
-  // environment (Environment panel)
+  // environment (World panel)
   for (const f of ENV_FIELDS) {
     const v = ((state.environment || {})[f.key] || '').trim();
     if (!v) continue;
@@ -131,8 +131,6 @@ export function computeTuples() {
       }
     }
     push([sizeBucket(sizeOf(o)), id], 'size', { objIds: oi });
-    if (F[i].support === 'ground') push(['onGround', id], 'placement', { objIds: oi });
-    else if (F[i].support === 'floating') push(['floating', id], 'placement', { objIds: oi });
   });
 
   // binary

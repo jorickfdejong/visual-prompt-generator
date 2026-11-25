@@ -15,7 +15,7 @@ import { addNamed, cancelPlacing, floorPoint, startPlacing } from './placement.j
 import './nav.js';
 import './easy-drag.js'; import './pull-limb.js';
 import './arrow-keys.js'; import './views.js';
-import './tooltips.js';
+import './tooltips.js'; import './enter-next.js';
 import { showTab } from './side-tabs.js';
 import { addCustomTuple, flushPendingSave, markDirty, refreshDerived, takeDirty } from './prompt-panel.js';
 import { download, downloadAll, toast } from './clipboard.js';
@@ -37,7 +37,7 @@ function toggleAddMenu(open = $('#addDrop').hidden) {
 }
 $('#btnAdd').addEventListener('click', (e) => { e.stopPropagation(); toggleAddMenu(); });
 $('#btnAddDoll').onclick = () => { toggleAddMenu(false); addOne('mannequin'); };
-// wooden toys (under the puppet) and shapes; Other stays at the bottom
+// wooden toys (under the doll) and shapes; Other stays at the bottom
 for (const [group, title] of [['object', ''], ['geometry', 'Geometry']]) {
   if (title) {
     const h = document.createElement('div');
@@ -77,7 +77,6 @@ $('#notes').addEventListener('input', (e) => { state.notes = e.target.value; mar
 $('#visualStyle').addEventListener('input', (e) => { state.visualStyle = e.target.value; markDirty(); });
 $('#btnAddTuple').onclick = addCustomTuple;
 $('#customTuple').addEventListener('keydown', (e) => { if (e.key === 'Enter') addCustomTuple(); });
-$('#btnNames').onclick = toggleNames;
 $('#btnExport').onclick = openExport;
 $('#btnCloseExport').onclick = closeExport;
 $('#exportModal').addEventListener('pointerdown', (e) => { if (e.target.id === 'exportModal') closeExport(); });

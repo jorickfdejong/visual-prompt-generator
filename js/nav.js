@@ -141,22 +141,33 @@ window.addEventListener('pointerup', endDrag);
 window.addEventListener('pointercancel', endDrag);
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
-/* ---------- floating widget ---------- */
-const ICONS = {
-  names: '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.2"/>',
-};
-const widget = document.createElement('div');
-widget.id = 'navWidget';
-widget.setAttribute('role', 'group');
-widget.setAttribute('aria-label', 'View options');
-function mk(id, tip, key, icon) {
-  const b = document.createElement('button');
-  b.type = 'button'; b.id = id; b.dataset.tip = tip; b.dataset.key = key;
-  b.setAttribute('aria-label', tip + (key ? ` (${key.replaceAll('\n', ', ')})` : ''));
-  b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[icon]}</svg>`;
-  widget.appendChild(b);
-  return b;
+/* ---------- middle drag: Shift pans, also when it is pressed after the drag began ---------- */
+// stops the glide of the previous drag, so a pan does not turn the view along
+const _p = new THREE.Vector3(), _t = new THREE.Vector3();
+function stopGlide(c) {
+  const cam = camOf(c), damping = c.enableDamping;
+  _p.copy(cam.position); _t.copy(c.target);
+  c.enableDamping = false;
+  c.update();   // uses up what is left of the glide
+  c.enableDamping = damping;
+  cam.position.copy(_p); c.target.copy(_t);
+  c.update();
 }
-mk('btnNames', 'Show object names', 'N', 'names').setAttribute('aria-pressed', 'false');   // wired in main.js, kept in step by labels.js
-vp.appendChild(widget);
-widget.addEventListener('contextmenu', (e) => e.preventDefault());
+let mid = null;   // { id, x, y, pan } of a middle drag that OrbitControls started as an orbit
+vp.addEventListener('pointerdown', (e) => {
+  const c = active();
+  if (!c || e.target !== canvas || e.pointerType === 'touch') return;
+  if (e.button === 2 || (e.button === 1 && e.shiftKey)) stopGlide(c);
+  if (e.button === 1) mid = e.shiftKey || e.ctrlKey || e.metaKey ? null : { id: e.pointerId, x: e.clientX, y: e.clientY, pan: false };
+}, true);
+vp.addEventListener('pointermove', (e) => {
+  if (!mid || e.pointerId !== mid.id) return;
+  const dx = e.clientX - mid.x, dy = e.clientY - mid.y;
+  mid.x = e.clientX; mid.y = e.clientY;
+  if (!mid.pan && e.shiftKey && active()) { mid.pan = true; stopGlide(active()); }   // stays a pan until the button is released
+  if (!mid.pan) return;
+  e.stopPropagation();   // OrbitControls would turn the view
+  panBy(dx, dy);
+}, true);
+for (const t of ['pointerup', 'pointercancel']) window.addEventListener(t, (e) => { if (mid && e.pointerId === mid.id) mid = null; }, true);
+
