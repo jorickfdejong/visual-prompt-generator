@@ -1,4 +1,4 @@
-import { state } from './state.js';
+import { ENV_FIELDS, state } from './state.js';
 import { activeTuples, exportId } from './relations.js';
 import { depthWord, footprintsOverlap, leftToRight } from './world-facts.js';
 import { TYPES } from './types.js';
@@ -444,6 +444,10 @@ const segmentText = (segments) => segments.map((s) => s.text).join('');
 export const objectCardKey = (id) => 'object:' + id;
 export const environmentCardKey = 'environment';
 
+function detailLines(fields, values) {
+  return fields.map(({ key }) => values[key]?.trim()).filter(Boolean);
+}
+
 function describeCards(g) {
   const environment = segmentText(paragraphSegments(environmentSentences(g)));
   const lighting = lightingSentence(g);
@@ -451,10 +455,15 @@ function describeCards(g) {
   const cards = g.vis.filter((o) => g.facts.get(o.id).inShot).map((o) => {
     const subject = o.details.subject?.trim();
     const title = subject || g.info.get(o.id).noun || TYPES[o.type].noun;
-    const text = segmentText(paragraphSegments(objectParagraph(g, o)));
-    return { key: objectCardKey(o.id), title: cap(title), name: nameOf(o), text, paragraphs: text ? [text] : [] };
+    const paragraph = segmentText(paragraphSegments(objectParagraph(g, o)));
+    const details = detailLines(TYPES[o.type].fields.filter((f) => !f.asNoun), o.details);
+    for (const detail of o.details.custom || []) {
+      const label = detail.key?.trim(), value = detail.value?.trim();
+      if (label && value) details.push(value);
+    }
+    return { key: objectCardKey(o.id), objectId: o.id, title: cap(title), name: nameOf(o), text: details.join('\n'), paragraphs: paragraph ? [paragraph] : [] };
   });
-  cards.push({ key: environmentCardKey, title: 'Environment', text: environmentParts.join(' '), paragraphs: environmentParts });
+  cards.push({ key: environmentCardKey, title: 'Environment', text: detailLines(ENV_FIELDS, state.environment).join('\n'), paragraphs: environmentParts });
   return cards;
 }
 

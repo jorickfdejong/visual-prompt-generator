@@ -22,7 +22,12 @@ function createCard(apply) {
   const element = document.createElement('article');
   element.className = 'promptCard';
   const heading = document.createElement('h3');
-  const preview = document.createElement('p');
+  const preview = document.createElement('div');
+  const list = document.createElement('ul');
+  const empty = document.createElement('p');
+  empty.className = 'hint';
+  empty.textContent = 'No details yet.';
+  preview.append(list, empty);
   const editor = document.createElement('textarea');
   editor.hidden = true;
   const button = document.createElement('button');
@@ -37,13 +42,23 @@ function createCard(apply) {
     const title = card.name && card.name.toLowerCase() !== card.title.toLowerCase()
       ? `${card.title} (${card.name})` : card.title;
     heading.textContent = title;
-    preview.textContent = text || 'No prompt text yet.';
-    preview.classList.toggle('hint', !text);
+    const lines = text.split('\n').filter((line) => line.trim());
+    list.replaceChildren(...lines.map((line) => {
+      const item = document.createElement('li');
+      item.textContent = line;
+      return item;
+    }));
+    list.hidden = !lines.length;
+    empty.hidden = !!lines.length;
     editor.setAttribute('aria-label', `${title} prompt`);
     button.setAttribute('aria-label', `${button.textContent} ${title} prompt`);
   }
 
   button.onclick = () => {
+    if (card.objectId) {
+      document.dispatchEvent(new CustomEvent('vpg:goto', { detail: { kind: 'obj', id: card.objectId, frame: true } }));
+      return;
+    }
     const editing = editor.hidden;
     if (editing) editor.value = text;
     preview.hidden = editing;

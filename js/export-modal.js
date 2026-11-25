@@ -110,9 +110,19 @@ export function goTo(target) {
     const o = state.objects.find((x) => x.id === target.id);
     if (!o) return;
     selectObject(o);
-    const c = new THREE.Box3().setFromObject(o.root).getCenter(new THREE.Vector3());
-    editCam.position.add(c.clone().sub(orbit.target));
-    orbit.target.copy(c);
+    const bounds = new THREE.Box3().setFromObject(o.root);
+    const center = bounds.getCenter(new THREE.Vector3());
+    const offset = editCam.position.clone().sub(orbit.target);
+    if (target.frame && !bounds.isEmpty()) {
+      const radius = bounds.getBoundingSphere(new THREE.Sphere()).radius;
+      const vertical = THREE.MathUtils.degToRad(editCam.getEffectiveFOV() / 2);
+      const horizontal = Math.atan(Math.tan(vertical) * editCam.aspect);
+      const distance = radius / Math.sin(Math.min(vertical, horizontal));
+      offset.setLength(Math.max(distance * 1.15, radius + editCam.near * 2, orbit.minDistance));
+    }
+    orbit.target.copy(center);
+    editCam.position.copy(center).add(offset);
+    orbit.update();
   } else deselect();
   $('#btnExport').blur();
   showTab(target.kind === 'environment' ? 'env' : 'scene');
