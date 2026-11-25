@@ -249,10 +249,10 @@ export function renderHelp() {
     : `<h3>Compose mode</h3>
        <button id="btnTutorial">Start the tutorial</button>
        <p>Arrange the objects and the shot camera. Spatial relations (left of, in front of, between…) are read from the camera's point of view on the grid and become prompt tuples in the Export window. Nothing is decided for you: every tuple can be switched off or overridden.</p>
-       <p>With nothing selected the panel on the right edits the final image (visual style). The Environment tab edits the labels, background, floor and walls. Select an object or the camera to edit it, or type exact values.</p>
+       <p>The Environment tab edits the final image (visual style), the labels, background, floor and walls. Select an object or the camera to edit it, or type exact values.</p>
        <h4>Selecting</h4>${rows([['Click', 'select an object or the camera; a name above an object: change it'], [easy ? 'Shift + Drag' : 'Drag', 'box-select on empty space'], ['Shift + Click', 'add to the selection'], ['Ctrl + Click', 'toggle one object'], ['Ctrl + A', 'select all objects'], ['Esc', 'deselect']])}
        <h4>Transform</h4>${rows([['W', 'move and rotate (also R): drag an arrow or a ring'], ['Drag', 'an object to slide it over the floor'], ['← ↑ ↓ →', 'move over the floor, 0.5 m per press (smaller steps when scaled down)'], ['K', 'scale: the orange handle keeps the proportions, a coloured box stretches one side'], ['Drag X / Y / Z', 'in the panel to scrub a value (Shift = finer)']])}
-       <h4>Standard views</h4>${rows([['1', 'front'], ['2', 'back'], ['3', 'left'], ['4', 'right'], ['5', 'above']])}
+       <h4>Standard views</h4>${rows([['1', 'front'], ['2', 'right'], ['3', 'back'], ['4', 'left'], ['5', 'above']])}
        <h4>Objects</h4>${rows([['A', 'open the add menu'], ['N', 'show or hide object names'], ['Enter', 'change the posture of a puppet (also double-click)'], ['Ctrl + C', 'copy'], ['Ctrl + X', 'cut'], ['Ctrl + V', 'paste'], ['Ctrl + D', 'duplicate'], ['Del', 'delete']])}
        <h4>History</h4>${rows([['Ctrl + Z', 'undo'], ['Ctrl + Y', 'redo (also Ctrl + Shift + Z)']])}
        <h4>View</h4>${nav}

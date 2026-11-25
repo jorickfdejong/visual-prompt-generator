@@ -1,6 +1,9 @@
 /* export button: top right of the sidebar */
 #sideHead { display: flex; justify-content: flex-end; padding: 8px 14px; border-bottom: 1px solid var(--line); flex: none; }
-#btnExport { width: auto; padding: 4px 10px; display: flex; align-items: center; gap: 6px; }
+#btnExport { width: 100%; padding: 9px 12px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; font-weight: 600; border-color: var(--accent); background: rgba(240,160,75,.12); }
+#btnExport:hover { border-color: var(--accent); background: rgba(240,160,75,.22); }
+#btnExport svg { color: var(--accent); }
+#btnExport:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
 #btnExport svg, .editTag svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 /* export window: text and image side by side on top */

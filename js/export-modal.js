@@ -70,7 +70,7 @@ export function goTo(target) {
     orbit.target.copy(c);
   } else deselect();
   $('#btnExport').blur();
-  showTab(target.kind === 'environment' ? 'env' : 'scene');
+  showTab(['environment', 'finalImage'].includes(target.kind) ? 'env' : 'scene');
   (target.kind === 'finalImage' ? $('#imageSection') : target.kind === 'environment' ? $('#worldSection') : target.kind === 'camera' ? $('#camSection') : $('#context')).scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
 document.addEventListener('vpg:goto', (e) => goTo(e.detail));

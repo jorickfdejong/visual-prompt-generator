@@ -60,7 +60,7 @@ export function deserializeScene(s) {
     ...state.settings, reference: 'depth', ...(s.settings || {}), promptDefaults: 3,
     ...(known < 3 && s.settings?.reference !== 'colour' ? { reference: 'depth' } : {}),   // clay grey was the standard before
     families: { ...state.settings.families, ...fam },
-    room: { ...room, ...sr, floor: { ...room.floor, ...(sr.floor || {}) }, walls: { ...room.walls, ...(sr.walls || {}) }, light: { ...room.light, ...(sr.light && 'shadows' in sr.light ? { shadows: sr.light.shadows } : {}) } },
+    room: { ...room, ...sr, floor: { ...room.floor, ...(sr.floor || {}) }, walls: { ...room.walls, ...(sr.walls || {}) }, light: { ...room.light, ...(Number.isFinite(sr.light?.direction) ? { direction: sr.light.direction } : {}), ...(sr.light && 'shadows' in sr.light ? { shadows: sr.light.shadows } : {}) } },
   };
   delete state.settings.snap;   // the snap setting no longer exists
   state.environment = { ...ENV_DEFAULT(), ...(s.environment || {}) };

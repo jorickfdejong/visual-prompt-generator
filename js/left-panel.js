@@ -83,7 +83,6 @@ export function renderContext() {
   const sel = state.selected;
   side.hidden = !editing;
   $('#camSection').hidden = editing || sel?.kind !== 'camera';
-  $('#imageSection').hidden = editing || !!sel;
   renderTools();
   if (editing) renderEditPanel(side); else side.innerHTML = '';   // the object's own panel stays below it
   if (sel?.kind === 'camera') {
@@ -289,6 +288,7 @@ export function renderWorldPanel() {
       <label class="tfField" title="Wall height"><span class="ax" data-wscrub="height" title="Drag to adjust">H</span>${num('height', W.height)}</label>
     </div></div>
     <h3 class="sub">Light</h3>
+    <div class="field"><label for="lightDir">Direction</label><div class="row" style="flex-wrap:nowrap"><input type="range" id="lightDir" min="0" max="360" step="1" value="${R.light.direction}" title="Turn the light around the scene"><span id="lightDirVal" style="width:38px;text-align:right">${Math.round(R.light.direction)}°</span></div></div>
     <div class="field"><label>Shadows</label><label class="checkRow"><input type="checkbox" id="lightShadows" ${R.light.shadows !== false ? 'checked' : ''}> Cast shadows</label></div>
     <h3 class="sub">Floor</h3>
     <div class="field"><label>Look</label><select data-wpat="floor">${opts('floor', F.pattern)}</select></div>
@@ -308,6 +308,11 @@ export function renderWorldPanel() {
     if (k === 'background') R.background = inp.value; else R[k].color = inp.value;
     changed(false);
   }));
+  el.querySelector('#lightDir').addEventListener('input', (e) => {
+    R.light.direction = +e.target.value;
+    el.querySelector('#lightDirVal').textContent = `${e.target.value}°`;
+    applyLight(); markDirty();
+  });
   el.querySelector('#lightShadows').addEventListener('change', (e) => { R.light.shadows = e.target.checked; applyLight(); markDirty(); });
   el.querySelectorAll('[data-env]').forEach((inp) => inp.addEventListener('input', () => { state.environment[inp.dataset.env] = inp.value; markDirty(); }));
   el.querySelectorAll('[data-wall]').forEach((inp) => inp.addEventListener('change', () => { W[inp.dataset.wall] = inp.checked; changed(false); }));
