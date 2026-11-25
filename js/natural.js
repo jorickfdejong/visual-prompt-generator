@@ -439,6 +439,27 @@ function flat(parts) {
   }
   return out;
 }
+const paragraphSegments = (sents) => flat(sents.flatMap((s, i) => (i ? [' ', ...s] : s)));
+const segmentText = (segments) => segments.map((s) => s.text).join('');
+export const objectCardKey = (id) => 'object:' + id;
+export const environmentCardKey = 'environment';
+
+function describeCards(g) {
+  const environment = segmentText(paragraphSegments(environmentSentences(g)));
+  const lighting = lightingSentence(g);
+  const environmentParts = [environment, lighting && segmentText(flat(lighting))].filter(Boolean);
+  const cards = g.vis.filter((o) => g.facts.get(o.id).inShot).map((o) => {
+    const subject = o.details.subject?.trim();
+    const title = subject || g.info.get(o.id).noun || TYPES[o.type].noun;
+    const text = segmentText(paragraphSegments(objectParagraph(g, o)));
+    return { key: objectCardKey(o.id), title: cap(title), name: nameOf(o), text, paragraphs: text ? [text] : [] };
+  });
+  cards.push({ key: environmentCardKey, title: 'Environment', text: environmentParts.join(' '), paragraphs: environmentParts });
+  return cards;
+}
+
+export function promptCards() { return describeCards(gather()); }
+
 function paragraphs() {
   const g = gather();
   g.reduced = {
@@ -453,11 +474,13 @@ function paragraphs() {
   const notes = (state.notes || '').trim();
   if (notes) paras.push([[notes]]);
   if (g.style) paras.push([[refImage('The visual style'), ' of the final image is ' + g.style + '.']]);
-  const env = environmentSentences(g);
+  const edits = state.promptCardEdits;
+  const envEdited = Object.hasOwn(edits, environmentCardKey);
+  const env = envEdited ? [[edits[environmentCardKey]]] : environmentSentences(g);
   if (env.length) paras.push(env);
-  let camPrefixDone = false;
   for (const o of g.vis) {
-    const sents = objectParagraph(g, o);
+    const key = objectCardKey(o.id);
+    const sents = g.facts.get(o.id).inShot && Object.hasOwn(edits, key) ? [[edits[key]]] : objectParagraph(g, o);
     if (sents.length) paras.push(sents);
   }
   const layout = layoutSentences(g);
@@ -465,10 +488,10 @@ function paragraphs() {
   const cam = cameraSentence(g);
   if (cam) paras.push([cam]);
   const light = lightingSentence(g);
-  if (light) paras.push([light]);
+  if (light && !envEdited) paras.push([light]);
   const cu = customSentence(g);
   if (cu) paras.push([cu]);
-  return paras.map((sents) => flat(sents.flatMap((s, i) => (i ? [' ', ...s] : s))));
+  return paras.map(paragraphSegments).filter((p) => p.length);
 }
 
 /* ---------- public API ---------- */

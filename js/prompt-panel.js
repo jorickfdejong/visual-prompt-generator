@@ -4,7 +4,7 @@ import { grid } from './room.js';
 import { schedulePreview } from './rendering.js';
 import { activeTuples, computeTuples, finalTuples } from './relations.js';
 import { impliedLeftRight } from './tuple-trim.js';
-import { exportOpen, renderPromptEdit } from './export-modal.js';
+import { exportOpen, refreshPromptCards, renderPromptEdit } from './export-modal.js';
 import { renderNatural } from './natural.js';
 import { renderWarnings } from './consistency.js';
 import { esc } from './left-panel.js';
@@ -105,7 +105,11 @@ export function refreshDerived() {
   state.tuples = computeTuples();
   const sig = JSON.stringify([state.tuples.map((t) => t.key), state.settings.families]);
   if (sig !== lastSig || forceTupleRender) { lastSig = sig; forceTupleRender = false; renderTuples(); }
-  if (exportOpen()) renderPromptEdit();
-  if (exportOpen()) { renderNatural($('#naturalPrompt')); renderWarnings(); }
+  if (exportOpen()) {
+    renderPromptEdit();
+    refreshPromptCards();
+    renderNatural($('#naturalPrompt'));
+    renderWarnings();
+  }
   $('#tupleCount').textContent = finalTuples().length + ' lines';
 }

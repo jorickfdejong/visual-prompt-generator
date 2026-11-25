@@ -116,25 +116,29 @@
     </section>
     </div>
     <ul id="promptWarnings" aria-label="Warnings" hidden></ul>
+    <section aria-labelledby="promptCardsTitle">
+      <h2 id="promptCardsTitle">Prompt by subject</h2>
+      <div id="promptCards" class="promptCards"></div>
+    </section>
 
-    <h2 class="genTitle">Change what the text is made from</h2>
-    <section>
+    <h2 class="genTitle" hidden>Change what the text is made from</h2>
+    <section hidden>
       <h2>Scene notes</h2>
       <textarea id="notes" placeholder="Anything else the image needs…"></textarea>
     </section>
 
-    <section>
+    <section hidden>
       <h2>Include in the prompt</h2>
       <div id="includeList"></div>
     </section>
 
-    <details class="sec">
+    <details class="sec" hidden>
       <summary><h2><span><span class="chev">▸</span> Find an object from the text</span></h2></summary>
       <p class="hint" style="margin:0">Click a name to go to that object.</p>
       <div id="naturalPrompt"></div>
     </details>
 
-    <details class="sec" id="tupleSec">
+    <details class="sec" id="tupleSec" hidden>
       <summary><h2><span><span class="chev">▸</span> Prompt tuples</span> <span class="hint" id="tupleCount"></span></h2></summary>
       <div id="tupleList"></div>
       <div class="row" style="margin-top:8px;flex-wrap:nowrap">

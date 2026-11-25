@@ -83,6 +83,7 @@ export const state = {
   camera: { focal: 35, aspect: '16:9' },
   notes: '',
   promptEdit: null,        // { text, base } when the prompt was edited by hand in Export
+  promptCardEdits: {},
   environment: ENV_DEFAULT(),
   visualStyle: '',         // look of the final image (Final image panel)
   settings: { cell: 0.5, showNames: false, promptDefaults: 3, reference: 'depth', families: Object.fromEntries(Object.keys(FAMILIES).map((k) => [k, !FAMILIES[k].off])) },
