@@ -245,11 +245,11 @@ export function activeTuples() {
   }
   return out;
 }
-export function finalTuples() {
+export function finalTuples(include = () => true) {
   const act = activeTuples(), implied = impliedLeftRight(act);
-  return act.filter((t) => !implied.has(t.key)).map((t) => (t.custom ? t.text : '(' + t.parts.join(', ') + ')'));
+  return act.filter((t) => !implied.has(t.key) && include(t)).map((t) => (t.custom ? t.text : '(' + t.parts.join(', ') + ')'));
 }
-export function exportText() {
+export function exportText(include) {
   const notes = state.notes.trim();
-  return (notes ? notes + '\n\n' : '') + finalTuples().join('\n');
+  return (notes ? notes + '\n\n' : '') + finalTuples(include).join('\n');
 }

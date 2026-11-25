@@ -28,6 +28,7 @@ export function serializeScene({ images = true } = {}) {
     camera: { pos: shotCam.position.toArray(), quat: shotCam.quaternion.toArray(), focal: state.camera.focal, aspect: state.camera.aspect },
     notes: state.notes,
     promptEdit: state.promptEdit && { ...state.promptEdit },
+    promptCardEdits: { ...state.promptCardEdits },
     environment: { ...state.environment },
     visualStyle: state.visualStyle,
     settings: JSON.parse(JSON.stringify(state.settings)),
@@ -48,6 +49,7 @@ export function deserializeScene(s) {
   state.fileName = s.name || ''; renderSceneName();
   state.notes = s.notes || '';
   state.promptEdit = s.promptEdit || null;
+  state.promptCardEdits = Object.fromEntries(Object.entries(s.promptCardEdits || {}).filter(([, text]) => typeof text === 'string'));
   if (s.images) Object.assign(imageStore, s.images);
   const room = ROOM_DEFAULT(), sr = s.settings?.room || {};
   const fam = { ...(s.settings?.families || {}) };

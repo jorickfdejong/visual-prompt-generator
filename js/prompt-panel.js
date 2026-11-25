@@ -4,7 +4,7 @@ import { grid } from './room.js';
 import { schedulePreview } from './rendering.js';
 import { activeTuples, computeTuples, finalTuples } from './relations.js';
 import { impliedLeftRight } from './tuple-trim.js';
-import { exportOpen, renderPromptEdit } from './export-modal.js';
+import { exportOpen, includeTuple, refreshPromptCards, renderPromptEdit } from './export-modal.js';
 import { renderNatural } from './natural.js';
 import { renderWarnings } from './consistency.js';
 import { esc } from './left-panel.js';
@@ -40,7 +40,7 @@ export function renderTuples() {
   el.innerHTML = '';
   const rows = [], implied = impliedLeftRight(activeTuples());
   for (const t of state.tuples) {
-    if (!state.settings.families[t.family] || implied.has(t.key)) continue;
+    if (!state.settings.families[t.family] || implied.has(t.key) || !includeTuple(t)) continue;   // a detail card edited by hand replaces its tuples
     const o = state.overrides[t.key] || {};
     const div = document.createElement('div');
     div.className = 'tuple' + (o.off ? ' off' : '') + (o.rel ? ' overridden' : '');
@@ -105,7 +105,11 @@ export function refreshDerived() {
   state.tuples = computeTuples();
   const sig = JSON.stringify([state.tuples.map((t) => t.key), state.settings.families]);
   if (sig !== lastSig || forceTupleRender) { lastSig = sig; forceTupleRender = false; renderTuples(); }
-  if (exportOpen()) renderPromptEdit();
-  if (exportOpen()) { renderNatural($('#naturalPrompt')); renderWarnings(); }
-  $('#tupleCount').textContent = finalTuples().length + ' lines';
+  if (exportOpen()) {
+    renderPromptEdit();
+    refreshPromptCards();
+    renderNatural($('#naturalPrompt'));
+    renderWarnings();
+  }
+  $('#tupleCount').textContent = finalTuples(includeTuple).length + ' lines';
 }
