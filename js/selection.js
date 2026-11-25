@@ -232,13 +232,13 @@ export function updateModeBadge() {
   renderHelp();
 }
 
-const TRACKPAD_KEYS = [['Two fingers', 'zoom'], ['Ctrl + Two fingers', 'orbit'], ['Shift + Two fingers', 'pan']];
-const EASY_KEYS = [['Left mouse', 'drag on empty space: orbit'], ['Right mouse', 'drag: pan'], ['Wheel', 'zoom'], ...TRACKPAD_KEYS];
-const PRO_KEYS = [['Middle mouse', 'drag: orbit'], ['Shift + Middle mouse', 'drag: pan'], ['Wheel', 'zoom'], ...TRACKPAD_KEYS];
+const TRACKPAD_KEYS = [['Ctrl + Two fingers', 'scroll: orbit'], ['Shift + Two fingers', 'scroll: pan'], ['Two fingers', 'scroll or pinch: zoom']];
+const EASY_KEYS = [['Left mouse', 'drag on empty space: rotate'], ['Right mouse', 'drag: pan'], ['Wheel', 'scroll: zoom'], ['One finger', 'press and drag on empty space: rotate'], ...TRACKPAD_KEYS.slice(1)];
+const PRO_KEYS = [['Middle mouse', 'drag: orbit'], ['Shift + Middle mouse', 'drag: pan'], ['Wheel', 'scroll: zoom'], ...TRACKPAD_KEYS];
 /* Help: a "?" button in the viewport corner that opens the shortcuts and an explanation for the current mode */
 export function renderHelp() {
   const easy = document.body.classList.contains('nav-easy');
-  const rows = (list) => `<dl>${list.map(([k, t]) => { const pad = /Two fingers/.test(k) ? ' class="padOnly"' : /mouse|Wheel/.test(k) ? ' class="mouseOnly"' : ''; return `<dt${pad}>${inputIcon(k)}${k.split(' + ').map((x) => `<kbd>${x}</kbd>`).join(' + ')}</dt><dd${pad}>${t}</dd>`; }).join('')}</dl>`;
+  const rows = (list) => `<dl>${list.map(([k, t]) => { const pad = /One finger|Two fingers/.test(k) ? ' class="padOnly"' : /mouse|Wheel/.test(k) ? ' class="mouseOnly"' : ''; return `<dt${pad}>${inputIcon(k)}${k.split(' + ').map((x) => `<kbd>${x}</kbd>`).join(' + ')}</dt><dd${pad}>${t}</dd>`; }).join('')}</dl>`;
   const nav = rows(easy ? EASY_KEYS : PRO_KEYS);
   const html = state.mode === 'edit'
     ? `<h3>Edit mode — ${esc(state.editing.details.name)}</h3>

@@ -6,6 +6,10 @@
   box-shadow: 0 0 0 100vmax rgba(10, 12, 15, .62), 0 0 14px 2px rgba(240, 160, 75, .55);
   transition: transform .2s ease, width .2s ease, height .2s ease;
 }
+#tutArrow { position: absolute; left: 0; top: 0; width: 24px; height: 30px; pointer-events: none; }
+#tutArrow[hidden] { display: none; }
+#tutArrow svg { display: block; width: 100%; height: 100%; fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 3px rgba(0, 0, 0, .7)); animation: tutPoint .9s ease-in-out infinite alternate; }
+@keyframes tutPoint { from { transform: translateY(-5px); } to { transform: translateY(3px); } }
 #tutCard {
   position: absolute; left: 0; top: 0; width: 300px; max-width: calc(100vw - 24px); pointer-events: auto;
   background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px 12px;
@@ -13,7 +17,6 @@
 }
 #tutCard .tutTop { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
 #tutCard .tutStep { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
-#tutCard .simPill { align-self: center; }
 #tutCard h3 { margin: 0 0 6px; font-size: 15px; }
 #tutCard p { margin: 0 0 8px; }
 #tutTasks { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -21,35 +24,40 @@
 #tutTasks i { flex: none; width: 17px; height: 17px; margin-top: 1px; border: 1.5px solid var(--muted); border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 11px; font-weight: 700; }
 #tutTasks li.done { color: var(--muted); }
 #tutTasks li.done i { background: var(--ok); border-color: var(--ok); color: #1d1f23; }
+#tutCard .tutNote { margin: 0 0 10px; padding: 7px 10px; border-left: 3px solid var(--accent); border-radius: 4px; background: rgba(240, 160, 75, .14); font-weight: 600; }
 #tutCard .tutHint { color: var(--accent); font-size: 12px; }
 .tutBtns { display: flex; gap: 8px; align-items: center; }
 .tutBtns button { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 5px 12px; cursor: pointer; }
 .tutBtns button:disabled { opacity: .4; cursor: default; }
 .tutBtns .tutGhost { background: none; border-color: transparent; color: var(--muted); }
-.tutBtns .tutPrimary:hover:not(:disabled) { background: #f5b061; border-color: #f5b061; }
+.tutBtns .tutPrimary:hover:not(:disabled) { filter: brightness(1.12); }
 .tutBtns #tutNext { margin-left: auto; }
-.tutBtns .tutPrimary { background: var(--accent); border-color: var(--accent); color: #1d1f23; font-weight: 600; }
+.tutBtns .tutPrimary { font-weight: 600; transition: background .25s, border-color .25s; }
+.tutBtns .tutPrimary:not(:disabled) { background: var(--ok); border-color: var(--ok); color: #1d1f23; }
 #tutCard button:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
-/* step done: a check draws itself over the card (the buttons stay usable) */
-#tutCard { position: absolute; }
 .tutSr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-#tutCard .tutCheer {
-  display: none; position: absolute; inset: 0 0 52px 0; z-index: 1; pointer-events: none; border-radius: 12px 12px 0 0;
-  background: var(--panel); flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-align: center;
-}
-#tutCard.cheer { border-color: var(--ok); animation: tutGlow 1.4s ease-out; }
-#tutCard.cheer .tutCheer { display: flex; animation: tutFade .25s ease-out; }
-.tutCheer svg { width: 64px; height: 64px; fill: none; stroke: var(--ok); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
-.tutCheer circle { stroke-dasharray: 145; stroke-dashoffset: 145; animation: tutDraw .6s ease-out .1s forwards; }
-.tutCheer path { stroke-dasharray: 32; stroke-dashoffset: 32; animation: tutDraw .4s ease-out .55s forwards; }
-.tutCheer b { font-size: 16px; color: var(--ok); animation: tutRise .4s ease-out .6s backwards; }
-.tutCheer span { color: var(--muted); font-size: 12px; animation: tutRise .4s ease-out .7s backwards; }
-@keyframes tutDraw { to { stroke-dashoffset: 0; } }
-@keyframes tutFade { from { opacity: 0; } }
-@keyframes tutRise { from { opacity: 0; transform: translateY(6px); } }
-@keyframes tutGlow { 0% { box-shadow: 0 10px 30px rgba(0, 0, 0, .5); } 25% { box-shadow: 0 0 0 4px rgba(120, 200, 140, .45), 0 10px 30px rgba(0, 0, 0, .5); } 100% { box-shadow: 0 10px 30px rgba(0, 0, 0, .5); } }
+/* Next just became available: a pop, then three pulses */
+#tutNext:not(:disabled) { animation: tutPop .45s ease-out, tutPulse 1.1s ease-out .35s 3; }
+@keyframes tutPop { 0% { transform: scale(.9); } 45% { transform: scale(1.14); } 100% { transform: scale(1); } }
+@keyframes tutPulse { from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ok) 70%, transparent); } to { box-shadow: 0 0 0 12px transparent; } }
+/* after Finish (tutorial-finish.js) */
+#tutParty { position: fixed; inset: 0; z-index: 13; pointer-events: none; display: grid; place-items: center; }
+#tutParty canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.partyBox { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 14px 30px 18px; background: var(--panel); border: 1px solid var(--ok); border-radius: 16px; box-shadow: 0 10px 30px rgba(0, 0, 0, .5); animation: partyIn .5s cubic-bezier(.3, 1.6, .5, 1), partyOut .4s ease-in 1.47s forwards; }
+.partyBox svg { width: 100px; height: 110px; fill: none; stroke: var(--accent); stroke-width: 7; stroke-linecap: round; overflow: visible; }
+.partyBox circle { fill: var(--accent); }
+.partyBox b { font-size: 18px; color: var(--ok); }
+.partyBox span { color: var(--muted); }
+.partyDoll { transform-origin: 50px 100px; animation: partyJump .55s ease-in-out infinite; }
+.partyArmL, .partyArmR { transform-origin: 50px 52px; animation: partyWave .28s ease-in-out infinite alternate; }
+.partyArmR { animation-name: partyWaveR; }
+@keyframes partyIn { from { opacity: 0; transform: scale(.5); } }
+@keyframes partyOut { to { opacity: 0; transform: scale(.9); } }
+@keyframes partyJump { 0%, 100% { transform: scale(1.08, .9); } 50% { transform: translateY(-14px) scale(.97, 1.04); } }
+@keyframes partyWave { from { transform: rotate(-12deg); } to { transform: rotate(30deg); } }
+@keyframes partyWaveR { from { transform: rotate(12deg); } to { transform: rotate(-30deg); } }
 @media (prefers-reduced-motion: reduce) {
   #tutRing { transition: none; }
-  #tutCard.cheer, #tutCard.cheer .tutCheer, .tutCheer circle, .tutCheer path, .tutCheer b, .tutCheer span { animation: none; }
-  .tutCheer circle, .tutCheer path { stroke-dashoffset: 0; }
+  #tutArrow svg { animation: none; }
+  #tutNext:not(:disabled), .partyBox, .partyBox svg * { animation: none; }
 }

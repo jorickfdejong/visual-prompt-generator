@@ -275,10 +275,8 @@ body.exporting #inset { display: none; }
   background: rgba(29,31,35,.92); border-radius: 50%; box-shadow: 0 4px 14px rgba(0,0,0,.3);
   touch-action: none; user-select: none; -webkit-user-select: none;
 }
-#navWidget #navRotate, #navWidget #navPan { cursor: grab; }
 body.camview #navWidget #btnNames { display: none; }
-#navWidget button.active, #navWidget button.held { border-color: var(--accent); color: var(--accent); }
-#navWidget #navRotate.held, #navWidget #navPan.held { cursor: grabbing; }
+#navWidget button.active { border-color: var(--accent); color: var(--accent); }
 #navWidget svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
 #navWidget .tip {
   position: absolute; right: calc(100% + 10px); top: 50%; transform: translateY(-50%);
