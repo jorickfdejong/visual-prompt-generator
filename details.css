@@ -17,3 +17,4 @@
 .customItem .customRow { margin-bottom: 0; }
 .customRow input.invalid { border-color: var(--danger); }
 .fieldError { margin: 3px 0 0; font-size: 12px; line-height: 1.35; color: var(--danger); }
+#objKind { color: var(--muted); cursor: not-allowed; }   /* a field that can't be changed */
