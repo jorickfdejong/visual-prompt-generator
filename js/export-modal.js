@@ -10,7 +10,9 @@ import { renderPromptCards } from './export-prompt-cards.js';
 import { fixedLines } from './prompt-rules.js';
 import { showTab } from './side-tabs.js';
 import { envComplete, showEnvWarning } from './env-check.js';
-import { markDirty } from './prompt-panel.js';
+import { dollsComplete, showDollWarning } from './doll-check.js';
+import { detailCount } from './details.js';
+import { TYPES } from './types.js';
 
 /* =====================================================================
    EXPORT MODAL
@@ -27,7 +29,7 @@ function bodyText() {
   const notes = state.notes.trim(), t = exportText(includeTuple);
   return [naturalText(), notes ? t.slice(notes.length).trimStart() : t].filter(Boolean).join('\n\n');
 }
-const objectCardFamilies = new Set(['attributes', 'size', 'placement', 'orientation', 'facing']);
+const objectCardFamilies = new Set(['attributes', 'size', 'orientation', 'facing']);
 export function includeTuple(t) {
   if (t.family === 'environment') return !Object.hasOwn(state.promptCardEdits, environmentCardKey);
   if (!objectCardFamilies.has(t.family)) return true;
@@ -35,29 +37,40 @@ export function includeTuple(t) {
   return !state.facts.get(id)?.inShot || !Object.hasOwn(state.promptCardEdits, objectCardKey(id));
 }
 
-function applyCard(card, text) {
-  const edits = state.promptCardEdits;
-  const previous = edits[card.key];
-  if (text === (previous ?? card.text)) return;
-  edits[card.key] = text;
-  markDirty(true);
-  renderPromptEdit();
-}
+// older scenes can hold a card text typed by hand, which replaces the environment fields: those win again once edited
+$('#envDetails').addEventListener('input', () => { delete state.promptCardEdits[environmentCardKey]; }, true);
 
-export function refreshPromptCards() {
-  renderPromptCards($('#promptCards'), promptCards(), state.promptCardEdits, applyCard);
+// an object with more than half of its fields still empty
+function isSparse(card) {
+  const o = card.objectId && state.objects.find((x) => x.id === card.objectId);
+  if (!o || Object.hasOwn(state.promptCardEdits, card.key)) return false;
+  return detailCount(o) < (TYPES[o.type].fields || []).filter((f) => !f.asNoun).length / 2;
 }
+export function refreshPromptCards() {
+  const cards = promptCards().map((card) => ({ ...card, sparse: isSparse(card) }));
+  $('#sparseWarning').hidden = !cards.some((card) => card.sparse);
+  renderPromptCards($('#promptCards'), cards, state.promptCardEdits);
+}
+let shownPrompt = null;
 export function renderPromptEdit() {
   const box = $('#promptView'), text = promptText();
-  if (box.textContent !== text) box.textContent = text;
+  if (shownPrompt === text) return;
+  shownPrompt = text;
+  // only on screen: every fixed line and every paragraph gets room around it
+  const fixed = fixedLines(), body = text.slice(fixed.join('\n').length);
+  box.replaceChildren(...[...fixed, ...body.split(/\n{2,}/)].filter((t) => t.trim()).map((t) => {
+    const p = document.createElement('p');
+    p.textContent = t.trim();
+    return p;
+  }));
 }
 export function exportOpen() { return !$('#exportModal').hidden; }
 export function openExport() {
   if (exportOpen()) return;
-  if (!envComplete()) {   // empty environment details: show them instead of exporting
+  if (!envComplete() || !dollsComplete()) {   // empty required details: show them instead of exporting
     if (state.cameraView) exitCameraView();
     if (state.mode === 'edit') exitEdit();
-    showEnvWarning();
+    if (!envComplete()) showEnvWarning(); else showDollWarning();
     return;
   }
   $('#exportModal').hidden = false;
@@ -98,6 +111,6 @@ export function goTo(target) {
   } else deselect();
   $('#btnExport').blur();
   showTab(['environment', 'finalImage'].includes(target.kind) ? 'env' : 'scene');
-  (target.kind === 'finalImage' ? $('#imageSection') : target.kind === 'environment' ? $('#worldSection') : target.kind === 'camera' ? $('#camSection') : $('#context')).scrollIntoView({ block: 'start', behavior: 'smooth' });
+  (target.kind === 'finalImage' || target.kind === 'environment' ? $('#imageSection') : target.kind === 'camera' ? $('#camSection') : $('#context')).scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
 document.addEventListener('vpg:goto', (e) => goTo(e.detail));

@@ -20,7 +20,7 @@ window.addEventListener('keydown', (e) => {
   const k = KEYS[e.key];
   if (!k || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
   if (state.cameraView || gizmoDragging() || exportOpen() || document.querySelector('#navAsk')) return;
-  if (e.target.isContentEditable || e.target.closest?.('input, textarea, select, #navWidget, #addDrop, #fileDrop, #helpPanel')) return;
+  if (e.target.isContentEditable || e.target.closest?.('input, textarea, select, #addDrop, #fileDrop, #helpPanel')) return;
   const camera = state.selected?.kind === 'camera', objs = selObjs();
   if (!camera && !objs.length) return;
   e.preventDefault();

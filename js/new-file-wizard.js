@@ -1,4 +1,4 @@
-import { isEasy, navModeSaved, setNavMode } from './nav-mode.js';
+import { setNavMode } from './nav-mode.js';
 
 /* =====================================================================
    NEW FILE WIZARD: 1. a name for the project, 2. which controls. Also the first visit; a file that already has a name
@@ -17,9 +17,9 @@ export function newFileWizard({ askName = true } = {}) {
     const step = (n) => (askName ? `<div class="wizStep">Step ${n} of 2</div>` : '');
 
     function nameStep() {
-      el.innerHTML = `<form class="navAskBox">${step(1)}<h1 id="navAskTitle">What is your project called?</h1>
+      el.innerHTML = `<form class="navAskBox">${step(1)}<h1 id="navAskTitle">What is your project called?<span class="req" aria-hidden="true">*</span></h1>
         <p class="hint">You can rename it any time in the menu at the top left.</p>
-        <input type="text" id="wizName" maxlength="60" placeholder="Project name" aria-label="Project name" spellcheck="false" autocomplete="off">
+        <input type="text" id="wizName" maxlength="60" placeholder="Project name" aria-label="Project name" aria-required="true" spellcheck="false" autocomplete="off">
         <div class="wizBtns"><button type="submit" class="primary">Next</button></div></form>`;
       const inp = el.querySelector('input'), next = el.querySelector('button');
       inp.value = name;
@@ -30,7 +30,6 @@ export function newFileWizard({ askName = true } = {}) {
       inp.focus();
     }
     function controlsStep() {
-      const current = navModeSaved() ? (isEasy() ? 'easy' : 'pro') : '';
       el.innerHTML = `<div class="navAskBox">${step(2)}<h1 id="navAskTitle">How familiar are you with 3D tools?</h1>
         <p class="hint">You can switch any time with the Easy / Pro toggle at the bottom of the view.</p>
         <div class="navAskOpts">
@@ -40,11 +39,17 @@ export function newFileWizard({ askName = true } = {}) {
       const opts = [...el.querySelectorAll('[data-mode]')];
       opts.forEach((b) => { b.onclick = () => { el.remove(); setNavMode(b.dataset.mode); done({ name }); }; });
       el.querySelector('#wizBack')?.addEventListener('click', nameStep);
-      (opts.find((b) => b.dataset.mode === current) || opts[0]).focus();   // last time's choice
+      opts[0].focus();
     }
 
     el.addEventListener('keydown', (e) => {
       e.stopPropagation();   // no app shortcuts
+      const opts = [...el.querySelectorAll('[data-mode]')];
+      if (opts.length && /^Arrow/.test(e.key)) {   // the arrows switch between the cards, Enter picks one
+        e.preventDefault();
+        opts[/Right|Down/.test(e.key) ? 1 : 0].focus();
+        return;
+      }
       if (e.key !== 'Tab') return;
       const all = [...el.querySelectorAll('input, button:not(:disabled)')], i = all.indexOf(document.activeElement);
       e.preventDefault();

@@ -60,7 +60,7 @@ input[type=text], input[type=number], select, textarea {
 textarea { resize: vertical; min-height: 54px; }
 input[type=range] { width: 100%; accent-color: var(--accent); }
 input[type=checkbox] { accent-color: var(--accent); }
-kbd { display: inline-block; background: #e4e6e9; border: 1px solid #9aa0a8; border-radius: 5px; padding: 0 5px; font-family: inherit; font-size: 11px; line-height: 1.45; color: #1d1f23; }
+kbd { display: inline-block; background: transparent; border: 1px solid #fff; border-radius: 5px; padding: 0 5px; font-family: inherit; font-size: 11px; line-height: 1.45; color: #fff; }
 
 /* objects list */
 #objectList { list-style: none; margin: 0; padding: 0; }
@@ -158,7 +158,7 @@ input[type=color] { width: 100%; height: 28px; padding: 2px; background: #1f2226
 .imgMeta { min-width: 0; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 .imgName { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
 /* transform fields (Figma-style: label above, filled fields with the axis inside) */
-.transform { margin: 4px 0 4px; }
+details.transform { margin: 4px 0; padding: 4px 0 12px; }
 .tfGroup + .tfGroup { margin-top: 10px; }
 .tfLabel { font-size: 11px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
 .tfLabel .unit { color: var(--muted); font-weight: 400; margin-left: 4px; }
@@ -193,10 +193,9 @@ body.camview #help { display: none; }
 #helpPanel h3 { margin: 0 0 6px; font-size: 13px; }
 #helpPanel h4 { margin: 12px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
 #helpPanel p { margin: 0 0 6px; color: var(--muted); }
-#helpPanel dl { display: grid; grid-template-columns: max-content 1fr; gap: 5px 12px; margin: 0; align-items: center; }
-#helpPanel dt { white-space: nowrap; color: var(--muted); }
+#helpPanel dl { display: grid; grid-template-columns: 155px 1fr; gap: 5px 12px; margin: 0; align-items: center; }
+#helpPanel dt { white-space: nowrap; text-align: right; color: #fff; }
 #helpPanel dd { margin: 0; }
-#helpPanel .foot { margin: 12px 0 0; font-size: 11px; }
 
 #editSide { border-bottom: 1px solid var(--line); }
 #editSide h2 button { text-transform: none; letter-spacing: 0; }
@@ -224,7 +223,7 @@ body.camview #help { display: none; }
   background: rgba(29,31,35,.9); border: 1px solid var(--line); border-radius: 10px; padding: 6px;
 }
 #editBar button { padding: 7px 22px; font-size: 14px; }
-#editBar kbd { margin-left: 4px; }
+#editBar kbd { margin-left: 4px; color: inherit; border-color: currentColor; }
 body.editing #editBar { display: flex; }
 body.camview #inset { display: none; }
 
@@ -248,7 +247,7 @@ details summary { cursor: pointer; color: var(--muted); }
 /* camera view: back button top-left, controls hint bottom-right */
 #btnBackEditor, #camHint { display: none; position: absolute; z-index: 3; }
 body.camview #btnBackEditor { display: flex; align-items: center; gap: 8px; top: 10px; left: 10px; }
-body.camview #camHint { display: grid; grid-template-columns: repeat(3, auto); gap: 5px 14px; align-items: center; right: 10px; bottom: 10px; color: var(--accent-2); font-size: 12px; font-weight: 600; white-space: nowrap; pointer-events: none; }
+body.camview #camHint { display: grid; grid-template-columns: repeat(3, auto); gap: 5px 14px; align-items: center; right: 10px; bottom: 10px; color: #fff; font-size: 12px; font-weight: 600; white-space: nowrap; pointer-events: none; }
 body.exporting #inset { display: none; }
 
 /* ---------- export modal, object names ---------- */
@@ -268,26 +267,7 @@ body.exporting #inset { display: none; }
 #nameLayer div { position: absolute; left: 0; top: 0; padding: 1px 7px; border-radius: 10px; border: 1.5px solid;
   background: rgba(29,31,35,.85); font-size: 11px; font-weight: 600; white-space: nowrap; }
 
-/* camera-controls widget (js/nav.js): bottom-right of the viewport, styled like #toolStrip */
-#navWidget { position: absolute; right: 10px; bottom: 10px; z-index: 4; display: flex; flex-direction: column; gap: 3px; }
-#navWidget button {
-  position: relative; width: 42px; height: 42px; padding: 0; display: grid; place-items: center;
-  background: rgba(29,31,35,.92); border-radius: 50%; box-shadow: 0 4px 14px rgba(0,0,0,.3);
-  touch-action: none; user-select: none; -webkit-user-select: none;
-}
-body.camview #navWidget #btnNames { display: none; }
-#navWidget button.active { border-color: var(--accent); color: var(--accent); }
-#navWidget svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
-#navWidget .tip {
-  position: absolute; right: calc(100% + 10px); top: 50%; transform: translateY(-50%);
-  white-space: pre; text-align: left; line-height: 1.5; padding: 4px 8px; border-radius: 6px; font-size: 12px; color: var(--text);
-  background: #111316; border: 1px solid var(--line); pointer-events: none; opacity: 0; transition: opacity .12s;
-}
-#navWidget button:hover .tip, #navWidget button:focus-visible .tip { opacity: 1; }
 #viewport.nav-space canvas { cursor: grab; }
-@media (max-height: 520px) { #navWidget { flex-direction: row; } #navWidget button { position: static; width: 38px; height: 38px; }
-  /* the row has no room beside a button: show the hint above the whole row */
-  #navWidget .tip { top: auto; right: 0; bottom: calc(100% + 8px); transform: none; } }
 
 /* include / leave out checkboxes (Export) */
 #includeList { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }

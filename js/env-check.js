@@ -2,17 +2,18 @@ import { ENV_FIELDS, state } from './state.js';
 import { showTab } from './side-tabs.js';
 
 /* =====================================================================
-   ENVIRONMENT CHECK — "Generate prompt" needs every environment detail
-   (ENV_FIELDS + Visual style). Empty ones get highlighted until filled.
+   ENVIRONMENT CHECK — "Generate prompt" needs the environment details
+   (ENV_FIELDS that are not optional + Visual style). Empty ones get highlighted until filled.
    ===================================================================== */
-const MSG = 'Fill in the environment details before Generating the prompt';
+const MSG = 'Fill in the world details before Generating the prompt';
 const MSG_ID = 'envCheckMsg';
 let active = false;   // a warning was shown and not yet resolved
 
-// the inputs to check, in panel order (Visual style comes first in the tab); the world panel is rebuilt, so look them up each time
+// the inputs to check, in panel order (Visual style comes first); the environment fields are rebuilt, so look them up each time
 function fields() {
-  const list = [{ el: document.getElementById('visualStyle'), value: state.visualStyle }];
-  for (const f of ENV_FIELDS) list.push({ el: document.querySelector(`#worldSection [data-env="${f.key}"]`), value: state.environment?.[f.key] });
+  const list = [];
+  list.push({ el: document.getElementById('visualStyle'), value: state.visualStyle });
+  for (const f of ENV_FIELDS) if (!f.optional) list.push({ el: document.querySelector(`#envDetails [data-env="${f.key}"]`), value: state.environment?.[f.key] });
   return list.map((f) => ({ el: f.el, empty: !String(f.el ? f.el.value : f.value ?? '').trim() }));
 }
 export function envComplete() { return fields().every((f) => !f.empty); }
@@ -40,7 +41,7 @@ function refresh() {
   }
 }
 
-// shows the warning on the Environment tab and focuses the first empty field (caller leaves camera view / edit mode)
+// shows the warning on the World tab and focuses the first empty field (caller leaves camera view / edit mode)
 export function showEnvWarning() {
   active = true;
   showTab('env');
@@ -52,4 +53,4 @@ export function showEnvWarning() {
 // live: typing, and panel rebuilds (renderWorldPanel, undo, scene load)
 document.addEventListener('input', (e) => { if (active && e.target.closest?.('#side')) refresh(); });
 document.addEventListener('change', () => { if (active) refresh(); });
-new MutationObserver(() => { if (active) refresh(); }).observe(document.getElementById('worldSection'), { childList: true });
+new MutationObserver(() => { if (active) refresh(); }).observe(document.getElementById('envDetails'), { childList: true });

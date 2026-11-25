@@ -3,13 +3,17 @@ import { TYPES } from './types.js';
 /* Helpers for the optional "Details" of an object (TYPES is only used at call time, so import cycles are fine). */
 const blank = (s) => !String(s ?? '').trim();
 
+// action, posture and expression (dolls) or the description (objects) come first, in the panel and in the export check; the written prompt keeps its own order
+const FIRST = ['description', 'expression', 'pose', 'action'];
+export const panelFields = (o) => [...(TYPES[o.type]?.fields || [])].sort((a, b) => FIRST.indexOf(b.key) - FIRST.indexOf(a.key));
+
 // Filled-in details as [label, value]: type fields that differ from their default (except the "depicts" noun) + complete custom rows
 export function detailList(o) {
   const t = TYPES[o.type] || {};
   const d = o.details || {};
   const defaults = t.defaultDetails ? t.defaultDetails() : {};
   const list = [];
-  for (const f of t.fields || []) {
+  for (const f of panelFields(o)) {
     if (f.asNoun) continue;
     const v = d[f.key];
     if (!blank(v) && String(v).trim() !== defaults[f.key]) list.push([f.label, String(v).trim()]);

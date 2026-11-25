@@ -1,43 +1,58 @@
 import { state } from './state.js';
-import { inputIcon } from './input-icons.js';
 import { editCam, orbit } from './scene.js';
-import { selObjs } from './selection.js';
+import { keysHTML, navKeys, selObjs } from './selection.js';
 import { viewCount, viewMoving } from './views.js';
 import { detailList } from './details.js';
+import { envComplete } from './env-check.js';
+import { unfinished } from './doll-check.js';
 import { celebrate } from './tutorial-finish.js';
+import { lockTo, unlock } from './tutorial-lock.js';
 import { inputKind, onInputKind } from './mouse-detect.js';
 
-/* Spotlight tour: 6 steps, a ring around the target, a card beside it. The app stays usable underneath.
+/* Spotlight tour: 5 steps, a ring around the target, a card beside it. The app stays usable underneath.
    Next only works when all tasks of the step are done, and then plays a short animation (tutorial.css). */
 const DONE_KEY = 'vpg.tutorialDone';
 const $ = (s) => document.querySelector(s);
 const easy = () => document.body.classList.contains('nav-easy');
-// the controls of the device in use (mouse-detect.js)
-const either = (mouse, pad) => (inputKind() === 'pad' ? pad : mouse);
-const kbd = (...keys) => inputIcon(keys.join(' + ')) + keys.map((k) => `<kbd>${k}</kbd>`).join(' + ');
+// the same instruction as in the Controls panel; orbiting with the mouse in Pro is not listed there
+const nav = (what) => {
+  const pad = inputKind() === 'pad', row = navKeys(easy(), pad).find(([, t]) => what.test(t)) || ['Middle mouse', 'Drag to orbit'];
+  return `${row[1]} ${keysHTML(row[0])}`;
+};
 
 // remembers every object it has seen, so anything that happens to one of them can be noticed
 function watch(c, value) {
   c.seen ??= new Map();
   for (const o of state.objects) if (!c.seen.has(o.id)) c.seen.set(o.id, value(o));
 }
-const changed = (c, pick) => state.objects.some((o) => pick(o, c.seen.get(o.id)));
+const changed = (c, pick) => state.objects.some((o) => isDoll(o) && pick(o, c.seen.get(o.id)));
 
+// true once a value has stood still for a moment: the first letter of a word does not end the task
+function settled(c, value) {
+  if (c.value !== value) { c.value = value; c.valueAt = performance.now(); }
+  return performance.now() - c.valueAt > 1000;
+}
+// the whole tour is about a doll: everybody adds one, and the tasks after that only count for dolls
+const isDoll = (o) => o.type === 'mannequin';
+const selDolls = () => selObjs().filter(isDoll);
+const ready = () => envComplete() && !unfinished().length;
+
+const ENTER = '<kbd class="tutEnter" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 5v7a3 3 0 0 1-3 3H5M9 10.5 4.5 15 9 19.5"/></svg></kbd>';
 const scaleButton = () => $('#toolStrip [data-tool="scale"]');
-// what the step still has to be given before it can go on: '', 'object' or 'puppet'
-const missing = (s) => (s.needsObject && !state.objects.length ? 'object' : s.needsDoll?.(ctx) && !state.objects.some((o) => o.type === 'mannequin') ? 'puppet' : '');
+// what the step still has to be given before it can go on: '' or 'doll'
+const missing = (s) => (s.needsDoll?.(ctx) && !state.objects.some((o) => isDoll(o) && !o.hidden) ? 'doll' : '');
 
 const STEPS = [
   {
-    title: 'Viewport positions',
+    title: 'Viewport positions', use: { view: '#viewBar' },   // use: the buttons that work during a task (tutorial-lock.js); '*' = the whole step
     text: () => 'Look around the scene from every side.',
-    target: () => $('#viewport'),
+    target: () => $('#viewport'), underPreview: true,
     arrow: (c) => (c.did.size === 3 && !c.did.has('view') ? $('#viewBar') : null),   // points there without moving the spotlight, so a pan is not interrupted
     tasks: [
-      ['orbit', () => easy() ? `Rotate: ${either(`${kbd('Left mouse')} drag`, `${kbd('One finger')} press and drag`)}` : `Orbit: ${either(`${kbd('Middle mouse')} drag`, `${kbd('Ctrl', 'Two fingers')} scroll`)}`],
-      ['zoom', () => easy() ? `Zoom: ${either(`${kbd('Wheel')} scroll`, `${kbd('Two fingers')} scroll`)}` : `Zoom: ${either(`${kbd('Wheel')} scroll`, `${kbd('Two fingers')} scroll`)}`],
-      ['pan', () => easy() ? `Pan: ${either(`${kbd('Right mouse')} drag`, `${kbd('Shift', 'Two fingers')} scroll`)}` : `Pan: ${either(`${kbd('Shift', 'Middle mouse')} drag`, `${kbd('Shift', 'Two fingers')} scroll`)}`],
-      ['view', () => 'Pick a standard view: Front, Right, Back, Left or Above'],
+      ['orbit', () => nav(/orbit|rotate/)],
+      ['zoom', () => nav(/zoom/)],
+      ['pan', () => nav(/pan/)],
+      ['view', () => `Switch between views by pressing Front, Left, Right, Back or Top ${keysHTML('1-5')}`],
     ],
     update: (c) => {
       const view = state.mode === 'compose' && !state.cameraView && { off: editCam.position.clone().sub(orbit.target), target: orbit.target.clone() };
@@ -51,27 +66,26 @@ const STEPS = [
       const slide = view.target.distanceTo(prev.target);
       c.zoomed = (c.zoomed || 0) + zoom;
       c.turned = (c.turned || 0) + turn;
-      if (zoom < 1e-5 && turn < 1e-5) c.slid = (c.slid || 0) + slide;   // zooming towards the pointer also shifts the target
+      if (zoom < 1e-5) c.slid = (c.slid || 0) + slide;   // zooming towards the pointer also shifts the target
       if (c.turned > 0.15) c.did.add('orbit');
       if (c.zoomed > 0.08) c.did.add('zoom');
       if (c.slid > 0.15) c.did.add('pan');
     },
   },
   {
-    title: 'Adding & removing objects', besideMenu: true,
-    target: (c) => (document.body.classList.contains('placing') || c.added ? $('#viewport') : !c.did.has('name') ? ($('#addDrop').hidden ? $('#btnAdd') : $('#addDrop')) : $('#viewport')),
+    title: 'Adding a doll', besideMenu: true, use: { '*': '#btnAdd, #btnAddDoll' },
+    target: (c) => (document.body.classList.contains('placing') || c.added ? $('#viewport') : !c.did.has('name') ? ($('#addDrop').hidden ? $('#btnAdd') : $('#btnAddDoll')) : $('#viewport')),
     tasks: [
-      ['open', () => 'Press the +'],
-      ['pick', () => 'Select an object'],
-      ['place', () => 'Click in the scene to place it'],
-      ['name', () => 'Type a name and press Enter'],
-      ['remove', () => 'Remove it: Click it, then press Delete'],
+      ['open', () => `Press + to open the add menu ${keysHTML('A')}`],
+      ['pick', () => 'Select <b>Doll</b>'],
+      ['place', () => 'Click in the scene to place the doll'],
+      ['name', () => 'Type a name for the doll and press Enter'],
     ],
     update: (c) => {
-      const tick = (n) => ['open', 'pick', 'place', 'name', 'remove'].slice(0, n).forEach((k) => c.did.add(k));   // a later task also ticks the ones before it
+      const tick = (n) => ['open', 'pick', 'place', 'name'].slice(0, n).forEach((k) => c.did.add(k));   // a later task also ticks the ones before it
       if (!$('#addDrop').hidden) tick(1);
       if (document.body.classList.contains('placing')) tick(2);
-      const ids = new Set(state.objects.map((o) => o.id));
+      const ids = new Set(state.objects.filter(isDoll).map((o) => o.id));
       const now = performance.now();
       if (c.ids && [...ids].some((id) => !c.ids.has(id))) { c.added = now; tick(3); }
       if (c.added) {
@@ -79,66 +93,62 @@ const STEPS = [
         if (naming || placing) c.added = now;   // the name field may show a frame after the object appeared
         else if (now - c.added > 250) tick(4);   // naming is over
       }
-      if (c.added && c.ids && [...c.ids].some((id) => !ids.has(id))) {
-        if (c.did.has('name')) tick(5);
-        else { c.added = 0; c.did.delete('place'); }   // removed instead of named: place one again
-      }
+      if (c.added && c.ids && !c.did.has('name') && [...c.ids].some((id) => !ids.has(id))) { c.added = 0; c.did.delete('place'); }   // removed instead of named: place one again
       c.ids = ids;
     },
   },
   {
-    title: 'Moving & scaling objects',
-    text: () => 'Drag an object to slide it over the floor, or click it to get the gizmo: arrows move it, rings turn it. The scaling button makes it bigger or smaller.',
-    target: () => $('#viewport'), needsObject: true, overPanel: true,
-    needsDoll: (c) => c.did.has('move') && c.did.has('turn') && !c.did.has('scale'),
-    arrow: (c) => (c.did.has('move') && c.did.has('turn') && !c.did.has('tool') ? scaleButton() : null),
+    title: 'Moving & scaling a doll', use: { '*': '#toolStrip [data-tool]' },
+    target: () => $('#viewport'), needsDoll: () => true, overPanel: true,
+    arrow: (c) => (c.did.has('move') && c.did.has('turn') && !c.did.has('tool') ? scaleButton() : !c.did.has('turn') && state.tool === 'scale' ? $('#toolStrip [data-tool="transform"]') : null),   // the rings are not there in scaling mode
     tasks: [
-      ['move', () => `Move: ${either(`${kbd('Left mouse')} drag`, `${kbd('One finger')} press and drag`)} an object or an arrow`],
-      ['turn', () => 'Turn: drag a ring of the gizmo'],
-      ['tool', () => 'Press the scaling button at the bottom'],
-      ['scale', () => 'Scale up a puppet: click it, then drag the handle outwards'],
+      ['move', () => 'Move the doll by dragging their body or one of the arrows'],
+      ['turn', () => 'Turn the doll by dragging one of the rings'],
+      ['tool', () => `Press the scale button at the bottom ${keysHTML('S')}`],
+      ['scale', () => 'Scale the doll by dragging a square handle'],
     ],
     update: (c) => {
-      watch(c, (o) => ({ p: o.root.position.clone(), q: o.root.quaternion.clone(), s: o.root.scale.y }));
-      if (changed(c, (o, was) => o.root.position.distanceTo(was.p) > 0.05)) c.did.add('move');
+      watch(c, (o) => ({ q: o.root.quaternion.clone(), s: o.root.scale.clone() }));
+      // turning and scaling also shift an object a little: only the frames in which it just moves count
+      for (const o of state.objects) {
+        const { position: p, quaternion: q, scale: k } = o.root, last = c.last?.get(o.id);
+        if (isDoll(o) && last && last.q.equals(q) && last.k.equals(k)) c.moved = (c.moved || 0) + last.p.distanceTo(p);
+      }
+      c.last = new Map(state.objects.map((o) => [o.id, { p: o.root.position.clone(), q: o.root.quaternion.clone(), k: o.root.scale.clone() }]));
+      if (c.moved > 0.05) c.did.add('move');
       if (changed(c, (o, was) => o.root.quaternion.angleTo(was.q) > 0.05)) c.did.add('turn');
       if (state.tool === 'scale') c.did.add('tool');
-      if (state.tool === 'scale' && changed(c, (o, was) => o.type === 'mannequin' && o.root.scale.y > was.s * 1.05)) c.did.add('scale');
+      if (state.tool === 'scale' && changed(c, (o, was) => ['x', 'y', 'z'].some((k) => Math.abs(Math.log(o.root.scale[k] / was.s[k])) > Math.log(1.05)))) c.did.add('scale');
     },
   },
   {
-    title: 'Adding details to objects',
-    note: 'Details show above the object and go into the prompt.',   // highlighted, below the tasks
-    target: () => (selObjs().length ? ($('#side').dataset.tab === 'scene' ? $('#context') : $('#tabScene')) : $('#viewport')), needsObject: true,
+    title: 'Adding details to a doll', atTop: true,
+    use: { '*': '#tabScene, #objectList', detail: '#context', open: '#tabEnv', label: '#tabEnv, #imageSection' },
+    note: ['detail', 'The details show above the doll. All details go into the prompt.'],   // highlighted, below that task
+    target: (c) => (c.did.has('detail') ? ($('#side').dataset.tab === 'env' ? $('#imageSection') : $('#tabEnv'))
+      : selDolls().length ? ($('#side').dataset.tab === 'scene' ? $('#context') : $('#tabScene')) : $('#viewport')),
+    needsDoll: (c) => !c.did.has('detail'),
     tasks: [
-      ['select', () => `Select an object: ${kbd('Click')} it`],
-      ['detail', () => 'Fill in a detail in the panel on the right'],
+      ['select', () => `Select a doll ${keysHTML('Click')}`],
+      ['detail', () => 'Fill in the mandatory (<span class="req">*</span>) object details'],
+      ['open', () => 'Open the World tab on the right'],
+      ['label', () => 'Fill in the mandatory (<span class="req">*</span>) world details'],
     ],
     update: (c) => {
       const key = (o) => JSON.stringify(detailList(o));
-      watch(c, key);
-      if (selObjs().length) c.did.add('select');
-      if (changed(c, (o, was) => key(o) !== was && detailList(o).length)) c.did.add('detail');
+      if (selDolls().length) c.did.add('select');
+      const still = settled(c, state.objects.map(key).join() + JSON.stringify(state.environment) + state.visualStyle);
+      const dolls = selDolls(), todo = unfinished();
+      if (still && dolls.length && !dolls.some((o) => todo.includes(o))) c.did.add('detail');
+      if ($('#side').dataset.tab === 'env') c.did.add('open');   // also when the step began with it open
+      if (still && envComplete()) c.did.add('label');
     },
   },
   {
-    title: 'Describing the environment',
-    text: () => 'The Environment tab describes the scene as a whole: setting, temperature and lighting. It goes into the prompt too.',
-    target: () => ($('#side').dataset.tab === 'env' ? $('#worldSection') : $('#tabEnv')),
-    tasks: [
-      ['open', () => 'Open the Environment tab on the right'],
-      ['label', () => 'Fill in a label: Environment, Temperature or Lighting'],
-    ],
-    update: (c) => {
-      c.env0 ??= { ...state.environment };   // the step may begin with the tab already open: that counts
-      if ($('#side').dataset.tab === 'env') c.did.add('open');
-      if (Object.keys(state.environment).some((k) => (state.environment[k] || '').trim() && state.environment[k] !== c.env0[k])) c.did.add('label');
-    },
-  },
-  {
-    title: 'Generating the prompt',
-    text: () => 'All the details you fill in show up in your prompt: names, object details and the environment.<br><br>Finished with your scene? Press <b>Generate prompt</b> to get the text and the images.',
-    target: () => $('#btnExport'),
+    title: 'Generating the prompt', centered: true,
+    get use() { return { '*': ready() ? '#btnExport' : '#btnExport, #tabScene, #tabEnv, #objectList, #context, #imageSection' }; },   // something is still missing (another doll, or emptied again): it can be filled in here
+    text: () => 'All the details you fill in show up in your prompt: names, object details and the world.<br><br>Finished with your scene? Press <b>Generate prompt</b> to get the text and the images.',
+    target: () => $(!ready() && $('.envCheckMsg') ? '#side' : '#btnExport'),
     tasks: [],   // only explains: Finish is available right away
     update: () => {},
   },
@@ -158,7 +168,7 @@ export function startTutorial() {
   arrow = document.createElement('div');
   arrow.id = 'tutArrow';
   arrow.setAttribute('aria-hidden', 'true');
-  arrow.innerHTML = '<svg viewBox="0 0 24 30"><path d="M12 2v24M3 17l9 9 9-9"/></svg>';
+  arrow.innerHTML = '<svg viewBox="0 0 24 30"><path class="edge" d="M12 2v24M3 17l9 9 9-9"/><path d="M12 2v24M3 17l9 9 9-9"/></svg>';
   arrow.hidden = true;
   card = document.createElement('div');
   card.id = 'tutCard';
@@ -166,13 +176,13 @@ export function startTutorial() {
   card.setAttribute('aria-modal', 'false');
   card.setAttribute('aria-labelledby', 'tutTitle');
   card.innerHTML = `<div class="tutTop"><span class="tutStep" id="tutStepLbl"></span></div><h3 id="tutTitle"></h3>
-    <p id="tutText"></p><ul id="tutTasks" aria-live="polite"></ul><p id="tutNote" class="tutNote"></p><p id="tutHint" class="tutHint" aria-live="polite"></p>
+    <p id="tutText"></p><ul id="tutTasks" aria-live="polite"></ul><p id="tutHint" class="tutHint" aria-live="polite"></p>
     <span class="tutSr" id="tutLive" role="status" aria-live="polite"></span>
-    <div class="tutBtns"><button type="button" id="tutClose" class="tutGhost">Skip tutorial</button><button type="button" id="tutNext" class="tutPrimary">Next</button></div>`;
+    <div class="tutBtns"><button type="button" id="tutClose" class="tutGhost">Skip tutorial</button><span class="tutNextWrap"><button type="button" id="tutNext" class="tutPrimary" aria-describedby="tutNextTip">Next</button><span id="tutNextTip" role="tooltip"></span></span></div>`;
   root.append(ring, card, arrow);
   document.body.appendChild(root);
   els = {
-    lbl: card.querySelector('#tutStepLbl'), title: card.querySelector('#tutTitle'), text: card.querySelector('#tutText'), note: card.querySelector('#tutNote'),
+    lbl: card.querySelector('#tutStepLbl'), title: card.querySelector('#tutTitle'), text: card.querySelector('#tutText'),
     tasks: card.querySelector('#tutTasks'), hint: card.querySelector('#tutHint'), live: card.querySelector('#tutLive'), next: card.querySelector('#tutNext'), close: card.querySelector('#tutClose'),
   };
   els.next.onclick = () => {
@@ -184,6 +194,7 @@ export function startTutorial() {
   const again = () => { lastKey = ''; };   // the mouse verdict changed: redraw the hints
   off = onInputKind(again);
   go(0);
+  lockTo(card, usable);
   loop();
 }
 
@@ -208,6 +219,7 @@ function endTutorial() {
   if (!root) return;
   cancelAnimationFrame(raf);
   off?.(); off = null;
+  unlock();
   root.remove();
   root = ring = arrow = card = els = null;
   try { localStorage.setItem(DONE_KEY, '1'); } catch { /* not remembered */ }
@@ -220,7 +232,11 @@ function go(i) {
   els.live.textContent = '';
   els.lbl.textContent = `Step ${idx + 1} of ${STEPS.length}`;
   els.title.textContent = STEPS[idx].title;
-  els.next.textContent = idx === STEPS.length - 1 ? 'Finish' : 'Next';
+  const last = idx === STEPS.length - 1;
+  els.next.innerHTML = last ? 'Finish 🎉' : 'Next' + ENTER;
+  els.next.setAttribute('aria-label', last ? 'Finish' : 'Next');
+  els.next.classList.toggle('tutFinish', last);
+  els.close.hidden = last;   // nothing left to skip
   els.next.blur();   // Enter and Space belong to the app again
   refresh();
 }
@@ -235,18 +251,21 @@ function refresh() {
   lastKey = key;
   els.text.innerHTML = s.text?.() || '';
   els.text.hidden = !s.text;
-  els.note.textContent = s.note || '';
-  els.note.hidden = !s.note;
-  els.tasks.innerHTML = s.tasks.map(([k, label]) => `<li class="${ctx.did.has(k) ? 'done' : ''}"><i aria-hidden="true">${ctx.did.has(k) ? '✓' : ''}</i><span>${label()}</span></li>`).join('');
+  const now = s.tasks.findIndex(([k]) => !ctx.did.has(k));
+  els.tasks.innerHTML = s.tasks.map(([k, label], i) => {
+    const done = ctx.did.has(k), cls = done ? 'done' : i === now ? 'now' : 'later';
+    return `<li class="${cls}"${cls === 'now' ? ' aria-current="step"' : ''}><i aria-hidden="true">${done ? '✓' : ''}</i><span>${label(ctx)}</span></li>${s.note?.[0] === k && cls !== 'later' ? `<li class="tutNote">${s.note[1]}</li>` : ''}`;
+  }).join('');
   els.hint.textContent = placing && !s.besideMenu ? 'Click in the scene to place it, then type a name.' : lack ? `There is no ${lack} yet. Add one first with the + button.` : '';
   els.hint.hidden = !els.hint.textContent;
   const done = s.tasks.every(([k]) => ctx.did.has(k));
   els.next.disabled = !done;
+  card.querySelector('#tutNextTip').textContent = done ? '' : "You haven't done all the steps yet";
   els.live.textContent = done ? (idx === STEPS.length - 1 ? 'Tutorial finished. Press Finish.' : `Step ${idx + 1} done. Press Next to continue.`) : '';
 }
 
 function targetFor(s) {
-  const el = document.body.classList.contains('placing') ? $('#viewport') : missing(s) ? ($('#addDrop').hidden ? $('#btnAdd') : $('#addDrop')) : s.target(ctx);
+  const el = document.body.classList.contains('placing') ? $('#viewport') : missing(s) ? ($('#addDrop').hidden ? $('#btnAdd') : $('#btnAddDoll')) : s.target(ctx);
   return rectOf(el);
 }
 function rectOf(el) {
@@ -256,6 +275,12 @@ function rectOf(el) {
   const cs = getComputedStyle(el);
   if (cs.display === 'none' || cs.visibility === 'hidden') return null;
   return r;
+}
+
+// the first task that is not done yet is highlighted and decides which buttons work; a task done early is ticked and skipped later
+function usable() {
+  const s = STEPS[idx], now = (s.tasks.find(([k]) => !ctx.did.has(k)) || s.tasks.at(-1))?.[0];
+  return [s.use?.['*'], s.use?.[now], missing(s) && '#btnAdd, #btnAddDoll'].filter(Boolean).join(', ');
 }
 
 function loop() {
@@ -286,6 +311,9 @@ function menuRect() {
 
 function layout(r, menuSpace) {
   const W = window.innerWidth, H = window.innerHeight, m = 12, pad = 6;
+  const view = STEPS[idx].atTop && r && !menuSpace && rectOf($('#viewport'));   // wide and flat at the top of the viewport: the selected object stays visible
+  card.classList.toggle('wide', !!view);
+  card.style.width = view ? Math.min(540, view.width - 2 * m) + 'px' : '';
   const cw = Math.min(card.offsetWidth || 300, W - 2 * m), ch = card.offsetHeight || 200;
   if (!r) {
     ring.style.display = 'none';
@@ -304,8 +332,15 @@ function layout(r, menuSpace) {
     place(right + cw + m <= W || menuSpace.left - 20 - cw < m ? right : menuSpace.left - 20 - cw, menuSpace.bottom - ch);
     return;
   }
-  const panel = STEPS[idx].overPanel && rectOf($('#side'));   // over the side panel, so the gizmo and the toolbar stay free
-  if (panel) { place(panel.left + (panel.width - cw) / 2, panel.top + 150); return; }
+  if (view) { place(view.right - cw - m, view.top + m); return; }
+  if (STEPS[idx].centered) {   // the middle of the screen; of the viewport while details still have to be filled in on the right
+    const v = r.height > H / 2 && rectOf($('#viewport'));
+    place(v ? v.left + (v.width - cw) / 2 : (W - cw) / 2, (H - ch) / 2);
+    return;
+  }
+  const panel = STEPS[idx].overPanel && rectOf($('#side'));   // at the bottom of the side panel, so the gizmo and the toolbar stay free
+  if (panel) { place(panel.left + (panel.width - cw) / 2, panel.bottom - ch - m); return; }
+  if (STEPS[idx].underPreview) { place(r.right - cw - m, (rectOf($('#inset'))?.bottom ?? r.top) + m); return; }   // top right of the viewport, below the camera preview
   const gap = 14, cx = r.left + r.width / 2, cy = r.top + r.height / 2;
   const spaces = { right: W - (x + w), left: x, below: H - (y + h), above: y };
   const fits = {
@@ -330,7 +365,7 @@ function layout(r, menuSpace) {
 // sits above its target, pointing down at it
 function pointArrow(r) {
   arrow.hidden = !r;
-  if (r) arrow.style.transform = `translate(${Math.round(r.left + r.width / 2 - 12)}px,${Math.round(r.top - 38)}px)`;
+  if (r) arrow.style.transform = `translate(${Math.round(r.left + r.width / 2 - 16)}px,${Math.round(r.top - 50)}px)`;
 }
 
 function place(px, py) {

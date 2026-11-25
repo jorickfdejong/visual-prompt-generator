@@ -19,7 +19,7 @@ const bb = new THREE.Box3(), v = new THREE.Vector3();
 
 const GAP = 12;   // CSS px between the head and the label
 const HEAD = { y: 0.12, r: 0.125 };   // head of the mannequin, in its joint
-// screen position of the top of a puppet's head, or of the top of any other object
+// screen position of the top of a doll's head, or of the top of any other object
 export function headTop(o, w, h) {
   let r = 0;
   if (o.joints?.head) {
@@ -86,8 +86,6 @@ export function toggleNames() {
 }
 export function updateLabels() {
   const on = !!state.settings.showNames && !state.cameraView;
-  $('#btnNames').classList.toggle('active', !!state.settings.showNames);
-  $('#btnNames').setAttribute('aria-pressed', !!state.settings.showNames);
   const hov = hovered();
   const sel = state.cameraView ? [] : selObjs();
   layer.hidden = !on && !hov && !sel.length;

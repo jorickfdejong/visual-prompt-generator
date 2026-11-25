@@ -3,7 +3,7 @@ import { scaleRange } from './objects.js';
 
 /* =====================================================================
    STRETCH — objects whose width, height and depth can be scaled separately.
-   Puppets only scale as a whole: a stretched parent would skew their joints.
+   Dolls only scale as a whole: a stretched parent would skew their joints.
    ===================================================================== */
 export const canStretch = (o) => !!TYPES[o.type].stretch;
 // overall size, however it is stretched

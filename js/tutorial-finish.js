@@ -1,4 +1,4 @@
-/* The party after the tutorial: confetti from both bottom corners and a cheering puppet. Nothing blocks the app, and it cleans itself up. */
+/* The party after the tutorial: confetti from both bottom corners and a cheering doll. Nothing blocks the app, and it cleans itself up. */
 const COLORS = ['#f0a04b', '#4ba3f0', '#78c88c', '#e86a6a', '#f2d45c', '#b58cf0'];
 const LIFE = 1870;
 

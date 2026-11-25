@@ -3,14 +3,14 @@ import { state } from './state.js';
 import { editCam, orbit, vp } from './scene.js';
 
 /* =====================================================================
-   STANDARD VIEWS — front, right, back, left and above, keeping the distance and turning around the middle of the scene
+   STANDARD VIEWS — front, left, right, back and top, keeping the distance and turning around the middle of the scene
    (in pose mode: around the doll), wherever the view was panned to.
    The side views look down diagonally at a point a bit above the floor, so it sits below the middle of the viewport.
    Front looks at a new doll's face (it faces +Z); left and right are as seen from there.
    ===================================================================== */
 const TILT = THREE.MathUtils.degToRad(65);   // side views look down diagonally (90 = straight from the side)
 const VIEWS = [   // label, theta, phi
-  ['Front', 0, TILT], ['Right', Math.PI / 2, TILT], ['Back', Math.PI, TILT], ['Left', -Math.PI / 2, TILT], ['Above', 0, 0.0001],
+  ['Front', 0, TILT], ['Left', -Math.PI / 2, TILT], ['Right', Math.PI / 2, TILT], ['Back', Math.PI, TILT], ['Top', 0, 0.0001],
 ];
 const CENTER = orbit.target.clone();   // where a new scene starts: the middle of the floor
 const TIME = 280;
@@ -54,7 +54,7 @@ const buttons = VIEWS.map(([label], i) => {
   const b = document.createElement('button');
   b.type = 'button';
   b.textContent = label;
-  b.dataset.tip = label === 'Above' ? 'View from above' : `${label} view`;
+  b.dataset.tip = `${label} view`;
   b.dataset.key = String(i + 1);
   b.setAttribute('aria-label', `${b.dataset.tip} (${i + 1})`);
   b.onclick = () => { showView(i); b.blur(); };

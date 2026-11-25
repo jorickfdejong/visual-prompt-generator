@@ -1,5 +1,6 @@
 import { $ } from './state.js';
 import { dataURLtoBlob, takeScreenshot } from './rendering.js';
+import { showDownloadGuide } from './download-guide.js';
 import { promptText } from './export-modal.js';
 
 /* =====================================================================
@@ -29,5 +30,6 @@ export function downloadAll() {
   urls.forEach(([name, url], i) => setTimeout(() => download(name, url), i * 300));
   setTimeout(() => downloadText('prompt.txt', text), urls.length * 300);
   setTimeout(() => urls.forEach(([, url]) => URL.revokeObjectURL(url)), 3000);
-  toast('Downloading 3 files. Drag all three into your image generator. If the browser asks, allow multiple downloads.');
+  toast('Downloading 3 files. If the browser asks, allow multiple downloads.');
+  showDownloadGuide();
 }
