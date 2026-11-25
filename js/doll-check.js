@@ -15,12 +15,30 @@ const missing = (o) => panelFields(o).filter((f) => f.required && !String(o.deta
 export const unfinished = () => state.objects.filter((o) => !o.hidden && missing(o).length);
 export const dollsComplete = () => !unfinished().length;
 
+// a failed "Generate prompt" marks every unfinished object, in the view (labels.js) and in the object list, until it is finished
+let markedIds = new Set();
+export const marked = () => (markedIds.size ? unfinished().filter((o) => markedIds.has(o.id)) : []);
+export function markUnfinished() {
+  markedIds = new Set(unfinished().map((o) => o.id));
+  markList();
+}
+const list = $('#objectList');
+function markList() {
+  const ids = new Set(marked().map((o) => o.id));
+  for (const li of list.children) {
+    const on = ids.has(li.dataset.obj), badge = li.querySelector('.todoMark');
+    if (on && !badge) li.querySelector('.eye')?.insertAdjacentHTML('beforebegin', '<span class="todoMark" role="img" aria-label="Mandatory details missing" title="Mandatory details missing">!</span>');
+    else if (!on) badge?.remove();
+  }
+}
+new MutationObserver(markList).observe(list, { childList: true });
+
 const listAnd = (w) => (w.length < 2 ? w.join('') : w.slice(0, -1).join(', ') + ' and ' + w.at(-1));
 function refresh() {
   const todo = active ? unfinished() : [], sel = selObjs().filter((o) => todo.includes(o));
   if (!todo.length) active = false;
   const text = !todo.length ? ''
-    : sel.length ? `Fill in the ${listAnd([...new Set(sel.flatMap(missing).map((f) => f.label.toLowerCase()))])} before generating the prompt`
+    : sel.length ? 'Fill in all mandatory (*) details before generating the prompt'
       : `Not finished yet: ${listAnd(todo.map((o) => o.details.name))}`;
   const heading = context.querySelector('.detailsHint');
   let msg = document.getElementById(MSG_ID);
@@ -51,5 +69,5 @@ export function showDollWarning() {
 }
 
 // live: typing, and panel rebuilds (other selection, undo, scene load)
-context.addEventListener('input', () => { if (active) refresh(); });
-new MutationObserver(() => { if (active) refresh(); }).observe(context, { childList: true });
+context.addEventListener('input', () => { if (active) refresh(); markList(); });
+new MutationObserver(() => { if (active) refresh(); markList(); }).observe(context, { childList: true });
