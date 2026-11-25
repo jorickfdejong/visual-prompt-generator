@@ -29,7 +29,7 @@ Picked on the first visit, switched with the toggle at the bottom of the view. *
 | Left drag on an object | Slide it over the floor |
 | Arrow keys | Move the selection over the floor, 0.5 m per press (smaller steps when scaled down) |
 
-The **View** buttons (or `1` – `5`) look at the scene from the front, back, left, right or above.
+The **View** buttons (or `1` – `5`) look at the scene from the front, right, back, left or above.
 
 The same controls frame the shot in **Camera view**.
 
@@ -41,8 +41,8 @@ The same controls frame the shot in **Camera view**.
 | **Edit mode** | Click the **Change posture** button under the selected doll (or double-click it / press `Enter`). The posture panel opens on the right; everything else keeps working. Other dolls fade out. In Easy, pull an orange dot to turn the limb it ends (the elbow dot swings the upper arm), or pull a body part; in Pro, click a joint (orange dot) or a body part and drag the rings. Or use a pose preset, Mirror L↔R or Hip height. Fill in details: gender, age, race, body type, skin, hair, clothing, expression, pose, action, plus your own details. `Esc`, **Done** or clicking something else returns to Compose. |
 | **Shot camera** | Always visible in the top-right corner. Set focal length and aspect ratio. Click the preview (or **Camera view**) to frame the shot with the navigation controls, then take a **📸 Screenshot**. |
 | **Objects** | Puppets, pictures, wooden toys (tree, car, house) and shapes (cube, ball, cylinder, pyramid, cone). Select several to edit their shared details together; differing values show as Mixed. |
-| **Final image** | Shown when nothing is selected: the visual style of the image to generate. |
-| **Environment** | Its own tab in the sidebar: labels for environment, temperature and lighting, floor, walls and shadows. |
+| **Final image** | In the Environment tab: the visual style of the image to generate. |
+| **Environment** | Its own tab in the sidebar: labels for environment, temperature and lighting, floor, walls, the light direction and shadows. |
 | **Export** | The button at the top of the sidebar: an editable prompt next to the camera image, with the notes, checkboxes and tuples it is made from below. |
 | **Prompt tuples** | Shows every computed tuple. Untick a line to leave it out, use a dropdown to override a relation, add your own tuples, and add scene notes. |
 | **Include in the prompt** | Checkboxes in Export that include or leave out a kind of information (size, height, left / right, cameraâ€¦), in both the written prompt and the tuples. The group checkbox switches all of it. |

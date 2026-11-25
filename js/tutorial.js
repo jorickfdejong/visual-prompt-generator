@@ -28,7 +28,7 @@ const STEPS = [
       ['orbit', () => `Orbit: ${easy() ? `${kbd('Left mouse')} drag on empty space` : `${kbd('Middle mouse')} drag`} or ${kbd('Ctrl', 'Two fingers')}`],
       ['zoom', () => `Zoom: ${kbd('Wheel')} or ${kbd('Two fingers')}`],
       ['pan', () => `Pan: ${easy() ? `${kbd('Right mouse')} drag` : `${kbd('Shift', 'Middle mouse')} drag`} or ${kbd('Shift', 'Two fingers')}`],
-      ['view', () => `Pick a standard view: Front, Back, Left, Right or Above (${kbd('1')} to ${kbd('5')})`],
+      ['view', () => `Pick a standard view: Front, Right, Back, Left or Above (${kbd('1')} to ${kbd('5')})`],
     ],
     update: (c) => {
       const view = state.mode === 'compose' && !state.cameraView && { off: editCam.position.clone().sub(orbit.target), target: orbit.target.clone() };

@@ -162,10 +162,10 @@ function mk(id, tip, key, icon) {
   return b;
 }
 mk('btnNames', 'Show object names', 'N', 'names').setAttribute('aria-pressed', 'false');   // wired in main.js, kept in step by labels.js
-const bRot = mk('navRotate', 'Orbit', 'Middle mouse drag\nCtrl + Two fingers', 'rotate');
-const bPan = mk('navPan', 'Pan', 'Shift + Middle mouse drag\nShift + Two fingers', 'pan');
-const bOut = mk('navZoomOut', 'Zoom out', 'Mouse wheel\nTwo fingers', 'minus');
-const bIn = mk('navZoomIn', 'Zoom in', 'Mouse wheel\nTwo fingers', 'plus');
+const bRot = mk('navRotate', 'Orbit (hold)', 'Middle mouse drag\nCtrl + Two fingers', 'rotate');
+const bPan = mk('navPan', 'Pan (hold)', 'Shift + Middle mouse drag\nShift + Two fingers', 'pan');
+const bOut = mk('navZoomOut', 'Zoom out (hold)', 'Mouse wheel\nTwo fingers', 'minus');
+const bIn = mk('navZoomIn', 'Zoom in (hold)', 'Mouse wheel\nTwo fingers', 'plus');
 vp.appendChild(widget);
 widget.addEventListener('contextmenu', (e) => e.preventDefault());
 

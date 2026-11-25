@@ -60,7 +60,7 @@
 
   <!-- ================= SIDEBAR (right) ================= -->
   <aside id="side" class="panel">
-    <div id="sideHead"><button id="btnExport" title="Export the image and the prompt"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4M5 14v5h14v-5"/></svg>Export</button></div>
+    <div id="sideHead"><button id="btnExport" aria-haspopup="dialog" title="Opens a window to check and export the image and the prompt"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4M5 14v5h14v-5"/></svg>Generate prompt</button></div>
     <div id="tabs" role="tablist" aria-label="Sidebar"><button type="button" id="tabScene" role="tab" data-tab="scene">Scene</button><button type="button" id="tabEnv" role="tab" data-tab="env">Environment</button></div>
     <div id="sideBody">
     <section id="outliner">
@@ -116,19 +116,23 @@
     </section>
     </div>
     <ul id="promptWarnings" aria-label="Warnings" hidden></ul>
+    <section aria-labelledby="promptCardsTitle">
+      <h2 id="promptCardsTitle">Detail of objects</h2>
+      <div id="promptCards" class="promptCards"></div>
+    </section>
 
-    <h2 class="genTitle">Change what the text is made from</h2>
-    <section>
+    <h2 class="genTitle" hidden>Change what the text is made from</h2>
+    <section hidden>
       <h2>Scene notes</h2>
       <textarea id="notes" placeholder="Anything else the image needs…"></textarea>
     </section>
 
-    <section>
-      <h2>Include in the prompt</h2>
-      <div id="includeList"></div>
-    </section>
-
     <details class="sec">
+      <summary><h2><span><span class="chev">▸</span> Include in the prompt</span></h2></summary>
+      <div id="includeList"></div>
+    </details>
+
+    <details class="sec" hidden>
       <summary><h2><span><span class="chev">▸</span> Find an object from the text</span></h2></summary>
       <p class="hint" style="margin:0">Click a name to go to that object.</p>
       <div id="naturalPrompt"></div>

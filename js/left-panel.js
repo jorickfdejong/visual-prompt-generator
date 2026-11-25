@@ -12,7 +12,7 @@ import { exitEdit, placePivot, selectMany, selectObject, selObjs, setTool, toggl
 import { camel } from './relations.js';
 import { canStretch, scaleLimits, sizeOf } from './stretch.js';
 import { markDirty } from './prompt-panel.js';
-import { detailCount, incompleteDetail } from './details.js';
+import { detailCount, incompleteDetail, typeWord } from './details.js';
 
 /* =====================================================================
    UI — LEFT PANEL
@@ -35,10 +35,12 @@ export function renderObjectList() {
     li.addEventListener('click', (e) => {
       const act = e.target.closest('button')?.dataset.act;
       if (act === 'eye') { o.hidden = !o.hidden; o.root.visible = !o.hidden; if (o.hidden && state.editing === o) exitEdit(); if (state.selected?.obj === o) selectObject(o); else if (state.selected?.kind === 'multi') selectMany(state.selected.objs); renderObjectList(); markDirty(); return; }
+      // the first click redraws the list, so a double-click is seen here as a second click on the new row
+      if (e.detail === 2 && e.target.closest('.name') && !e.shiftKey && !e.ctrlKey && !e.metaKey) { startRename(li, o); return; }
+      if (e.target.closest('input')) return;   // clicks inside the name being typed
       if (state.mode === 'edit' && state.editing !== o) exitEdit();
       if (state.mode === 'compose') { if (e.shiftKey || e.ctrlKey || e.metaKey) toggleInSelection(o); else selectObject(o); }
     });
-    li.querySelector('.name').addEventListener('dblclick', (e) => { e.stopPropagation(); startRename(li, o); });
     ul.appendChild(li);
   }
   updateDetailCounts();
@@ -83,7 +85,6 @@ export function renderContext() {
   const sel = state.selected;
   side.hidden = !editing;
   $('#camSection').hidden = editing || sel?.kind !== 'camera';
-  $('#imageSection').hidden = editing || !!sel;
   renderTools();
   if (editing) renderEditPanel(side); else side.innerHTML = '';   // the object's own panel stays below it
   if (sel?.kind === 'camera') {
@@ -289,6 +290,7 @@ export function renderWorldPanel() {
       <label class="tfField" title="Wall height"><span class="ax" data-wscrub="height" title="Drag to adjust">H</span>${num('height', W.height)}</label>
     </div></div>
     <h3 class="sub">Light</h3>
+    <div class="field"><label for="lightDir">Direction</label><div class="row" style="flex-wrap:nowrap"><input type="range" id="lightDir" min="0" max="360" step="1" value="${R.light.direction}" title="Turn the light around the scene"><span id="lightDirVal" style="width:38px;text-align:right">${Math.round(R.light.direction)}°</span></div></div>
     <div class="field"><label>Shadows</label><label class="checkRow"><input type="checkbox" id="lightShadows" ${R.light.shadows !== false ? 'checked' : ''}> Cast shadows</label></div>
     <h3 class="sub">Floor</h3>
     <div class="field"><label>Look</label><select data-wpat="floor">${opts('floor', F.pattern)}</select></div>
@@ -308,6 +310,11 @@ export function renderWorldPanel() {
     if (k === 'background') R.background = inp.value; else R[k].color = inp.value;
     changed(false);
   }));
+  el.querySelector('#lightDir').addEventListener('input', (e) => {
+    R.light.direction = +e.target.value;
+    el.querySelector('#lightDirVal').textContent = `${e.target.value}°`;
+    applyLight(); markDirty();
+  });
   el.querySelector('#lightShadows').addEventListener('change', (e) => { R.light.shadows = e.target.checked; applyLight(); markDirty(); });
   el.querySelectorAll('[data-env]').forEach((inp) => inp.addEventListener('input', () => { state.environment[inp.dataset.env] = inp.value; markDirty(); }));
   el.querySelectorAll('[data-wall]').forEach((inp) => inp.addEventListener('change', () => { W[inp.dataset.wall] = inp.checked; changed(false); }));
@@ -442,6 +449,7 @@ export function detailsHTML(o) {
   }).join('');
   const custom = d.custom.map((c, i) => `<div class="customItem" data-i="${i}"><div class="customRow"><input type="text" data-ck="${i}" value="${esc(c.key)}" placeholder="detail (e.g. glasses)"><input type="text" data-cv="${i}" value="${esc(c.value)}" placeholder="value (e.g. round)"><button class="icon danger" data-crm="${i}">✕</button></div></div>`).join('');
   return `${detailsHead()}
+    <div class="field"><label for="objKind">Object type</label><input type="text" id="objKind" readonly value="${esc(typeWord(o)[0].toUpperCase() + typeWord(o).slice(1))}" aria-describedby="objKindTip"><span id="objKindTip" role="tooltip">The object type can't be changed</span></div>
     <div class="field"><label for="objName">Name</label><input type="text" id="objName" value="${esc(d.name)}"></div>
     ${fields}
     <div style="margin-top:4px">${d.custom.length ? CUSTOM_HEAD : ''}${custom}</div>

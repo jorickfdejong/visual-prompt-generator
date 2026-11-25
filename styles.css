@@ -23,7 +23,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* ---------- sidebar ---------- */
 .panel { background: var(--panel); overflow-y: auto; border-left: 1px solid var(--line); }
-#side[data-tab=scene] #worldSection, #side[data-tab=env] #sideBody > section:not(#worldSection) { display: none; }
+#side[data-tab=scene] :is(#imageSection, #worldSection), #side[data-tab=env] #sideBody > section:not(#imageSection, #worldSection) { display: none; }
 #tabs { display: flex; flex: none; position: sticky; top: 0; z-index: 3; background: var(--panel); border-bottom: 1px solid var(--line); }
 #tabs button { flex: 1; background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 9px 0; color: var(--muted); font-weight: 600; }
 #tabs button:hover { background: var(--panel-2); color: var(--text); }

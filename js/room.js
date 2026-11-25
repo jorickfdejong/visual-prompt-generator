@@ -9,10 +9,10 @@ export const ROOM_DEFAULT = () => ({
   background: '#e4dfd7',
   floor: { pattern: 'plain', color: '#bdb3a4', imageId: null },
   walls: { back: false, left: false, right: false, pattern: 'plain', color: '#ece6dc', imageId: null, width: 8, depth: 8, height: 3 },
-  light: { shadows: true },
+  light: { direction: 40, shadows: true },
 });
-// fixed light setup (the light is no longer configurable; only shadows can be toggled)
-const LIGHT = { direction: 40, height: 50, brightness: 2.4, color: '#ffffff', ambient: 1.6 };
+// fixed part of the light (its direction and shadows are settings)
+const LIGHT = { height: 50, brightness: 2.4, color: '#ffffff', ambient: 1.6 };
 // procedural patterns, drawn light grey so the chosen colour tints them; m = metres one canvas covers
 export const PATTERNS = {
   floor: { plain: { label: 'Plain' }, wood: { label: 'Wood planks', m: 2 }, tiles: { label: 'Tiles', m: 1 }, checker: { label: 'Checkerboard', m: 1 }, concrete: { label: 'Concrete', m: 3 }, image: { label: 'Your image…', m: 3 } },
@@ -109,10 +109,10 @@ state.settings.room = ROOM_DEFAULT();
 export const wallGroup = new THREE.Group();
 scene.add(wallGroup);
 export const wallMat = new THREE.MeshStandardMaterial({ color: '#ece6dc', roughness: 0.95 });   // front side only: walls vanish when seen from outside the room
-// the light: fixed direction, height, brightness, colour and ambient fill; shadows can be toggled
+// the light: turned around the room (direction), with a fixed height, brightness, colour and ambient fill; shadows can be toggled
 export function applyLight() {
   const R = state.settings.room, W = R.walls, L = R.light || {};
-  const az = LIGHT.direction * DEG, el = LIGHT.height * DEG;
+  const az = (+L.direction || 0) * DEG, el = LIGHT.height * DEG;
   const half = Math.max(+W.width || 8, +W.depth || 8) / 2 + 2;   // shadows cover the whole floor
   const dist = half * 1.5 + 6;
   const dir = new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el));
