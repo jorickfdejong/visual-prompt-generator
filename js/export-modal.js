@@ -10,7 +10,7 @@ import { renderPromptCards } from './export-prompt-cards.js';
 import { fixedLines } from './prompt-rules.js';
 import { showTab } from './side-tabs.js';
 import { envComplete, showEnvWarning } from './env-check.js';
-import { dollsComplete, showDollWarning } from './doll-check.js';
+import { dollsComplete, markUnfinished, showDollWarning } from './doll-check.js';
 import { detailCount } from './details.js';
 import { TYPES } from './types.js';
 
@@ -70,6 +70,7 @@ export function openExport() {
   if (!envComplete() || !dollsComplete()) {   // empty required details: show them instead of exporting
     if (state.cameraView) exitCameraView();
     if (state.mode === 'edit') exitEdit();
+    markUnfinished();
     if (!envComplete()) showEnvWarning(); else showDollWarning();
     return;
   }

@@ -5,7 +5,7 @@ import { showTab } from './side-tabs.js';
    ENVIRONMENT CHECK — "Generate prompt" needs the environment details
    (ENV_FIELDS that are not optional + Visual style). Empty ones get highlighted until filled.
    ===================================================================== */
-const MSG = 'Fill in the world details before Generating the prompt';
+const MSG = 'Fill in all mandatory (*) details before generating the prompt';
 const MSG_ID = 'envCheckMsg';
 let active = false;   // a warning was shown and not yet resolved
 

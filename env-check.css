@@ -1,6 +1,8 @@
 /* env-check */
-.envCheckMsg { margin: 0 0 12px; padding: 10px 12px; border: 2px solid var(--danger); border-radius: var(--radius); background: color-mix(in srgb, var(--danger) 18%, var(--panel)); color: var(--text); font-weight: 700; font-size: 14px; }
-.envCheckMsg::before { content: "! "; color: var(--danger); }
-input.env-missing { outline: 2px solid var(--danger); outline-offset: 1px; border-color: var(--danger); }
-.field.env-missing > label { color: var(--danger); font-weight: 700; }
-.field.env-missing > label::after { content: " (required)"; font-weight: 600; }
+.envCheckMsg { margin: 0 0 12px; padding: 8px 10px; border: 1px solid var(--danger); border-radius: var(--radius); background: color-mix(in srgb, var(--danger) 12%, transparent); color: color-mix(in srgb, var(--danger) 80%, #fff); font-size: 13px; }
+input.env-missing { border-color: var(--danger); }
+.field.env-missing > label { color: color-mix(in srgb, var(--danger) 80%, #fff); font-weight: 600; }
+/* objects that still miss mandatory details after "Generate prompt": in the object list and on their name in the view */
+.todoMark, #nameLayer div.todo::after { display: grid; place-items: center; box-sizing: border-box; width: 16px; height: 16px; border-radius: 50%; background: var(--danger); color: #fff; font-size: 11px; font-weight: 700; line-height: 1; }
+.todoMark { flex: none; }
+#nameLayer div.todo::after { content: "!"; position: absolute; top: -8px; right: -8px; box-shadow: 0 1px 3px rgba(0, 0, 0, .4); }

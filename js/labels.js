@@ -5,6 +5,7 @@ import { hovered } from './hover.js';
 import { selectObject, selObjs } from './selection.js';
 import { detailList } from './details.js';
 import { renderContext, renderObjectList, setName } from './left-panel.js';
+import { marked } from './doll-check.js';
 import { namingObject } from './naming.js';
 import { markDirty } from './prompt-panel.js';
 
@@ -76,8 +77,9 @@ vp.addEventListener('pointerup', (e) => {
   const d = down; down = null;
   if (!d?.o || e.button !== 0 || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4 || nameAt(e) !== d.o) return;
   e.onName = true;   // selection.js leaves this click alone
-  if (!selObjs().includes(d.o)) selectObject(d.o);
-  startNaming(d.o);
+  const sel = selObjs().includes(d.o);
+  if (!sel) selectObject(d.o);
+  if (sel || !marked().includes(d.o)) startNaming(d.o);   // an unfinished object is only selected, to fill in its details
 }, true);
 canvas.addEventListener('pointermove', (e) => { canvas.classList.toggle('over-name', !e.buttons && !!nameAt(e)); });
 export function toggleNames() {
@@ -88,7 +90,8 @@ export function updateLabels() {
   const on = !!state.settings.showNames && !state.cameraView;
   const hov = hovered();
   const sel = state.cameraView ? [] : selObjs();
-  layer.hidden = !on && !hov && !sel.length;
+  const todo = state.cameraView ? [] : marked();
+  layer.hidden = !on && !hov && !sel.length && !todo.length;
   for (const [o, el] of els) if (!state.objects.includes(o)) { el.remove(); els.delete(o); }
   if (layer.hidden) return;
   const w = vp.clientWidth, h = vp.clientHeight, vr = vp.getBoundingClientRect(), ir = $('#inset').getBoundingClientRect();
@@ -96,7 +99,8 @@ export function updateLabels() {
     let el = els.get(o);
     if (!el) { el = document.createElement('div'); layer.appendChild(el); els.set(o, el); }
     const selected = sel.includes(o);
-    el.hidden = (!on && o !== hov && !selected) || o.hidden || o === namingObject();
+    const isTodo = todo.includes(o);
+    el.hidden = (!on && o !== hov && !selected && !isTodo) || o.hidden || o === namingObject();
     if (el.hidden) continue;
     const top = headTop(o, w, h);
     el.hidden = !top || (!selected && top.x > ir.left - vr.left - 20 && top.y < ir.bottom - vr.top + 20);   // under the camera preview
@@ -112,6 +116,7 @@ export function updateLabels() {
     }
     el.classList.toggle('hover', o === hov && !selected);
     el.classList.toggle('sel', selected);
+    el.classList.toggle('todo', isTodo);
     el.style.borderColor = o.accent;
     // the bottom edge stays GAP px above the head, so a longer list grows upwards (a selected one never leaves the view)
     let { x, y } = top;
