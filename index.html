@@ -8,6 +8,9 @@
 <link rel="stylesheet" href="details.css">
 <link rel="stylesheet" href="tutorial.css">
 <link rel="stylesheet" href="feedback.css">
+<link rel="stylesheet" href="env-check.css">
+<link rel="stylesheet" href="grouping.css">
+<link rel="stylesheet" href="placement.css">
 <script type="importmap">
 {
   "imports": {
@@ -52,8 +55,10 @@
           <button id="btnAddImage" role="menuitem"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="13" rx="1"/><path d="M5 12l4-4 4 4 2-2 4 4"/><path d="M3 21h18v-3H3z"/></svg>Image (JPG / PNG)…</button>
         </div>
         <input type="file" id="imageFile" accept=".png,.jpg,.jpeg,image/png,image/jpeg" hidden>
-        <button data-tool="transform" data-tip="Move &amp; rotate" data-key="W" aria-label="Move and rotate (W)"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg></button>
-        <button data-tool="scale" data-tip="Scale &amp; stretch" data-key="K" aria-label="Scale and stretch (K)"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="10" height="10" rx="1"/><path d="M11 13l9-9M14 4h6v6"/></svg></button>
+        <div id="toolToggle" role="group" aria-label="Tool">
+          <button data-tool="transform" data-tip="Move &amp; rotate" data-key="M" aria-label="Move and rotate (M)"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M12 3l-3 3M12 3l3 3M12 21l-3-3M12 21l3-3M3 12l3-3M3 12l3 3M21 12l-3-3M21 12l-3 3"/></svg></button>
+          <button data-tool="scale" data-tip="Scale &amp; stretch" data-key="S" aria-label="Scale and stretch (S)"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M10 14l7-7M12.5 7H17v4.5"/></svg></button>
+        </div>
       </div>
     </div>
   </main>
@@ -95,31 +100,30 @@
   <div class="modalBox">
     <header><h1 id="exportTitle">Export</h1><button id="btnCloseExport" class="icon" aria-label="Close">✕</button></header>
     <div class="modalBody">
-    <div class="exportTop">
-    <section id="exportText">
-      <h2><label for="promptEdit">Prompt text</label><span class="editTag"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Editable: click and type</span></h2>
-      <textarea id="promptEdit" spellcheck="false"></textarea>
-      <div class="row editRow"><span id="promptEditState" class="hint" role="status" hidden></span><button id="btnPromptReset" hidden>Reset to generated text</button></div>
-      <div class="row">
-        <button id="btnCopyText">Copy text</button>
-        <select id="format" aria-label="Text format"><option value="both">Written prompt + tuples</option><option value="natural">Written prompt</option><option value="tuples">Tuples</option></select>
-      </div>
-    </section>
-    <section id="exportImage">
-      <h2>Reference image</h2>
-      <img id="shotPreview" alt="Camera preview" title="Live view of the shot camera">
-      <div class="row">
-        <button id="btnCopyImg">Copy image</button>
-        <button id="btnDlPng">Download PNG</button>
-        <select id="reference" aria-label="Reference image look"><option value="depth">Depth map</option><option value="clay">Clay grey</option><option value="colour">Coloured</option></select>
-      </div>
-    </section>
-    </div>
-    <ul id="promptWarnings" aria-label="Warnings" hidden></ul>
     <section aria-labelledby="promptCardsTitle">
       <h2 id="promptCardsTitle">Detail of objects</h2>
       <div id="promptCards" class="promptCards"></div>
     </section>
+    <div class="exportTop">
+    <section id="exportText">
+      <h2 id="promptTitle">Prompt text</h2>
+      <div id="promptView" role="region" aria-labelledby="promptTitle" tabindex="0"></div>
+      <div class="row">
+        <select id="format" aria-label="Text format"><option value="both">Written prompt + tuples</option><option value="natural">Written prompt</option><option value="tuples">Tuples</option></select>
+      </div>
+    </section>
+    <section id="exportImage">
+      <h2>Reference images</h2>
+      <figure>
+        <figcaption>Clay grey</figcaption>
+        <img id="shotClay" alt="Clay grey view of the shot camera">
+      </figure>
+      <figure>
+        <figcaption>Depth map</figcaption>
+        <img id="shotDepth" alt="Depth map view of the shot camera">
+      </figure>
+    </section>
+    </div>
 
     <h2 class="genTitle" hidden>Change what the text is made from</h2>
     <section hidden>
@@ -148,7 +152,10 @@
       <p class="hint" style="margin:8px 0 0">Untick a line to leave it out. Use the dropdowns to override a computed relation.</p>
     </details>
     </div>
-    <footer><span class="hint">You get two files: reference.png and prompt.txt. Add both to your image generator.</span><button id="btnBoth" class="primary">Download image + text</button></footer>
+    <footer>
+      <ol class="exportSteps"><li>Download all three files: <b>clay-grey.png</b>, <b>depth-map.png</b> and <b>prompt.txt</b>.</li><li>Drag <b>all three files</b> into your image generator.</li></ol>
+      <button id="btnAll" class="primary">Download all 3 files</button>
+    </footer>
   </div>
 </div>
 

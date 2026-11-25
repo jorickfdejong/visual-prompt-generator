@@ -39,10 +39,11 @@ const ray = new THREE.Raycaster();
 const overlap = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
 // a picture can be see-through (cutout, PNG), which a ray does not notice: only a JPEG counts as solid
 const solid = (o) => o.type !== 'image' || (!o.cutout?.on && /^data:image\/jpeg/.test(imageStore[o.imageId]?.src || ''));
+const solidMeshes = (o) => (o.built ? o.built.flatMap(solidMeshes) : solid(o) ? o.meshes : []);
 
 // what hides most of f: { o, part: 'partly' | 'fully' } or null
 function hiddenBy(f, all) {
-  const before = all.filter((g) => g !== f && g.rect && g.distance < f.distance && solid(g.o) && overlap(f.rect, g.rect));
+  const before = all.filter((g) => g !== f && g.rect && g.distance < f.distance && solidMeshes(g.o).length && overlap(f.rect, g.rect));
   if (!before.length) return null;
   const r = { x0: Math.max(-1, f.rect.x0), x1: Math.min(1, f.rect.x1), y0: Math.max(-1, f.rect.y0), y1: Math.min(1, f.rect.y1) };
   const N = 8, counts = new Map();
@@ -54,7 +55,7 @@ function hiddenBy(f, all) {
     total++;
     let best = null;
     for (const g of before) {
-      const h = ray.intersectObjects(g.o.meshes, false)[0];
+      const h = ray.intersectObjects(solidMeshes(g.o), false)[0];
       if (h && h.distance < own.distance && (!best || h.distance < best.d)) best = { d: h.distance, g };
     }
     if (best) { hidden++; counts.set(best.g, (counts.get(best.g) || 0) + 1); }

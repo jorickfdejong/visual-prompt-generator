@@ -50,8 +50,6 @@ const bar = document.createElement('div');
 bar.id = 'viewBar';
 bar.setAttribute('role', 'group');
 bar.setAttribute('aria-label', 'Standard views');
-// a cube with one side filled
-bar.innerHTML = '<svg viewBox="0 0 24 24" role="img" aria-label="View"><title>View</title><path d="M12 12v9.5l8-4.6V7.4z" fill="currentColor" fill-opacity=".4" stroke="none"/><path d="M12 2.5l8 4.9v9.5l-8 4.6-8-4.6V7.4z"/><path d="M4 7.4l8 4.6 8-4.6M12 12v9.5"/></svg>';
 const buttons = VIEWS.map(([label], i) => {
   const b = document.createElement('button');
   b.type = 'button';

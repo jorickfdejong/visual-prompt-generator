@@ -14,7 +14,7 @@ for (const b of document.querySelectorAll('button[data-tip]')) {
   tip.append(name);
   for (const line of (b.dataset.key || '').split('\n').filter(Boolean)) {
     const row = document.createElement('span');
-    row.className = 'tipKey';
+    row.className = 'tipKey' + (/Two fingers/.test(line) ? ' padOnly' : /mouse/i.test(line) ? ' mouseOnly' : '');
     row.innerHTML = inputIcon(line) + (line.length === 1 ? `<kbd>${line}</kbd>` : line.replace(KEYS, '<kbd>$1</kbd>'));
     tip.append(row);
   }

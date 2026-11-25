@@ -1,6 +1,7 @@
-import { $, state } from './state.js';
+import { state } from './state.js';
 import { activeTuples } from './relations.js';
 import { TYPES } from './types.js';
+import { typesIn } from './props.js';
 import { canonical, contradicts, tupleParts } from './prompt-rules.js';
 
 /* =====================================================================
@@ -13,7 +14,7 @@ export function warnings() {
     const n = name(f.o);
     if (!f.inShot) out.push(`${n} is outside the shot, but it is described in the prompt.`);
     else if (f.hidden?.part === 'fully') out.push(`${n} is completely hidden behind ${name(f.hidden.o)}.`);
-    if (TYPES[f.o.type].geometry && !(f.o.details.subject || '').trim()) out.push(`${n} is a plain ${f.o.type}: fill in “Represents” so the image generator knows what to draw.`);
+    if (typesIn(f.o).some((t) => TYPES[t]?.geometry) && !(f.o.details.subject || '').trim()) out.push(`${n} ${f.o.type === 'group' ? 'has plain shapes in it' : 'is a plain ' + f.o.type}: fill in “Represents” so the image generator knows what to draw.`);
     for (const c of f.o.details.custom || []) if (!(c.key || '').trim() || !(c.value || '').trim()) out.push(`${n} has a detail with an empty field.`);
     if (f.support === 'below') out.push(`${n} goes through the floor.`);
     if (f.support === 'floating') {
@@ -54,11 +55,4 @@ export function warnings() {
     if (loop) out.push(`The ${words} relations of ${loop.join(', ')} go round in a circle.`);
   }
   return out;
-}
-export function renderWarnings() {
-  const el = $('#promptWarnings'), list = warnings(), sig = list.join('\n');
-  if (el._sig === sig) return;
-  el._sig = sig;
-  el.hidden = !list.length;
-  el.replaceChildren(...list.map((w) => Object.assign(document.createElement('li'), { textContent: w })));
 }

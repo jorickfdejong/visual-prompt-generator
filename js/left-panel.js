@@ -7,12 +7,14 @@ import { shotCam } from './camera.js';
 import { PELVIS_Y, POSES } from './mannequin.js';
 import { buildImageCard, IMG_H } from './image-card.js';
 import { TYPES } from './types.js';
-import { nextName, scaleRange, uniqueName } from './objects.js';
+import { nextName, uniqueName } from './objects.js';
 import { exitEdit, placePivot, selectMany, selectObject, selObjs, setTool, toggleInSelection, updateModeBadge } from './selection.js';
 import { camel } from './relations.js';
-import { canStretch, scaleLimits, sizeOf } from './stretch.js';
+import { canStretch, scaleLimits, sideRange, sizeOf } from './stretch.js';
 import { markDirty } from './prompt-panel.js';
 import { detailCount, incompleteDetail, typeWord } from './details.js';
+import { objectIcon } from './object-icons.js';
+import { bindGrouping, groupHTML, ungroupHTML } from './grouping.js';
 
 /* =====================================================================
    UI — LEFT PANEL
@@ -30,7 +32,7 @@ export function renderObjectList() {
     if (selObjs().includes(o)) li.classList.add('selected');
     if (o.hidden) li.classList.add('hidden-obj');
     li.dataset.obj = o.id;
-    li.innerHTML = `<span class="dot" style="background:${o.accent}"></span><span class="name" title="Double-click to rename">${esc(o.details.name)}</span><span class="detailCount">${detailCountText(o)}</span>
+    li.innerHTML = `${objectIcon(o)}<span class="name" title="Double-click to rename">${esc(o.details.name)}</span><span class="detailCount">${detailCountText(o)}</span>
       <button class="icon eye" data-act="eye" title="${o.hidden ? 'Show' : 'Hide'}">${o.hidden ? '◌' : '👁'}</button>`;
     li.addEventListener('click', (e) => {
       const act = e.target.closest('button')?.dataset.act;
@@ -69,7 +71,7 @@ export function startRename(li, o) {
 }
 export function setName(o, raw) {
   raw = raw.trim();
-  if (raw === o.details.name) return;
+  if (raw === o.details.name || (o.details.name && !camel(raw))) return;   // never ends without a name
   const base = TYPES[o.type].baseName;
   const defaultName = new RegExp('^' + base + '\\d+$', 'i');
   o.details.subject = defaultName.test(raw) ? '' : raw.replace(/([a-z])([A-Z])/g, '$1 $2');
@@ -88,7 +90,7 @@ export function renderContext() {
   renderTools();
   if (editing) renderEditPanel(side); else side.innerHTML = '';   // the object's own panel stays below it
   if (sel?.kind === 'camera') {
-    el.innerHTML = `<p class="hint" style="margin-top:0">Move or rotate the camera with the gizmo or type exact values, or open <b>Camera view</b> to frame the shot by orbiting.</p>${transformHTML(sel)}`;
+    el.innerHTML = `<p class="hint" style="margin-top:0">Move or rotate the camera with the gizmo<span class="typeValues"> or type exact values</span>, or open <b>Camera view</b> to frame the shot by orbiting.</p>${transformHTML(sel)}`;
     bindTransformInputs(el);
     return;
   }
@@ -96,11 +98,11 @@ export function renderContext() {
   if (sel?.kind === 'multi') {
     const multi = multiDetails(objs);
     el.innerHTML = `<h2>${objs.length} objects selected</h2>
-      <p class="hint" style="margin-top:0">${objs.map((o) => esc(o.details.name)).join(', ')}. The gizmo moves, rotates and scales them together. Shift/Ctrl-click to add or remove one.</p>${transformHTML(sel)}${multi.html}`;
+      <p class="hint" style="margin-top:0">${objs.map((o) => esc(o.details.name)).join(', ')}. The gizmo moves, rotates and scales them together. Shift/Ctrl-click to add or remove one.</p>${groupHTML(objs)}${transformHTML(sel)}${multi.html}`;
     multi.bind(el);
   } else if (sel?.kind === 'obj') {
     const o = sel.obj;
-    el.innerHTML = `${transformHTML(sel)}
+    el.innerHTML = `${o.type === 'group' ? ungroupHTML(o) : ''}${transformHTML(sel)}
       ${o.type === 'image' ? imagePanelHTML(o) : ''}
       ${detailsHTML(o)}`;
     if (o.type === 'image') bindImagePanel(el, o);
@@ -110,6 +112,7 @@ export function renderContext() {
     return;
   }
   bindTransformInputs(el);
+  bindGrouping(el);
 }
 
 /* Numeric transform fields for the selection.
@@ -222,7 +225,7 @@ export function applyTransformInput(k, n) {
   const t = transformTarget(sel);
   if (t) {
     if (k === 's') t.scale.multiplyScalar(THREE.MathUtils.clamp(n / sizeOf(sel.obj), ...scaleLimits(sel.obj)));
-    else if (k[0] === 's') t.scale[axis] = THREE.MathUtils.clamp(n, ...scaleRange(sel.obj));
+    else if (k[0] === 's') t.scale[axis] = THREE.MathUtils.clamp(n, ...sideRange(sel.obj));
     else if (k[0] === 'p') t.position[axis] = n;
     else t.rotation[axis] = n * DEG;
     t.updateMatrixWorld(true);
@@ -266,6 +269,7 @@ export function renderTools() {
   // left tool strip: always visible in compose mode
   document.querySelectorAll('#toolStrip [data-tool]').forEach((b) => {
     b.classList.toggle('active', state.tool === b.dataset.tool);
+    b.setAttribute('aria-pressed', state.tool === b.dataset.tool);
     b.disabled = b.dataset.tool === 'scale' && state.selected?.kind === 'camera';
   });
 }
@@ -455,8 +459,8 @@ export function detailsHTML(o) {
     <div style="margin-top:4px">${d.custom.length ? CUSTOM_HEAD : ''}${custom}</div>
     <button id="btnAddDetail">+ Add your own detail</button>`;
 }
-const detailsHead = () => `<h2 style="margin-top:14px">Details <span class="optTag">optional</span></h2>
-    <p class="hint detailsHint">Skip this if you like. Anything you fill in is added to the prompt.</p>`;
+const detailsHead = () => `<h2 style="margin-top:14px">Details</h2>
+    <p class="hint detailsHint">Anything you fill in is added to the prompt.</p>`;
 const CUSTOM_HEAD = '<div class="customHead"><span>Detail</span><span>Value</span><span class="gap">✕</span></div>';
 
 /* Error handling for custom detail rows (shared by one object and several).

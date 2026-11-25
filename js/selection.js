@@ -4,8 +4,7 @@ import { attachGizmo, detachGizmo, editCam, floor, gizmoDragging, gizmoHot, orbi
 import { grid } from './room.js';
 import { camModel, shotCam } from './camera.js';
 import { TYPES } from './types.js';
-import { scaleRange } from './objects.js';
-import { canStretch, scaleLimits } from './stretch.js';
+import { canStretch, scaleLimits, stretchSide } from './stretch.js';
 import { esc, renderContext, renderObjectList, syncTransformInputs } from './left-panel.js';
 import { showTab } from './side-tabs.js';
 import { inputIcon } from './input-icons.js';
@@ -133,9 +132,9 @@ export function applyGroupTransform() {
     if (tc.axis?.length === 1) {   // one side of a single object
       const k = tc.axis.toLowerCase();
       for (const [o, { s }] of groupRel) {
-        const v = THREE.MathUtils.clamp(s[k] * pivot.scale[k], ...scaleRange(o));
+        const v = stretchSide(o, s[k], s, pivot.scale[k]);
         o.root.scale[k] = v;
-        pivot.scale[k] = v / s[k];
+        pivot.scale[k] = v / s[k];   // always > 0: the gizmo never shows a flipped side
       }
       return;
     }
@@ -239,7 +238,7 @@ const PRO_KEYS = [['Middle mouse', 'drag: orbit'], ['Shift + Middle mouse', 'dra
 /* Help: a "?" button in the viewport corner that opens the shortcuts and an explanation for the current mode */
 export function renderHelp() {
   const easy = document.body.classList.contains('nav-easy');
-  const rows = (list) => `<dl>${list.map(([k, t]) => `<dt>${inputIcon(k)}${k.split(' + ').map((x) => `<kbd>${x}</kbd>`).join(' + ')}</dt><dd>${t}</dd>`).join('')}</dl>`;
+  const rows = (list) => `<dl>${list.map(([k, t]) => { const pad = /Two fingers/.test(k) ? ' class="padOnly"' : /mouse|Wheel/.test(k) ? ' class="mouseOnly"' : ''; return `<dt${pad}>${inputIcon(k)}${k.split(' + ').map((x) => `<kbd>${x}</kbd>`).join(' + ')}</dt><dd${pad}>${t}</dd>`; }).join('')}</dl>`;
   const nav = rows(easy ? EASY_KEYS : PRO_KEYS);
   const html = state.mode === 'edit'
     ? `<h3>Edit mode — ${esc(state.editing.details.name)}</h3>
@@ -251,9 +250,9 @@ export function renderHelp() {
        <p>Arrange the objects and the shot camera. Spatial relations (left of, in front of, between…) are read from the camera's point of view on the grid and become prompt tuples in the Export window. Nothing is decided for you: every tuple can be switched off or overridden.</p>
        <p>The Environment tab edits the final image (visual style), the labels, background, floor and walls. Select an object or the camera to edit it, or type exact values.</p>
        <h4>Selecting</h4>${rows([['Click', 'select an object or the camera; a name above an object: change it'], [easy ? 'Shift + Drag' : 'Drag', 'box-select on empty space'], ['Shift + Click', 'add to the selection'], ['Ctrl + Click', 'toggle one object'], ['Ctrl + A', 'select all objects'], ['Esc', 'deselect']])}
-       <h4>Transform</h4>${rows([['W', 'move and rotate (also R): drag an arrow or a ring'], ['Drag', 'an object to slide it over the floor'], ['← ↑ ↓ →', 'move over the floor, 0.5 m per press (smaller steps when scaled down)'], ['K', 'scale: the orange handle keeps the proportions, a coloured box stretches one side'], ['Drag X / Y / Z', 'in the panel to scrub a value (Shift = finer)']])}
+       <h4>Transform</h4>${rows([['M', 'move and rotate: drag an arrow or a ring'], ['Drag', 'an object to slide it over the floor'], ['← ↑ ↓ →', 'move over the floor, 0.5 m per press (smaller steps when scaled down)'], ['S', 'scale: the orange handle keeps the proportions, a coloured box stretches one side'], ['Drag X / Y / Z', 'in the panel to scrub a value (Shift = finer)']])}
        <h4>Standard views</h4>${rows([['1', 'front'], ['2', 'right'], ['3', 'back'], ['4', 'left'], ['5', 'above']])}
-       <h4>Objects</h4>${rows([['A', 'open the add menu'], ['N', 'show or hide object names'], ['Enter', 'change the posture of a puppet (also double-click)'], ['Ctrl + C', 'copy'], ['Ctrl + X', 'cut'], ['Ctrl + V', 'paste'], ['Ctrl + D', 'duplicate'], ['Del', 'delete']])}
+       <h4>Objects</h4>${rows([['A', 'open the add menu'], ['N', 'show or hide object names'], ['Enter', 'change the posture of a puppet (also double-click)'], ['Ctrl + C', 'copy'], ['Ctrl + X', 'cut'], ['Ctrl + V', 'paste'], ['Ctrl + D', 'duplicate'], ['Ctrl + G', 'group the selected objects into one (not dolls)'], ['Ctrl + Shift + G', 'ungroup'], ['Del', 'delete']])}
        <h4>History</h4>${rows([['Ctrl + Z', 'undo'], ['Ctrl + Y', 'redo (also Ctrl + Shift + Z)']])}
        <h4>View</h4>${nav}
        <h4>File</h4>${rows([['Ctrl + S', 'save the scene as a .json file'], ['Ctrl + O', 'open a scene file (or drop it on the page)'], ['Drop', 'JPG / PNG files on the page to add them as images']])}`;

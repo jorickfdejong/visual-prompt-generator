@@ -1,0 +1,6 @@
+/* env-check */
+.envCheckMsg { margin: 0 0 12px; padding: 10px 12px; border: 2px solid var(--danger); border-radius: var(--radius); background: color-mix(in srgb, var(--danger) 18%, var(--panel)); color: var(--text); font-weight: 700; font-size: 14px; }
+.envCheckMsg::before { content: "! "; color: var(--danger); }
+input.env-missing { outline: 2px solid var(--danger); outline-offset: 1px; border-color: var(--danger); }
+.field.env-missing > label { color: var(--danger); font-weight: 700; }
+.field.env-missing > label::after { content: " (required)"; font-weight: 600; }

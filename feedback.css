@@ -4,7 +4,7 @@
 #btnExport:hover { border-color: var(--accent); background: rgba(240,160,75,.22); }
 #btnExport svg { color: var(--accent); }
 #btnExport:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
-#btnExport svg, .editTag svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+#btnExport svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 /* export window: text and image side by side on top */
 .modalBox { width: min(1080px, 100%); }
@@ -13,14 +13,13 @@
 .exportTop section h2 { margin: 0; }
 .exportTop .row { margin: 0; }
 .exportTop select { width: auto; flex: 1; min-width: 120px; }
-#promptEdit { flex: 1; min-height: 300px; font-size: 13px; line-height: 1.5; border: 2px solid var(--accent); padding: 10px; cursor: text; }
-#promptEdit:focus { outline: 2px solid rgba(240,160,75,.35); }
-.editTag { display: inline-flex; align-items: center; gap: 5px; color: var(--accent); text-transform: none; letter-spacing: 0; font-size: 12px; }
-.editRow:not(:has(> :not([hidden]))) { display: none; }
-#promptEditState { flex: 1; }
-#promptEditState[hidden], #btnPromptReset[hidden] { display: none; }
-#exportImage #shotPreview { flex: 1; max-height: 420px; min-height: 0; }
-#exportModal #promptWarnings { margin: 12px 14px; }
+/* plain text, not a field; contain keeps a long prompt from stretching the window: it scrolls */
+#promptView { flex: 1; min-height: 300px; contain: size; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.5; padding-right: 10px; color: var(--muted); cursor: default; user-select: text; scrollbar-color: var(--line) transparent; }
+#promptView:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+#exportImage figure { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+#exportImage img { width: 100%; max-height: 320px; min-height: 60px; object-fit: contain; background: #111; border-radius: 6px; display: block; }
+.exportSteps { margin: 0; padding-inline-start: 20px; line-height: 1.5; }
+.modalBox footer button { flex: none; }
 #exportModal .genTitle { font-size: 13px; margin: 14px 14px 0; }
 .promptCards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 10px; }
 .promptCard { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); min-width: 0; }
@@ -31,7 +30,7 @@
 .promptCard textarea { min-height: 110px; }
 .promptCard button { margin-top: auto; }
 .modalBox footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--line); }
-@media (max-width: 760px) { .exportTop { grid-template-columns: 1fr; } .modalBox footer .hint { display: none; } }
+@media (max-width: 760px) { .exportTop { grid-template-columns: 1fr; } .modalBox footer { flex-direction: column; align-items: stretch; } }
 
 /* tooltips (js/tooltips.js): placed by the button groups in styles.css */
 .tip { z-index: 5; font-weight: 400; cursor: default; }
@@ -78,6 +77,8 @@ svg.inIcon .on { fill: var(--accent); stroke: none; }
 
 /* navigation mode */
 body.nav-easy #navRotate, body.nav-easy #navPan, body.nav-easy #navZoomOut, body.nav-easy #navZoomIn { display: none !important; }
+/* easy mode: objects are moved, turned and scaled in the view, not with numbers */
+body.nav-easy #context .transform, body.nav-easy #context .typeValues { display: none; }
 /* easy mode pointer: orbit, unless it is over something */
 body.nav-easy #viewport canvas { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cg stroke='white' stroke-width='4'%3E%3Cpath d='M20 12a8 8 0 1 1-2.34-5.66'/%3E%3Cpath d='M20 4v5h-5'/%3E%3Ccircle cx='12' cy='12' r='1.6'/%3E%3C/g%3E%3Cg stroke='%231d1f23' stroke-width='2'%3E%3Cpath d='M20 12a8 8 0 1 1-2.34-5.66'/%3E%3Cpath d='M20 4v5h-5'/%3E%3Ccircle cx='12' cy='12' r='1.6'/%3E%3C/g%3E%3C/svg%3E") 14 14, all-scroll; }
 body.nav-easy #viewport canvas.hovering { cursor: grab; }
@@ -105,7 +106,6 @@ body.nav-easy #viewport.nav-space canvas { cursor: grab; }
 .navAskOpts button kbd { color: #1d1f23; }
 #navMode { position: absolute; left: 52px; bottom: 10px; z-index: 4; height: 32px; display: flex; align-items: center; gap: 2px; padding: 0 3px 0 10px;
   background: rgba(29,31,35,.92); border: 1px solid var(--line); border-radius: 16px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
-#navMode svg { width: 20px; height: 20px; margin-right: 6px; color: var(--muted); fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 #navMode button { padding: 2px 10px; border-radius: 12px; background: none; border-color: transparent; }
 #navMode button.active { background: var(--panel-2); border-color: var(--accent); }
 body.camview #navMode { left: 10px; }
@@ -124,8 +124,6 @@ body.camview #navMode { left: 10px; }
 
 /* single-select toggles (Easy / Pro, standard views): equal segments in one track, the chosen one filled */
 #navMode, #viewBar { gap: 0; padding: 2px; border-radius: 9px; box-sizing: border-box; background: #111316; }
-#navMode svg, #viewBar svg { margin: 0 8px; }
-#viewBar svg { flex: none; width: 18px; height: 18px; color: var(--muted); fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
 #navMode button, #viewBar button { height: 100%; padding: 0 10px; border: 0; border-radius: 7px; background: none; color: var(--muted); font-weight: 600; transition: background .15s, color .15s; }
 #viewBar button { min-width: 44px; padding: 0 5px; }
 #navMode button { min-width: 46px; }
@@ -139,3 +137,31 @@ body.camview #navMode { left: 10px; }
 /* clicking a name on the canvas edits it */
 #viewport canvas.over-name, body.nav-easy #viewport canvas.over-name { cursor: text; }
 body.panning #viewport canvas { cursor: move !important; }
+
+/* add / move / scale tools: a row at the bottom centre of the viewport (overrides the left column in styles.css) */
+#toolStrip, #editBar { --strip-bottom: 10px; }
+#toolStrip { top: auto; bottom: var(--strip-bottom); left: 50%; transform: translateX(-50%); flex-direction: row; }
+#toolStrip .tip { left: 50%; top: auto; bottom: calc(100% + 10px); transform: translateX(-50%); }
+#addDrop { top: auto; bottom: 50px; left: 0; max-height: calc(100vh - var(--strip-bottom) - 70px); }
+#editBar { bottom: calc(var(--strip-bottom) + 50px); }
+/* no room between the Easy / Pro toggle and the standard views: one row higher */
+@container viewport (max-width: 710px) { #toolStrip, #editBar { --strip-bottom: 52px; } }
+/* the standard views moved up too */
+@container viewport (max-width: 480px) { #toolStrip, #editBar { --strip-bottom: 90px; } }
+/* short window: the round navigation buttons are a row, go above it */
+@media (max-height: 520px) {
+  @container viewport (max-width: 710px) { #toolStrip, #editBar { --strip-bottom: 96px; } }
+  @container viewport (max-width: 480px) { #toolStrip, #editBar { --strip-bottom: 134px; } }
+}
+
+/* only the controls of the device in use (js/mouse-detect.js) */
+body.has-mouse .padOnly, body.has-pad .mouseOnly { display: none !important; }
+body:is(.has-mouse, .has-pad) #camHint { grid-template-columns: repeat(2, auto) !important; }
+
+/* move / scale: one toggle, like Easy / Pro */
+#toolStrip { gap: 8px; }
+#toolToggle { display: flex; box-sizing: border-box; height: 42px; padding: 2px; background: #111316; border: 1px solid var(--line); border-radius: 9px; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
+#toolToggle button { width: auto; height: 100%; aspect-ratio: 1; flex: none; padding: 0; border: 0; border-radius: 7px; background: none; box-shadow: none; color: var(--muted); }
+#toolToggle button:hover:not(:disabled) { color: var(--text); background: rgba(255,255,255,.07); }
+#toolToggle button.active, #toolToggle button.active:hover { background: var(--accent); color: #1d1f23; }
+#toolToggle button:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 1px; }

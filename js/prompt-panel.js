@@ -6,7 +6,6 @@ import { activeTuples, computeTuples, finalTuples } from './relations.js';
 import { impliedLeftRight } from './tuple-trim.js';
 import { exportOpen, includeTuple, refreshPromptCards, renderPromptEdit } from './export-modal.js';
 import { renderNatural } from './natural.js';
-import { renderWarnings } from './consistency.js';
 import { esc } from './left-panel.js';
 import { commitHistory, saveScene } from './persistence.js';
 
@@ -109,7 +108,6 @@ export function refreshDerived() {
     renderPromptEdit();
     refreshPromptCards();
     renderNatural($('#naturalPrompt'));
-    renderWarnings();
   }
   $('#tupleCount').textContent = finalTuples(includeTuple).length + ' lines';
 }

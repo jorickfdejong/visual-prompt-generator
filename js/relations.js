@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { ALTS, DEG, ENV_FIELDS, state } from './state.js';
 import { shotCam } from './camera.js';
 import { TYPES } from './types.js';
+import { symmetryOf } from './group.js';
 import { objHeight } from './objects.js';
 import { sizeOf } from './stretch.js';
 import { computeFacts } from './world-facts.js';
@@ -37,7 +38,7 @@ export function strictlyBetween(a, b, c) { return (a > b && a < c) || (a < b && 
 
 // Orientation of an object's root from its quaternion (never Euler angles): up / forward / left axes in world space
 export function orientationOf(o) {
-  const q = o.root.quaternion, sym = TYPES[o.type].symmetry;
+  const q = o.root.quaternion, sym = symmetryOf(o);
   const up = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
   const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(q);
   const left = new THREE.Vector3(1, 0, 0).applyQuaternion(q);   // a doll's left is local +X
@@ -85,7 +86,7 @@ export function computeTuples() {
   // unary: details + size
   vis.forEach((o, i) => {
     const id = ids[i], d = o.details, oi = [o.id], ori = orients[i];
-    const T = TYPES[o.type];
+    const T = TYPES[o.type], sym = symmetryOf(o);
     const nf = (T.fields || []).find((f) => f.asNoun);
     push([T.nounOf ? T.nounOf(o) : T.noun, id], 'attributes', { objIds: oi, field: '__noun', text: (T.poseable && /^[A-Z]/.test((d.subject || '').trim()) ? '' : nf && (d[nf.key] || '').trim()) || T.noun });
     for (const f of T.fields || []) {
@@ -122,8 +123,8 @@ export function computeTuples() {
         const fy = ori.fwd.y;
         let name;
         if (isDoll) name = fy >= 0.5 ? 'lyingOnBack' : fy <= -0.5 ? 'lyingOnStomach' : ori.left.y < 0 ? 'lyingOnLeftSide' : 'lyingOnRightSide';
-        else if (T.symmetry === 'none' && Math.abs(fy) >= 0.5) name = fy > 0 ? 'frontFacingUp' : 'frontFacingDown';
-        else if (T.symmetry) name = 'turnedOnSide';
+        else if (sym === 'none' && Math.abs(fy) >= 0.5) name = fy > 0 ? 'frontFacingUp' : 'frontFacingDown';
+        else if (sym) name = 'turnedOnSide';
         else name = fy >= 0.5 ? 'lyingFlatFaceUp' : fy <= -0.5 ? 'lyingFlatFaceDown' : 'turnedOnSide';
         oriPush(name, name, { orient: 'horizontal' });
         if (dir) oriPush((isDoll ? 'headPointing' : 'topPointing') + dir, (isDoll ? 'head pointing ' : 'top pointing ') + dir, { orient: 'pointing', dir });
@@ -183,7 +184,7 @@ export function computeTuples() {
   const fronts = [];
   vis.forEach((o, i) => {
     const ori = orients[i];
-    if ((TYPES[o.type].symmetry || 'none') !== 'none') return;   // no front
+    if ((symmetryOf(o) || 'none') !== 'none') return;   // no front
     if (ori.flatLen < 0.35 || ori.kind === 'horizontal') return;   // forward (near) vertical or lying down: yaw is meaningless
     const f = fwd(o);
     const toCam = flatDir(o.root.position, camPos);
