@@ -450,7 +450,7 @@ export function detailsHTML(o) {
   const custom = d.custom.map((c, i) => `<div class="customItem" data-i="${i}"><div class="customRow"><input type="text" data-ck="${i}" value="${esc(c.key)}" placeholder="detail (e.g. glasses)"><input type="text" data-cv="${i}" value="${esc(c.value)}" placeholder="value (e.g. round)"><button class="icon danger" data-crm="${i}">✕</button></div></div>`).join('');
   return `${detailsHead()}
     <div class="field"><label for="objName">Name</label><input type="text" id="objName" value="${esc(d.name)}"></div>
-    <div class="field"><label for="objKind">Object type</label><input type="text" id="objKind" readonly value="${esc(typeWord(o)[0].toUpperCase() + typeWord(o).slice(1))}" title="The object type can't be changed"></div>
+    <div class="field"><label for="objKind">Object type</label><input type="text" id="objKind" readonly value="${esc(typeWord(o)[0].toUpperCase() + typeWord(o).slice(1))}" aria-describedby="objKindTip"><span id="objKindTip" role="tooltip">The object type can't be changed</span></div>
     ${fields}
     <div style="margin-top:4px">${d.custom.length ? CUSTOM_HEAD : ''}${custom}</div>
     <button id="btnAddDetail">+ Add your own detail</button>`;

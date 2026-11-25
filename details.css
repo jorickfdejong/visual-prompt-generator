@@ -18,3 +18,7 @@
 .customRow input.invalid { border-color: var(--danger); }
 .fieldError { margin: 3px 0 0; font-size: 12px; line-height: 1.35; color: var(--danger); }
 #objKind { color: var(--muted); cursor: not-allowed; }   /* a field that can't be changed */
+.field:has(> #objKind) { position: relative; }
+#objKindTip { position: absolute; right: 0; bottom: calc(100% + 4px); z-index: 5; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--line);
+  background: #111316; color: var(--text); font-size: 12px; white-space: nowrap; pointer-events: none; visibility: hidden; box-shadow: 0 4px 14px rgba(0,0,0,.4); }
+#objKind:hover + #objKindTip, #objKind:focus + #objKindTip { visibility: visible; }
