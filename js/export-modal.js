@@ -4,21 +4,20 @@ import { editCam, orbit } from './scene.js';
 import { exitCameraView } from './camera.js';
 import { deselect, exitEdit, selectCamera, selectObject } from './selection.js';
 import { schedulePreview } from './rendering.js';
-import { exportText, finalTuples } from './relations.js';
+import { exportText } from './relations.js';
 import { environmentCardKey, naturalText, objectCardKey, promptCards, renderNatural } from './natural.js';
 import { renderPromptCards } from './export-prompt-cards.js';
-import { renderWarnings } from './consistency.js';
 import { fixedLines } from './prompt-rules.js';
 import { showTab } from './side-tabs.js';
+import { envComplete, showEnvWarning } from './env-check.js';
 import { markDirty } from './prompt-panel.js';
 
 /* =====================================================================
    EXPORT MODAL
    ===================================================================== */
 // the text that is copied / downloaded, in the chosen format
-export function promptText() { return state.promptEdit?.text ?? generatedText(); }
-export function generatedText() {
-  return [bodyText(), fixedLines().join('\n')].filter(Boolean).join('\n\n');
+export function promptText() {
+  return [fixedLines().join('\n'), bodyText()].filter(Boolean).join('\n\n');
 }
 function bodyText() {
   const f = state.settings.format || 'both';
@@ -40,30 +39,7 @@ function applyCard(card, text) {
   const edits = state.promptCardEdits;
   const previous = edits[card.key];
   if (text === (previous ?? card.text)) return;
-  const manual = state.promptEdit;
-  const previousGenerated = manual && generatedText();
-  const oldTuples = manual ? finalTuples(includeTuple) : [];
   edits[card.key] = text;
-  if (manual) {
-    const oldParagraphs = previous !== undefined ? [previous] : card.paragraphs;
-    const currentTuples = new Set(finalTuples(includeTuple));
-    const removedTuples = new Set(oldTuples.filter((line) => !currentTuples.has(line)));
-    const paragraphs = manual.text.split('\n\n');
-    let inserted = false;
-    const updated = paragraphs.flatMap((paragraph) => {
-      if (paragraph && oldParagraphs.includes(paragraph)) {
-        if (inserted) return [];
-        inserted = true;
-        return text ? [text] : [];
-      }
-      const remaining = paragraph.split('\n').filter((line) => !removedTuples.has(line)).join('\n');
-      return remaining || !paragraph ? [remaining] : [];
-    });
-    if (!inserted && text) updated.push(text);
-    const next = updated.join('\n\n');
-    const generated = generatedText();
-    state.promptEdit = next === generated ? null : { text: next, base: manual.base === previousGenerated ? generated : manual.base };
-  }
   markDirty(true);
   renderPromptEdit();
 }
@@ -71,25 +47,21 @@ function applyCard(card, text) {
 export function refreshPromptCards() {
   renderPromptCards($('#promptCards'), promptCards(), state.promptCardEdits, applyCard);
 }
-// the editable text: a hand-edited prompt stays as it is until it is reset
-export function editPrompt() {
-  const text = $('#promptEdit').value;
-  state.promptEdit = text === generatedText() ? null : { text, base: state.promptEdit?.base ?? generatedText() };
-  markDirty();
-}
-export function resetPrompt() { state.promptEdit = null; markDirty(); renderPromptEdit(); }
 export function renderPromptEdit() {
-  const box = $('#promptEdit'), text = promptText(), ed = state.promptEdit;
-  if (box.value !== text) box.value = text;
-  $('#promptEditState').hidden = $('#btnPromptReset').hidden = !ed;
-  if (ed) $('#promptEditState').textContent = ed.base === generatedText() ? 'Edited by you.' : 'Edited by you. The scene or options changed since: reset to get the new text.';
+  const box = $('#promptView'), text = promptText();
+  if (box.textContent !== text) box.textContent = text;
 }
 export function exportOpen() { return !$('#exportModal').hidden; }
 export function openExport() {
   if (exportOpen()) return;
+  if (!envComplete()) {   // empty environment details: show them instead of exporting
+    if (state.cameraView) exitCameraView();
+    if (state.mode === 'edit') exitEdit();
+    showEnvWarning();
+    return;
+  }
   $('#exportModal').hidden = false;
   renderNatural($('#naturalPrompt'));
-  renderWarnings();
   renderPromptEdit();
   refreshPromptCards();
   schedulePreview();

@@ -8,15 +8,17 @@ import { inset, render, resize, takeScreenshot } from './rendering.js';
 import { PROPS } from './props.js';
 import { camel, exportText } from './relations.js';
 import { renderObjectList } from './left-panel.js';
-import { closeExport, editPrompt, exportOpen, openExport, promptText, resetPrompt } from './export-modal.js';
-import { startNaming, toggleNames } from './labels.js';
+import { closeExport, exportOpen, openExport, promptText } from './export-modal.js';
+import { toggleNames } from './labels.js';
+import { whenNamed } from './naming.js';
+import { addNamed, cancelPlacing, floorPoint, startPlacing } from './placement.js';
 import './nav.js';
 import './easy-drag.js'; import './pull-limb.js';
 import './arrow-keys.js'; import './views.js';
 import './tooltips.js';
 import { showTab } from './side-tabs.js';
-import { addCustomTuple, markDirty, refreshDerived, takeDirty } from './prompt-panel.js';
-import { copyImage, copyText, download, downloadBoth, toast } from './clipboard.js';
+import { addCustomTuple, flushPendingSave, markDirty, refreshDerived, takeDirty } from './prompt-panel.js';
+import { download, downloadAll, toast } from './clipboard.js';
 import { askNavMode } from './nav-mode.js';
 import { startTutorial, tutorialDone } from './tutorial.js';
 import { commitHistory, deserializeScene, loadStored, renderSceneName, serializeScene, stepHistory } from './persistence.js';
@@ -25,7 +27,7 @@ import { commitHistory, deserializeScene, loadStored, renderSceneName, serialize
    WIRING
    ===================================================================== */
 $('#camRow').onclick = selectCamera;
-function addOne(type) { if (state.mode === 'edit') exitEdit(); const o = addObject(type); selectObject(o); showTab('scene'); startNaming(o); markDirty(); }
+const addOne = (type) => startPlacing(type);   // the ghost follows the pointer until it is put down
 function toggleAddMenu(open = $('#addDrop').hidden) {
   $('#addDrop').hidden = !open;
   $('#btnAdd').classList.toggle('open', open);
@@ -47,19 +49,16 @@ for (const [group, title] of [['object', 'Objects'], ['geometry', 'Geometry']]) 
     $('#addDrop').appendChild(b);
   }
 }
-// image card: picked from disk or dropped on the page; the file name becomes its id
-function addImageObject(id) {
+// image card: picked from disk or dropped on the page; the file name is its id until it is named
+function imageData(id) {
   const e = imageStore[id];
   const base = camel((e?.name || '').replace(/\.[^.]+$/, '')).replace(/^\d+/, '') || 'image';
-  const o = addObject('image', { imageId: id, details: { name: uniqueName(base) } });
-  if (state.mode === 'edit') exitEdit();
-  selectObject(o); showTab('scene'); renderObjectList(); markDirty();
-  return o;
+  return { imageId: id, details: { name: uniqueName(base) } };
 }
 $('#btnAddImage').onclick = async () => {
   toggleAddMenu(false);
   const id = await pickImage();
-  if (id) startNaming(addImageObject(id));
+  if (id) startPlacing('image', imageData(id));
 };
 document.addEventListener('pointerdown', (e) => { if (!$('#addDrop').hidden && !e.target.closest('#btnAdd, #addDrop')) toggleAddMenu(false); });
 $('#focal').addEventListener('input', (e) => { state.camera.focal = +e.target.value; applyCamera(); markDirty(); });
@@ -69,12 +68,7 @@ $('#btnCamReset').onclick = () => { resetCamera(); markDirty(); };
 inset.onclick = enterCameraView;
 $('#btnBackEditor').onclick = exitCameraView;
 $('#btnEditDone').onclick = exitEdit;
-$('#btnCopyImg').onclick = copyImage;
-$('#btnDlPng').onclick = () => download('reference.png', takeScreenshot());
-$('#btnCopyText').onclick = () => copyText();
-$('#btnBoth').onclick = downloadBoth;
-$('#promptEdit').addEventListener('input', editPrompt);
-$('#btnPromptReset').onclick = resetPrompt;
+$('#btnAll').onclick = downloadAll;
 $('#helpPanel').addEventListener('click', (e) => { if (e.target.id === 'btnTutorial') { toggleHelp(false); startTutorial(); } });
 $('#notes').addEventListener('input', (e) => { state.notes = e.target.value; markDirty(); });
 $('#visualStyle').addEventListener('input', (e) => { state.visualStyle = e.target.value; markDirty(); });
@@ -85,7 +79,6 @@ $('#btnExport').onclick = openExport;
 $('#btnCloseExport').onclick = closeExport;
 $('#exportModal').addEventListener('pointerdown', (e) => { if (e.target.id === 'exportModal') closeExport(); });
 $('#exportModal').addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); closeExport(); } });
-$('#reference').addEventListener('change', (e) => { state.settings.reference = e.target.value; markDirty(); });
 $('#format').addEventListener('change', (e) => { state.settings.format = e.target.value; markDirty(); });
 function newScene() {
   // a new browser tab with its own autosave; this one keeps its scene
@@ -176,10 +169,20 @@ window.addEventListener('drop', async (e) => {
   e.preventDefault();
   const imgs = files.filter(isImageFile);
   if (!imgs.length) { openSceneFile(files[0]); return; }
+  const at = { clientX: e.clientX, clientY: e.clientY }, ids = [];
+  for (const f of imgs) { const id = await importImageFile(f); if (id) ids.push(id); }
+  if (!ids.length) return;
+  await whenNamed();   // another object may have been placed meanwhile
+  cancelPlacing();
   if (state.cameraView) exitCameraView();
-  const made = [];
-  for (const f of imgs) { const id = await importImageFile(f); if (id) made.push(addImageObject(id)); }
-  if (made.length > 1) selectMany(made); else if (made.length) startNaming(made[0]);
+  if (state.mode === 'edit') exitEdit();
+  flushPendingSave();
+  const pos = floorPoint(at).toArray();
+  // side by side, then named one after another
+  const before = state.objects.length, named = ids.map((id, i) => addNamed('image', { ...imageData(id), pos: [pos[0] + i * 1.2, 0, pos[2]] }));
+  const made = state.objects.slice(before);
+  await Promise.all(named);
+  if (made.length > 1) selectMany(made);
 });
 window.addEventListener('keydown', (e) => {
   if (!(e.ctrlKey || e.metaKey)) return;
@@ -217,8 +220,8 @@ window.addEventListener('keydown', (e) => {
   }
   {
     if (k === 'n' && !e.ctrlKey && !e.metaKey && !e.repeat) toggleNames();
-    else if (k === 'w' || k === 'r') setTool('transform');
-    else if (k === 'k' && !e.ctrlKey && !e.metaKey) setTool('scale');
+    else if (k === 'm' && !e.ctrlKey && !e.metaKey && !e.altKey) setTool('transform');
+    else if (k === 's' && !e.ctrlKey && !e.metaKey && !e.altKey) setTool('scale');
     else if ((k === 'delete' || k === 'backspace') && selObjs().length) deleteSelection();
     else if (k === 'enter' && state.mode === 'compose' && e.target.tagName !== 'BUTTON' && state.selected?.obj) enterEdit(state.selected.obj);
     else if (k === 'd' && (e.ctrlKey || e.metaKey) && selObjs().length) { e.preventDefault(); duplicateSelection(); }

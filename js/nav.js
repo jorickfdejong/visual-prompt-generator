@@ -21,7 +21,7 @@ function camOf(c) { return c === pilot ? shotCam : editCam; }
 function finish(c) { c.update(); }   // pilot 'change' -> markDirty; the orbit view needs no dirty flag
 
 // drag-equivalent orbit, in CSS pixels (same speed as OrbitControls rotating)
-function orbitBy(dx, dy) {
+export function orbitBy(dx, dy) {
   const c = active(); if (!c) return;
   const cam = camOf(c), h = vp.clientHeight || 1;
   _off.copy(cam.position).sub(c.target);
@@ -35,7 +35,7 @@ function orbitBy(dx, dy) {
   finish(c);
 }
 // drag-equivalent pan, screen-scaled by distance and fov like OrbitControls (the scene follows the pointer)
-function panBy(dx, dy) {
+export function panBy(dx, dy) {
   const c = active(); if (!c) return;
   const cam = camOf(c), h = vp.clientHeight || 1;
   const dist = cam.position.distanceTo(c.target) * Math.tan((cam.fov / 2) * Math.PI / 180);

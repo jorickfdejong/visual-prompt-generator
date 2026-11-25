@@ -7,7 +7,7 @@ import { wallGroup } from './room.js';
    DEPTH MAP — reference image that only shows distance: light is near, dark is far, black is nothing.
    The range is stretched over what the camera really sees, so the contrast is the same for every scene.
    ===================================================================== */
-const FAR_GREY = 0.08;   // the furthest surface stays apart from the black background
+const FAR_GREY = 0.22;   // the furthest surface (often a wall: it sets the far end of the range) stays clearly apart from the black background
 const range = { near: { value: 1 }, far: { value: 2 }, measure: { value: false } };
 const depthMat = (side, map = null) => new THREE.ShaderMaterial({
   uniforms: { ...range, map: { value: map }, useMap: { value: !!map } },

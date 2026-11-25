@@ -15,7 +15,7 @@ const toggle = document.createElement('div');
 toggle.id = 'navMode';
 toggle.setAttribute('role', 'group');
 toggle.setAttribute('aria-label', 'Navigation');
-toggle.innerHTML = '<svg viewBox="0 0 24 24" role="img" aria-label="Controls"><title>Controls</title><rect x="2" y="5.5" width="20" height="13" rx="2.5"/><path d="M6 9.5h.01M10 9.5h.01M14 9.5h.01M18 9.5h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M8 15h8"/></svg><button type="button" data-mode="easy" title="Drag with the left mouse button">Easy</button><button type="button" data-mode="pro" title="Mouse-button shortcuts">Pro</button>';
+toggle.innerHTML = '<button type="button" data-mode="easy" title="Drag with the left mouse button">Easy</button><button type="button" data-mode="pro" title="Mouse-button shortcuts">Pro</button>';
 vp.appendChild(toggle);
 toggle.querySelectorAll('button').forEach((b) => { b.onclick = () => { setNavMode(b.dataset.mode); b.blur(); }; });
 
@@ -29,7 +29,7 @@ function apply() {
     : { orbit: `${M}${K('Middle mouse')}`, pan: `${M}${K('Shift')} + ${K('Middle mouse')}` };
   mouse.zoom = `${M}${K('Wheel')}`;
   // one row per action: name, mouse, trackpad
-  $('#camHint').innerHTML = [['Orbit', 'orbit'], ['Pan', 'pan'], ['Zoom', 'zoom']].map(([label, k]) => `<b>${label}</b><span>${mouse[k]}</span><span>${pad[k]}</span>`).join('');
+  $('#camHint').innerHTML = [[easy ? 'Rotate' : 'Orbit', 'orbit'], ['Pan', 'pan'], ['Zoom', 'zoom']].map(([label, k]) => `<b>${label}</b><span class="mouseOnly">${mouse[k]}</span><span class="padOnly">${pad[k]}</span>`).join('');
   renderHelp();
   refreshPosing();
 }

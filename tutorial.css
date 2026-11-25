@@ -30,4 +30,26 @@
 .tutBtns #tutNext { margin-left: auto; }
 .tutBtns .tutPrimary { background: var(--accent); border-color: var(--accent); color: #1d1f23; font-weight: 600; }
 #tutCard button:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
-@media (prefers-reduced-motion: reduce) { #tutRing { transition: none; } }
+/* step done: a check draws itself over the card (the buttons stay usable) */
+#tutCard { position: absolute; }
+.tutSr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+#tutCard .tutCheer {
+  display: none; position: absolute; inset: 0 0 52px 0; z-index: 1; pointer-events: none; border-radius: 12px 12px 0 0;
+  background: var(--panel); flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-align: center;
+}
+#tutCard.cheer { border-color: var(--ok); animation: tutGlow 1.4s ease-out; }
+#tutCard.cheer .tutCheer { display: flex; animation: tutFade .25s ease-out; }
+.tutCheer svg { width: 64px; height: 64px; fill: none; stroke: var(--ok); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
+.tutCheer circle { stroke-dasharray: 145; stroke-dashoffset: 145; animation: tutDraw .6s ease-out .1s forwards; }
+.tutCheer path { stroke-dasharray: 32; stroke-dashoffset: 32; animation: tutDraw .4s ease-out .55s forwards; }
+.tutCheer b { font-size: 16px; color: var(--ok); animation: tutRise .4s ease-out .6s backwards; }
+.tutCheer span { color: var(--muted); font-size: 12px; animation: tutRise .4s ease-out .7s backwards; }
+@keyframes tutDraw { to { stroke-dashoffset: 0; } }
+@keyframes tutFade { from { opacity: 0; } }
+@keyframes tutRise { from { opacity: 0; transform: translateY(6px); } }
+@keyframes tutGlow { 0% { box-shadow: 0 10px 30px rgba(0, 0, 0, .5); } 25% { box-shadow: 0 0 0 4px rgba(120, 200, 140, .45), 0 10px 30px rgba(0, 0, 0, .5); } 100% { box-shadow: 0 10px 30px rgba(0, 0, 0, .5); } }
+@media (prefers-reduced-motion: reduce) {
+  #tutRing { transition: none; }
+  #tutCard.cheer, #tutCard.cheer .tutCheer, .tutCheer circle, .tutCheer path, .tutCheer b, .tutCheer span { animation: none; }
+  .tutCheer circle, .tutCheer path { stroke-dashoffset: 0; }
+}

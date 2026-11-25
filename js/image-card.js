@@ -23,6 +23,7 @@ export function buildImageCard(o) {
   const tex = !e ? null : o.cutout?.on ? cutoutTexture(o) : imageTexture(o.imageId);
   // transparent stays on so edit-mode dimming works; alphaTest cuts out PNG transparency (also in the shadow)
   const pic = new THREE.MeshStandardMaterial({ map: tex, color: tex ? '#ffffff' : '#9aa0a8', roughness: 0.85, side: THREE.DoubleSide, transparent: true, alphaTest: 0.05 });
+  pic.userData.picture = true;
   const wood = new THREE.MeshStandardMaterial({ color: o.accent ? lightAccent(o.accent, 0.55) : '#c99d6c', roughness: 0.75, transparent: true });
   o.mats = [pic, wood];
   o.meshes = [];

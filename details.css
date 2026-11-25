@@ -1,11 +1,7 @@
-/* Details: count pill, optional tag, hints and row errors */
+/* Details: count pill, hints and row errors */
 #objectList .detailCount {
   flex: none; font-size: 10.5px; line-height: 1; padding: 2px 6px; border-radius: 999px;
   color: var(--muted); background: var(--panel-2); border: 1px solid var(--line); white-space: nowrap;
-}
-.optTag {
-  margin-left: 6px; font-size: 10.5px; font-weight: 400; text-transform: none; letter-spacing: 0;
-  color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 6px; vertical-align: middle;
 }
 .detailsHint { margin: 0 0 8px; }
 .customHead {

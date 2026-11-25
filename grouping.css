@@ -1,0 +1,5 @@
+/* grouping */
+.groupBox { margin: 10px 0; }
+.groupBox .hint { margin: 6px 0 0; overflow-wrap: anywhere; }
+.groupBox .hint + button { margin-top: 6px; }
+.groupBox kbd { margin-left: 4px; }

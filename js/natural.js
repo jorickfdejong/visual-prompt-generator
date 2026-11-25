@@ -2,13 +2,14 @@ import { ENV_FIELDS, state } from './state.js';
 import { activeTuples, exportId } from './relations.js';
 import { depthWord, footprintsOverlap, leftToRight } from './world-facts.js';
 import { TYPES } from './types.js';
+import { typesIn } from './props.js';
 import { typeWord } from './details.js';
 import { fixedLines, TEMPLATES, tupleParts } from './prompt-rules.js';
 
 /* =====================================================================
    NATURAL-LANGUAGE PROMPT — deterministic prose derived from the same resolved tuples as the export
    (activeTuples(): family toggles, overrides and custom tuples are honoured).
-   Objects run from left to right in the frame, then layout, camera and lighting; the closing lines come from prompt-rules.js.
+   Objects run from left to right in the frame, then layout, camera and lighting; the opening lines come from prompt-rules.js.
    Parts of a sentence are strings or segments { text, target } (target = { kind: 'obj', id } | { kind: 'camera' } | { kind: 'environment' } | { kind: 'finalImage' }).
    ===================================================================== */
 
@@ -307,7 +308,12 @@ function layoutSentences(g) {
 
 /* ---------- which object is which: by place and pose in the frame, never by colour ---------- */
 const ORDINAL = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth'];
-const kindOf = (o) => (o.type === 'mannequin' ? 'figure' : o.type === 'image' ? 'picture' : TYPES[o.type].geometry ? o.type + '-shaped stand-in' : o.type);
+// what a group looks like in the image
+function groupKind(o) {
+  const types = typesIn(o);
+  return 'group of ' + (types.every((t) => t === 'image') ? 'pictures' : types.every((t) => TYPES[t]?.geometry) ? 'shapes' : 'objects');
+}
+const kindOf = (o) => (o.type === 'group' ? groupKind(o) : o.type === 'mannequin' ? 'figure' : o.type === 'image' ? 'picture' : TYPES[o.type].geometry ? o.type + '-shaped stand-in' : o.type);
 function poseWord(o, inf) {
   if (o.type !== 'mannequin') return '';
   const n = inf.orient.find((x) => /^(lying|leaning|upsideDown)/.test(x));
@@ -521,7 +527,7 @@ export function naturalText() {
 
 const safeColor = (c) => (/^#[0-9a-f]{3,8}$/i.test(String(c)) ? c : '');
 export function renderNatural(el) {
-  const body = paragraphs(), paras = [...body, ...fixedLines().map((text) => [{ text }])];
+  const body = paragraphs(), paras = [...fixedLines().map((text) => [{ text }]), ...body];
   const sig = JSON.stringify([paras, paras.flat().map((s) => (s.target?.kind === 'obj' ? state.objects.find((o) => o.id === s.target.id)?.accent : 0))]);
   if (el._natSig === sig) return;
   el._natSig = sig;

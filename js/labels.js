@@ -5,6 +5,7 @@ import { hovered } from './hover.js';
 import { selectObject, selObjs } from './selection.js';
 import { detailList } from './details.js';
 import { renderContext, renderObjectList, setName } from './left-panel.js';
+import { namingObject } from './naming.js';
 import { markDirty } from './prompt-panel.js';
 
 /* =====================================================================
@@ -19,7 +20,7 @@ const bb = new THREE.Box3(), v = new THREE.Vector3();
 const GAP = 12;   // CSS px between the head and the label
 const HEAD = { y: 0.12, r: 0.125 };   // head of the mannequin, in its joint
 // screen position of the top of a puppet's head, or of the top of any other object
-function headTop(o, w, h) {
+export function headTop(o, w, h) {
   let r = 0;
   if (o.joints?.head) {
     v.set(0, HEAD.y, 0);
@@ -97,7 +98,7 @@ export function updateLabels() {
     let el = els.get(o);
     if (!el) { el = document.createElement('div'); layer.appendChild(el); els.set(o, el); }
     const selected = sel.includes(o);
-    el.hidden = (!on && o !== hov && !selected) || o.hidden;
+    el.hidden = (!on && o !== hov && !selected) || o.hidden || o === namingObject();
     if (el.hidden) continue;
     const top = headTop(o, w, h);
     el.hidden = !top || (!selected && top.x > ir.left - vr.left - 20 && top.y < ir.bottom - vr.top + 20);   // under the camera preview

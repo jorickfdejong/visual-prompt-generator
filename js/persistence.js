@@ -14,8 +14,9 @@ import { toast } from './clipboard.js';
    PERSISTENCE
    ===================================================================== */
 // images used by objects and room surfaces (left out of undo snapshots: the store keeps them for the session)
+const imagesOf = (o) => [o.imageId, ...(o.members || []).flatMap(imagesOf)];   // also inside groups
 export function usedImages() {
-  const R = state.settings.room, ids = new Set(state.objects.map((o) => o.imageId).filter(Boolean));
+  const R = state.settings.room, ids = new Set(state.objects.flatMap(imagesOf).filter(Boolean));
   for (const c of [R.floor, R.walls]) if (c.pattern === 'image' && c.imageId) ids.add(c.imageId);
   return Object.fromEntries([...ids].filter((id) => imageStore[id]).map((id) => [id, imageStore[id]]));
 }
@@ -27,7 +28,6 @@ export function serializeScene({ images = true } = {}) {
     objects: state.objects.map(serializeObject),
     camera: { pos: shotCam.position.toArray(), quat: shotCam.quaternion.toArray(), focal: state.camera.focal, aspect: state.camera.aspect },
     notes: state.notes,
-    promptEdit: state.promptEdit && { ...state.promptEdit },
     promptCardEdits: { ...state.promptCardEdits },
     environment: { ...state.environment },
     visualStyle: state.visualStyle,
@@ -48,7 +48,6 @@ export function deserializeScene(s) {
   if (s.camera?.pos) { shotCam.position.fromArray(s.camera.pos); shotCam.quaternion.fromArray(s.camera.quat); } else resetCamera();
   state.fileName = s.name || ''; renderSceneName();
   state.notes = s.notes || '';
-  state.promptEdit = s.promptEdit || null;
   state.promptCardEdits = Object.fromEntries(Object.entries(s.promptCardEdits || {}).filter(([, text]) => typeof text === 'string'));
   if (s.images) Object.assign(imageStore, s.images);
   const room = ROOM_DEFAULT(), sr = s.settings?.room || {};
@@ -59,12 +58,12 @@ export function deserializeScene(s) {
   const known = s.settings?.promptDefaults || 0;
   if (known < 2) { fam.onTop = true; for (const k in FAMILIES) if (FAMILIES[k].off) fam[k] = false; }
   state.settings = {
-    ...state.settings, reference: 'depth', ...(s.settings || {}), promptDefaults: 3,
-    ...(known < 3 && s.settings?.reference !== 'colour' ? { reference: 'depth' } : {}),   // clay grey was the standard before
+    ...state.settings, ...(s.settings || {}), promptDefaults: 3,
     families: { ...state.settings.families, ...fam },
     room: { ...room, ...sr, floor: { ...room.floor, ...(sr.floor || {}) }, walls: { ...room.walls, ...(sr.walls || {}) }, light: { ...room.light, ...(Number.isFinite(sr.light?.direction) ? { direction: sr.light.direction } : {}), ...(sr.light && 'shadows' in sr.light ? { shadows: sr.light.shadows } : {}) } },
   };
   delete state.settings.snap;   // the snap setting no longer exists
+  delete state.settings.reference;   // both reference images are always exported now
   state.environment = { ...ENV_DEFAULT(), ...(s.environment || {}) };
   state.visualStyle = s.visualStyle ?? state.environment.visualStyle ?? '';
   delete state.environment.visualStyle;   // it was an environment label for a short while
@@ -85,7 +84,6 @@ export function syncSettingsUI() {
   $('#notes').value = state.notes;
   $('#visualStyle').value = state.visualStyle;
   $('#format').value = state.settings.format || 'both';
-  $('#reference').value = state.settings.reference || 'depth';
 }
 export let warnedImgStore = false;
 export function saveScene() {
@@ -100,6 +98,7 @@ export function saveScene() {
 export const HISTORY_MAX = 100;
 export const undoHist = { stack: [], idx: -1 };
 export function commitHistory() {
+  if (document.body.classList.contains('naming')) return;   // adding + naming is one step
   const snap = JSON.stringify(serializeScene({ images: false }));
   if (snap === undoHist.stack[undoHist.idx]) return;
   undoHist.stack.length = undoHist.idx + 1;          // drop the redo branch

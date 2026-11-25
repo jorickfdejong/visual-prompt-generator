@@ -111,6 +111,8 @@ const LIST = [
   ['line', 'Line', 'geometry', 1, 'flip', geometry(() => new THREE.CylinderGeometry(LINE_RADIUS, LINE_RADIUS, 1, 12)), '<path d="M5 19L19 5"/>'],
 ];
 export const PROPS = LIST.map(([type, label, group, , , , icon]) => ({ type, label, group, icon }));
+// the types an object consists of: its own, or those of the members of a group (also for saved data)
+export const typesIn = (o) => (o.type === 'group' ? o.members.flatMap(typesIn) : [o.type]);
 // camel is passed in because relations.js imports types.js (a cycle)
 export function propTypes(camel) {
   return Object.fromEntries(LIST.map(([type, , group, h, symmetry, create]) => [type, {

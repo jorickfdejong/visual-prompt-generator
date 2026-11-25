@@ -34,7 +34,7 @@ export const FAMILIES = {
   finalImage: { label: 'Visual style', color: '#fff176', group: 'Scene' },
   camera: { label: 'Camera', color: '#90caf9', group: 'Scene', hint: 'Shot size, angle, lens, aspect ratio' },
   custom: { label: 'Your own tuples', color: '#ffffff', group: 'Scene' },
-  closing: { label: 'Closing lines', color: '#eeeeee', group: 'Scene', hint: 'How to use the reference image, shapes as stand-ins, and full colour' },
+  closing: { label: 'Opening lines', color: '#eeeeee', group: 'Scene', hint: 'How to use the reference images, shapes as stand-ins, and full colour' },
 };
 // Alternatives offered in a relation's override dropdown
 export const ALTS = {
@@ -82,14 +82,12 @@ export const state = {
   cameraView: false,
   camera: { focal: 35, aspect: '16:9' },
   notes: '',
-  promptEdit: null,        // { text, base } when the prompt was edited by hand in Export
   promptCardEdits: {},
   environment: ENV_DEFAULT(),
   visualStyle: '',         // look of the final image (Final image panel)
-  settings: { cell: 0.5, showNames: false, promptDefaults: 3, reference: 'depth', families: Object.fromEntries(Object.keys(FAMILIES).map((k) => [k, !FAMILIES[k].off])) },
+  settings: { cell: 0.5, showNames: false, promptDefaults: 3, families: Object.fromEntries(Object.keys(FAMILIES).map((k) => [k, !FAMILIES[k].off])) },
   overrides: {},           // tupleKey -> { off?: true, rel?: string }
   custom: [],              // [{ text, off }]
   tuples: [],
   facts: new Map(),        // world facts per object id, refreshed with the tuples
-  lastShot: null,          // dataURL
 };
