@@ -1,6 +1,6 @@
 /* =====================================================================
    MOUSE OR TRACKPAD — a browser cannot list input devices, so the one used last is taken from what it sends.
-   inputKind() is 'mouse', 'pad' or null (unknown: show both). Remembered per browser; the other device takes over as soon as it is used.
+   inputKind() is 'mouse' or 'pad' (a mouse until something else is seen), so the two are never mixed. Remembered per browser; the other device takes over as soon as it is used.
    body.has-mouse hides every .padOnly hint, body.has-pad every .mouseOnly one.
    Mouse: a wheel notch, the middle button, or a drag with the right button. A notch is a wheelDelta of a multiple of 120
    (deltaY is no use: it is scaled by the screen and page zoom) that is not part of a finer scroll.
@@ -9,8 +9,8 @@
    Passive capture listeners only; they never touch the events. ===================================================================== */
 const KEY = 'vpg.inputKind';
 const listeners = new Set();
-let kind = null, fine = 0, fineAt = -1e9, pending = 0, ctrl = false, right = null;
-try { kind = { mouse: 'mouse', pad: 'pad' }[localStorage.getItem(KEY)] || null; } catch { /* unknown */ }
+let kind = 'mouse', fine = 0, fineAt = -1e9, pending = 0, ctrl = false, right = null;
+try { kind = { mouse: 'mouse', pad: 'pad' }[localStorage.getItem(KEY)] || 'mouse'; } catch { /* unknown */ }
 function show() {
   document.body.classList.toggle('has-mouse', kind === 'mouse');
   document.body.classList.toggle('has-pad', kind === 'pad');

@@ -4,7 +4,7 @@
 #btnExport:hover { border-color: var(--accent); background: rgba(240,160,75,.22); }
 #btnExport svg { color: var(--accent); }
 #btnExport:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
-#btnExport svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+#btnExport svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
 /* export window: text and image side by side on top */
 .modalBox { width: min(1080px, 100%); }
@@ -37,7 +37,6 @@
 #toolStrip .tipKey { margin-left: 8px; }
 #navWidget .tip > span { display: block; }
 #navWidget .tipKey { margin-top: 4px; }
-#navWidget #navZoomIn .tip { top: auto; bottom: 0; transform: none; }
 #btnHelp { position: relative; }
 #btnHelp .tip { position: absolute; left: 0; bottom: calc(100% + 8px); white-space: pre; padding: 4px 8px; border-radius: 6px; font-size: 12px; color: var(--text);
   background: #111316; border: 1px solid var(--line); pointer-events: none; opacity: 0; transition: opacity .12s; }
@@ -76,7 +75,6 @@ svg.inIcon .on { fill: var(--accent); stroke: none; }
 #nameLayer div.hover { background: #fff; color: #1d1f23; z-index: 1; }
 
 /* navigation mode */
-body.nav-easy #navRotate, body.nav-easy #navPan, body.nav-easy #navZoomOut, body.nav-easy #navZoomIn { display: none !important; }
 /* easy mode: objects are moved, turned and scaled in the view, not with numbers */
 body.nav-easy #context .transform, body.nav-easy #context .typeValues { display: none; }
 /* easy mode pointer: orbit, unless it is over something */
@@ -115,6 +113,10 @@ body.camview #navMode { left: 10px; }
 .navAskBox { width: min(560px, 100%); padding: 22px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
 .navAskBox h1 { font-size: 18px; margin: 0 0 4px; }
 .navAskBox p { margin: 0 0 16px; }
+.wizStep { margin-bottom: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+.navAskBox input { width: 100%; padding: 9px 11px; font-size: 15px; }
+.wizBtns { display: flex; justify-content: flex-end; margin-top: 16px; }
+.wizBtns #wizBack { margin-right: auto; }
 .navAskOpts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .navAskOpts button { display: flex; flex-direction: column; gap: 6px; padding: 14px; text-align: left; white-space: normal; line-height: 1.4; }
 .navAskOpts button b { font-size: 15px; }

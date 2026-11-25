@@ -4,15 +4,16 @@ import { editCam, orbit } from './scene.js';
 import { selObjs } from './selection.js';
 import { viewCount, viewMoving } from './views.js';
 import { detailList } from './details.js';
+import { celebrate } from './tutorial-finish.js';
 import { inputKind, onInputKind } from './mouse-detect.js';
 
-/* Spotlight tour: 5 steps, a ring around the target, a card beside it. The app stays usable underneath.
-   Every step has tasks; Next only works when all of them are done, and a finished step cheers and opens the next one. */
+/* Spotlight tour: 6 steps, a ring around the target, a card beside it. The app stays usable underneath.
+   Next only works when all tasks of the step are done, and then plays a short animation (tutorial.css). */
 const DONE_KEY = 'vpg.tutorialDone';
 const $ = (s) => document.querySelector(s);
 const easy = () => document.body.classList.contains('nav-easy');
-// the controls of the device in use, or both while that is unknown (mouse-detect.js)
-const either = (mouse, ...pad) => ({ mouse, pad: kbd(...pad) })[inputKind()] || `${mouse} or ${kbd(...pad)}`;
+// the controls of the device in use (mouse-detect.js)
+const either = (mouse, pad) => (inputKind() === 'pad' ? pad : mouse);
 const kbd = (...keys) => inputIcon(keys.join(' + ')) + keys.map((k) => `<kbd>${k}</kbd>`).join(' + ');
 
 // remembers every object it has seen, so anything that happens to one of them can be noticed
@@ -22,16 +23,21 @@ function watch(c, value) {
 }
 const changed = (c, pick) => state.objects.some((o) => pick(o, c.seen.get(o.id)));
 
+const scaleButton = () => $('#toolStrip [data-tool="scale"]');
+// what the step still has to be given before it can go on: '', 'object' or 'puppet'
+const missing = (s) => (s.needsObject && !state.objects.length ? 'object' : s.needsDoll?.(ctx) && !state.objects.some((o) => o.type === 'mannequin') ? 'puppet' : '');
+
 const STEPS = [
   {
-    title: 'Viewport positions', like: () => (easy() ? 'Sketchfab' : 'Blender'),
+    title: 'Viewport positions',
     text: () => 'Look around the scene from every side.',
-    target: (c) => $(c.did.size === 3 && !c.did.has('view') ? '#viewBar' : '#viewport'),
+    target: () => $('#viewport'),
+    arrow: (c) => (c.did.size === 3 && !c.did.has('view') ? $('#viewBar') : null),   // points there without moving the spotlight, so a pan is not interrupted
     tasks: [
-      ['orbit', () => `${easy() ? 'Rotate' : 'Orbit'}: ${either(easy() ? `${kbd('Left mouse')} drag on empty space` : `${kbd('Middle mouse')} drag`, 'Ctrl', 'Two fingers')}`],
-      ['zoom', () => `Zoom: ${either(kbd('Wheel'), 'Two fingers')}`],
-      ['pan', () => `Pan: ${either(easy() ? `${kbd('Right mouse')} drag` : `${kbd('Shift', 'Middle mouse')} drag`, 'Shift', 'Two fingers')}`],
-      ['view', () => `Pick a standard view: Front, Right, Back, Left or Above (${kbd('1')} to ${kbd('5')})`],
+      ['orbit', () => easy() ? `Rotate: ${either(`${kbd('Left mouse')} drag`, `${kbd('One finger')} press and drag`)}` : `Orbit: ${either(`${kbd('Middle mouse')} drag`, `${kbd('Ctrl', 'Two fingers')} scroll`)}`],
+      ['zoom', () => easy() ? `Zoom: ${either(`${kbd('Wheel')} scroll`, `${kbd('Two fingers')} scroll`)}` : `Zoom: ${either(`${kbd('Wheel')} scroll`, `${kbd('Two fingers')} scroll`)}`],
+      ['pan', () => easy() ? `Pan: ${either(`${kbd('Right mouse')} drag`, `${kbd('Shift', 'Two fingers')} scroll`)}` : `Pan: ${either(`${kbd('Shift', 'Middle mouse')} drag`, `${kbd('Shift', 'Two fingers')} scroll`)}`],
+      ['view', () => 'Pick a standard view: Front, Right, Back, Left or Above'],
     ],
     update: (c) => {
       const view = state.mode === 'compose' && !state.cameraView && { off: editCam.position.clone().sub(orbit.target), target: orbit.target.clone() };
@@ -52,43 +58,57 @@ const STEPS = [
     },
   },
   {
-    title: 'Adding & removing objects', like: () => 'PowerPoint',
-    text: () => 'Every object gets a name, and the name goes into the prompt.',
-    target: (c) => (document.body.classList.contains('placing') || c.added ? $('#viewport') : !c.did.has('add') ? ($('#addDrop').hidden ? $('#btnAdd') : $('#addDrop')) : $('#viewport')),
+    title: 'Adding & removing objects', besideMenu: true,
+    target: (c) => (document.body.classList.contains('placing') || c.added ? $('#viewport') : !c.did.has('name') ? ($('#addDrop').hidden ? $('#btnAdd') : $('#addDrop')) : $('#viewport')),
     tasks: [
-      ['add', () => `Add an object: press the + button or ${kbd('A')}, click in the scene to place it, then type a name and press ${kbd('Enter')}`],
-      ['remove', () => `Remove it: click it, then press ${kbd('Delete')}`],
+      ['open', () => 'Press the +'],
+      ['pick', () => 'Select an object'],
+      ['place', () => 'Click in the scene to place it'],
+      ['name', () => 'Type a name and press Enter'],
+      ['remove', () => 'Remove it: Click it, then press Delete'],
     ],
     update: (c) => {
+      const tick = (n) => ['open', 'pick', 'place', 'name', 'remove'].slice(0, n).forEach((k) => c.did.add(k));   // a later task also ticks the ones before it
+      if (!$('#addDrop').hidden) tick(1);
+      if (document.body.classList.contains('placing')) tick(2);
       const ids = new Set(state.objects.map((o) => o.id));
       const now = performance.now();
-      if (c.ids && [...ids].some((id) => !c.ids.has(id))) c.added = now;   // only counts once naming is over
+      if (c.ids && [...ids].some((id) => !c.ids.has(id))) { c.added = now; tick(3); }
       if (c.added) {
         const naming = !!$('#nameLayer input, #nameBox'), placing = document.body.classList.contains('placing');
         if (naming || placing) c.added = now;   // the name field may show a frame after the object appeared
-        else if (now - c.added > 250) c.did.add('add');
+        else if (now - c.added > 250) tick(4);   // naming is over
       }
-      if (c.added && c.ids && [...c.ids].some((id) => !ids.has(id))) { c.did.add('add'); c.did.add('remove'); }
+      if (c.added && c.ids && [...c.ids].some((id) => !ids.has(id))) {
+        if (c.did.has('name')) tick(5);
+        else { c.added = 0; c.did.delete('place'); }   // removed instead of named: place one again
+      }
       c.ids = ids;
     },
   },
   {
-    title: 'Moving objects', like: () => (easy() ? 'Tinkercad' : 'Blender'),
-    text: () => 'Drag an object to slide it over the floor, or click it to get the gizmo: arrows move it, rings turn it.',
-    target: () => $('#viewport'), needsObject: true,
+    title: 'Moving & scaling objects',
+    text: () => 'Drag an object to slide it over the floor, or click it to get the gizmo: arrows move it, rings turn it. The scaling button makes it bigger or smaller.',
+    target: () => $('#viewport'), needsObject: true, overPanel: true,
+    needsDoll: (c) => c.did.has('move') && c.did.has('turn') && !c.did.has('scale'),
+    arrow: (c) => (c.did.has('move') && c.did.has('turn') && !c.did.has('tool') ? scaleButton() : null),
     tasks: [
-      ['move', () => `Move: ${kbd('Left mouse')} drag an object, drag an arrow or press ${kbd('← ↑ ↓ →')}`],
+      ['move', () => `Move: ${either(`${kbd('Left mouse')} drag`, `${kbd('One finger')} press and drag`)} an object or an arrow`],
       ['turn', () => 'Turn: drag a ring of the gizmo'],
+      ['tool', () => 'Press the scaling button at the bottom'],
+      ['scale', () => 'Scale up a puppet: click it, then drag the handle outwards'],
     ],
     update: (c) => {
-      watch(c, (o) => ({ p: o.root.position.clone(), q: o.root.quaternion.clone() }));
+      watch(c, (o) => ({ p: o.root.position.clone(), q: o.root.quaternion.clone(), s: o.root.scale.y }));
       if (changed(c, (o, was) => o.root.position.distanceTo(was.p) > 0.05)) c.did.add('move');
       if (changed(c, (o, was) => o.root.quaternion.angleTo(was.q) > 0.05)) c.did.add('turn');
+      if (state.tool === 'scale') c.did.add('tool');
+      if (state.tool === 'scale' && changed(c, (o, was) => o.type === 'mannequin' && o.root.scale.y > was.s * 1.05)) c.did.add('scale');
     },
   },
   {
-    title: 'Adding details to objects', like: () => 'Figma',
-    text: () => 'Details show above the object and go into the prompt.',
+    title: 'Adding details to objects',
+    note: 'Details show above the object and go into the prompt.',   // highlighted, below the tasks
     target: () => (selObjs().length ? ($('#side').dataset.tab === 'scene' ? $('#context') : $('#tabScene')) : $('#viewport')), needsObject: true,
     tasks: [
       ['select', () => `Select an object: ${kbd('Click')} it`],
@@ -102,7 +122,7 @@ const STEPS = [
     },
   },
   {
-    title: 'Describing the environment', like: () => 'Unity',
+    title: 'Describing the environment',
     text: () => 'The Environment tab describes the scene as a whole: setting, temperature and lighting. It goes into the prompt too.',
     target: () => ($('#side').dataset.tab === 'env' ? $('#worldSection') : $('#tabEnv')),
     tasks: [
@@ -115,20 +135,16 @@ const STEPS = [
       if (Object.keys(state.environment).some((k) => (state.environment[k] || '').trim() && state.environment[k] !== c.env0[k])) c.did.add('label');
     },
   },
+  {
+    title: 'Generating the prompt',
+    text: () => 'All the details you fill in show up in your prompt: names, object details and the environment.<br><br>Finished with your scene? Press <b>Generate prompt</b> to get the text and the images.',
+    target: () => $('#btnExport'),
+    tasks: [],   // only explains: Finish is available right away
+    update: () => {},
+  },
 ];
 
-let off = null, root = null, ring = null, card = null, els = null, idx = 0, raf = 0, ctx = {}, lastKey = '';
-
-/* Step changes must not interrupt the user: not mid-drag, not mid-typing (a typed field counts once committed or after a 1.5 s pause) */
-let buttons = 0, lastInput = 0, lastCommit = 0;
-const capture = { capture: true, passive: true };
-for (const t of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel', 'mouseup', 'mousemove']) window.addEventListener(t, (e) => { buttons = e.buttons; }, capture);   // placing keeps its pointer events to itself: the mouse events still get here
-window.addEventListener('blur', () => { buttons = 0; });
-document.addEventListener('input', () => { lastInput = performance.now(); }, capture);
-for (const t of ['change', 'focusout']) document.addEventListener(t, () => { lastCommit = performance.now(); }, capture);
-const isTyping = (t) => !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) && !/^(checkbox|radio|range|color|button)$/.test(t.type || '');
-const settled = () => !buttons && !(isTyping(document.activeElement) && lastInput > lastCommit && performance.now() - lastInput < 1500);
-const calm = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+let off = null, root = null, ring = null, arrow = null, card = null, els = null, idx = 0, raf = 0, ctx = {}, lastKey = '';
 
 export function tutorialDone() { try { return !!localStorage.getItem(DONE_KEY); } catch { return true; } }
 
@@ -139,22 +155,31 @@ export function startTutorial() {
   root.id = 'tutRoot';
   ring = document.createElement('div');
   ring.id = 'tutRing';
+  arrow = document.createElement('div');
+  arrow.id = 'tutArrow';
+  arrow.setAttribute('aria-hidden', 'true');
+  arrow.innerHTML = '<svg viewBox="0 0 24 30"><path d="M12 2v24M3 17l9 9 9-9"/></svg>';
+  arrow.hidden = true;
   card = document.createElement('div');
   card.id = 'tutCard';
   card.setAttribute('role', 'dialog');
   card.setAttribute('aria-modal', 'false');
   card.setAttribute('aria-labelledby', 'tutTitle');
-  card.innerHTML = `<div class="tutTop"><span class="tutStep" id="tutStepLbl"></span><span class="simPill" id="tutLike"></span></div><h3 id="tutTitle"></h3>
-    <p id="tutText"></p><ul id="tutTasks" aria-live="polite"></ul><p id="tutHint" class="tutHint" aria-live="polite"></p>
-    <div class="tutCheer" aria-hidden="true"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="23"/><path d="M15 27l8 8 14-16"/></svg><b></b><span></span></div><span class="tutSr" id="tutLive" role="status" aria-live="polite"></span>
+  card.innerHTML = `<div class="tutTop"><span class="tutStep" id="tutStepLbl"></span></div><h3 id="tutTitle"></h3>
+    <p id="tutText"></p><ul id="tutTasks" aria-live="polite"></ul><p id="tutNote" class="tutNote"></p><p id="tutHint" class="tutHint" aria-live="polite"></p>
+    <span class="tutSr" id="tutLive" role="status" aria-live="polite"></span>
     <div class="tutBtns"><button type="button" id="tutClose" class="tutGhost">Skip tutorial</button><button type="button" id="tutNext" class="tutPrimary">Next</button></div>`;
-  root.append(ring, card);
+  root.append(ring, card, arrow);
   document.body.appendChild(root);
   els = {
-    lbl: card.querySelector('#tutStepLbl'), like: card.querySelector('#tutLike'), title: card.querySelector('#tutTitle'), text: card.querySelector('#tutText'),
-    tasks: card.querySelector('#tutTasks'), hint: card.querySelector('#tutHint'), cheer: card.querySelector('.tutCheer'), live: card.querySelector('#tutLive'), next: card.querySelector('#tutNext'), close: card.querySelector('#tutClose'),
+    lbl: card.querySelector('#tutStepLbl'), title: card.querySelector('#tutTitle'), text: card.querySelector('#tutText'), note: card.querySelector('#tutNote'),
+    tasks: card.querySelector('#tutTasks'), hint: card.querySelector('#tutHint'), live: card.querySelector('#tutLive'), next: card.querySelector('#tutNext'), close: card.querySelector('#tutClose'),
   };
-  els.next.onclick = () => (idx >= STEPS.length - 1 ? endTutorial() : go(idx + 1));
+  els.next.onclick = () => {
+    if (idx < STEPS.length - 1) { go(idx + 1); return; }
+    endTutorial();
+    celebrate();
+  };
   els.close.onclick = endTutorial;
   const again = () => { lastKey = ''; };   // the mouse verdict changed: redraw the hints
   off = onInputKind(again);
@@ -162,12 +187,29 @@ export function startTutorial() {
   loop();
 }
 
+// Enter = Next, once it is available. Fields, placing, naming, open windows and buttons reached with Tab keep their own Enter.
+let tabbed = false, held = false;
+window.addEventListener('pointerdown', () => { tabbed = false; }, true);
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Tab') tabbed = true;
+  if (e.key === 'Enter' && e.repeat && held) { e.preventDefault(); e.stopImmediatePropagation(); return; }   // still the press that went on: the app does not get it
+  held = false;
+  if (!root || e.key !== 'Enter' || e.repeat || e.isComposing || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || els.next.disabled) return;
+  const t = e.target;
+  if (t.isContentEditable || t.closest?.('input, textarea, select') || (tabbed && t.closest?.('button, a, [role=button]'))) return;
+  if (document.body.matches('.placing, .naming') || document.querySelector('#navAsk') || ['#exportModal', '#addDrop', '#fileDrop', '#helpPanel'].some((q) => !$(q).hidden)) return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+  held = true;
+  els.next.click();
+}, true);
+
 function endTutorial() {
   if (!root) return;
   cancelAnimationFrame(raf);
   off?.(); off = null;
   root.remove();
-  root = ring = card = els = null;
+  root = ring = arrow = card = els = null;
   try { localStorage.setItem(DONE_KEY, '1'); } catch { /* not remembered */ }
 }
 
@@ -175,7 +217,6 @@ function go(i) {
   idx = i;
   ctx = { did: new Set() };
   lastKey = '';
-  card.classList.remove('cheer');
   els.live.textContent = '';
   els.lbl.textContent = `Step ${idx + 1} of ${STEPS.length}`;
   els.title.textContent = STEPS[idx].title;
@@ -187,39 +228,28 @@ function go(i) {
 // everything that depends on the live app state
 function refresh() {
   const s = STEPS[idx];
-  const noObject = s.needsObject && !state.objects.length;
+  const lack = missing(s);
   const placing = document.body.classList.contains('placing');
-  const key = [easy(), inputKind(), noObject, placing, ...ctx.did].join();
+  const key = [easy(), inputKind(), lack, placing, ...ctx.did].join();
   if (key === lastKey) return;
   lastKey = key;
-  els.like.textContent = `Similar to ${s.like()}`;
-  els.text.innerHTML = s.text();
+  els.text.innerHTML = s.text?.() || '';
+  els.text.hidden = !s.text;
+  els.note.textContent = s.note || '';
+  els.note.hidden = !s.note;
   els.tasks.innerHTML = s.tasks.map(([k, label]) => `<li class="${ctx.did.has(k) ? 'done' : ''}"><i aria-hidden="true">${ctx.did.has(k) ? '✓' : ''}</i><span>${label()}</span></li>`).join('');
-  els.hint.textContent = placing ? 'Click in the scene to place it, then type a name.' : noObject ? 'There is no object yet. Add one first with the + button or press A.' : '';
+  els.hint.textContent = placing && !s.besideMenu ? 'Click in the scene to place it, then type a name.' : lack ? `There is no ${lack} yet. Add one first with the + button.` : '';
   els.hint.hidden = !els.hint.textContent;
-  els.next.disabled = !s.tasks.every(([k]) => ctx.did.has(k));
-}
-
-// all tasks done: celebrate for ~1.4 s, then open the next step (or close after the last one). No timers: the loop drives it,
-// and go() / endTutorial() reset or stop it, so it cannot double-advance or fire after the end.
-function cheer(s) {
-  if (!s.tasks.every(([k]) => ctx.did.has(k))) return;
-  const now = performance.now(), last = idx === STEPS.length - 1;
-  if (!ctx.cheer) {
-    if (!settled()) return;
-    ctx.cheer = now;
-    els.cheer.querySelector('b').textContent = last ? 'Tutorial finished!' : 'Step done!';
-    els.cheer.querySelector('span').textContent = last ? 'Have fun building your scene.' : 'On to the next one.';
-    els.live.textContent = last ? 'Tutorial finished.' : `Step ${idx + 1} done.`;
-    card.classList.add('cheer');
-    return;
-  }
-  if (now - ctx.cheer < (calm() ? 1000 : last ? 1800 : 1400) || !settled()) return;
-  if (last) endTutorial(); else go(idx + 1);
+  const done = s.tasks.every(([k]) => ctx.did.has(k));
+  els.next.disabled = !done;
+  els.live.textContent = done ? (idx === STEPS.length - 1 ? 'Tutorial finished. Press Finish.' : `Step ${idx + 1} done. Press Next to continue.`) : '';
 }
 
 function targetFor(s) {
-  const el = document.body.classList.contains('placing') ? $('#viewport') : s.needsObject && !state.objects.length ? ($('#addDrop').hidden ? $('#btnAdd') : $('#addDrop')) : s.target(ctx);
+  const el = document.body.classList.contains('placing') ? $('#viewport') : missing(s) ? ($('#addDrop').hidden ? $('#btnAdd') : $('#addDrop')) : s.target(ctx);
+  return rectOf(el);
+}
+function rectOf(el) {
   if (!el) return null;
   const r = el.getBoundingClientRect();
   if (r.width < 2 || r.height < 2 || el.closest('[hidden]')) return null;
@@ -233,13 +263,28 @@ function loop() {
   const s = STEPS[idx];
   s.update(ctx);
   refresh();
-  cheer(s);
-  if (!root) return;   // the last step just closed the tour
-  layout(targetFor(s));
+  layout(targetFor(s), s.besideMenu || missing(s) ? menuRect() : null);
+  pointArrow(rectOf(s.arrow?.(ctx)));
   raf = requestAnimationFrame(loop);
 }
 
-function layout(r) {
+// where the add menu is, or will be once it opens: the card leaves that space free, so it does not jump when the menu opens
+let menu = null, menuKey = '';
+function menuRect() {
+  const drop = $('#addDrop'), b = $('#btnAdd').getBoundingClientRect();
+  if (b.width < 2) return null;
+  const key = [window.innerWidth, window.innerHeight, b.left, b.top].join();
+  if (key !== menuKey) {
+    const was = drop.hidden;
+    drop.hidden = false;   // measured and hidden again before anything is painted
+    menu = drop.getBoundingClientRect();
+    drop.hidden = was;
+    menuKey = key;
+  }
+  return menu;
+}
+
+function layout(r, menuSpace) {
   const W = window.innerWidth, H = window.innerHeight, m = 12, pad = 6;
   const cw = Math.min(card.offsetWidth || 300, W - 2 * m), ch = card.offsetHeight || 200;
   if (!r) {
@@ -254,6 +299,13 @@ function layout(r) {
   const w = Math.min(W - x, r.width + 2 * pad), h = Math.min(H - y, r.height + 2 * pad);
   ring.style.transform = `translate(${x}px,${y}px)`;
   ring.style.width = w + 'px'; ring.style.height = h + 'px';
+  if (menuSpace) {
+    const right = menuSpace.right + 20;
+    place(right + cw + m <= W || menuSpace.left - 20 - cw < m ? right : menuSpace.left - 20 - cw, menuSpace.bottom - ch);
+    return;
+  }
+  const panel = STEPS[idx].overPanel && rectOf($('#side'));   // over the side panel, so the gizmo and the toolbar stay free
+  if (panel) { place(panel.left + (panel.width - cw) / 2, panel.top + 150); return; }
   const gap = 14, cx = r.left + r.width / 2, cy = r.top + r.height / 2;
   const spaces = { right: W - (x + w), left: x, below: H - (y + h), above: y };
   const fits = {
@@ -273,6 +325,12 @@ function layout(r) {
     py = cy > H / 2 ? m : H - ch - 24;
   }
   place(px, py);
+}
+
+// sits above its target, pointing down at it
+function pointArrow(r) {
+  arrow.hidden = !r;
+  if (r) arrow.style.transform = `translate(${Math.round(r.left + r.width / 2 - 12)}px,${Math.round(r.top - 38)}px)`;
 }
 
 function place(px, py) {

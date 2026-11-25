@@ -19,9 +19,10 @@ import './tooltips.js';
 import { showTab } from './side-tabs.js';
 import { addCustomTuple, flushPendingSave, markDirty, refreshDerived, takeDirty } from './prompt-panel.js';
 import { download, downloadAll, toast } from './clipboard.js';
-import { askNavMode } from './nav-mode.js';
+import { initNavMode, navModeSaved } from './nav-mode.js';
+import { newFileWizard } from './new-file-wizard.js';
 import { startTutorial, tutorialDone } from './tutorial.js';
-import { commitHistory, deserializeScene, loadStored, renderSceneName, serializeScene, stepHistory } from './persistence.js';
+import { commitHistory, deserializeScene, loadStored, renderSceneName, serializeScene, stepHistory, undoHist } from './persistence.js';
 
 /* =====================================================================
    WIRING
@@ -36,17 +37,19 @@ function toggleAddMenu(open = $('#addDrop').hidden) {
 }
 $('#btnAdd').addEventListener('click', (e) => { e.stopPropagation(); toggleAddMenu(); });
 $('#btnAddDoll').onclick = () => { toggleAddMenu(false); addOne('mannequin'); };
-// wooden toys and shapes
-for (const [group, title] of [['object', 'Objects'], ['geometry', 'Geometry']]) {
-  const h = document.createElement('div');
-  h.className = 'dropTitle'; h.textContent = title;
-  $('#addDrop').appendChild(h);
+// wooden toys (under the puppet) and shapes; Other stays at the bottom
+for (const [group, title] of [['object', ''], ['geometry', 'Geometry']]) {
+  if (title) {
+    const h = document.createElement('div');
+    h.className = 'dropTitle'; h.textContent = title;
+    $('#addOther').before(h);
+  }
   for (const p of PROPS.filter((x) => x.group === group)) {
     const b = document.createElement('button');
     b.setAttribute('role', 'menuitem');
     b.innerHTML = `<svg viewBox="0 0 24 24">${p.icon}</svg>${p.label}`;
     b.onclick = () => { toggleAddMenu(false); addOne(p.type); };
-    $('#addDrop').appendChild(b);
+    $('#addOther').before(b);
   }
 }
 // image card: picked from disk or dropped on the page; the file name is its id until it is named
@@ -260,4 +263,25 @@ function frame() {
 }
 
 frame();
-askNavMode().then((first) => { if (first || !tutorialDone()) startTutorial(); });   // first visit: pick a navigation, then the tour
+// a new file (also the first visit) starts with the wizard, then the tour if it was not done yet
+const WIZARD = 'vpg.wizard';   // still open in this tab: a reload asks again
+async function start() {
+  initNavMode();
+  const firstVisit = !navModeSaved();
+  let pending = false;
+  try { pending = !!sessionStorage.getItem(WIZARD); } catch { /* not remembered */ }
+  const askName = isNew || pending || !stored;
+  if (askName || firstVisit) {
+    try { if (askName) sessionStorage.setItem(WIZARD, '1'); } catch { /* not remembered */ }
+    const { name } = await newFileWizard({ askName });
+    try { sessionStorage.removeItem(WIZARD); } catch { /* not remembered */ }
+    if (name) {
+      setSceneName(name);
+      flushPendingSave();
+      undoHist.stack.length = 0; undoHist.idx = -1;
+      commitHistory();   // undo does not take the name away
+    }
+  }
+  if (firstVisit || !tutorialDone()) startTutorial();
+}
+start();
