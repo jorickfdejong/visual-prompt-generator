@@ -21,25 +21,20 @@ export function applyDim(on) {
     for (const m of o.mats) { m.opacity = dim ? 0.15 : 1; m.depthWrite = !dim; }
   }
 }
-const easyNav = () => document.body.classList.contains('nav-easy');
-// joint dots: Pro has one per joint, Easy the ones that can be pulled. The active one is white.
+// Each joint has a dot. The active one is white.
 let activeDot = null;
 function showHandles() {
   const o = state.editing;
   if (!o) return;
-  const key = easyNav() ? 'pulls' : 'handle', mine = (h) => !!state.joint && h.userData[key] === state.joint;
+  const mine = (h) => !!state.joint && h.userData.handle === state.joint;
   const on = activeDot && o.handles.includes(activeDot) && mine(activeDot) ? activeDot : o.handles.find(mine);
-  o.handles.forEach((h) => { h.visible = !!h.userData[key]; h.material.color.set(h === on ? '#ffffff' : '#ff9f43'); });
-}
-// the navigation mode changed
-export function refreshPosing() {
-  if (state.mode !== 'edit') return;
-  showHandles(); updateGizmo(); renderContext();
+  o.handles.forEach((h) => { h.visible = !!h.userData.handle; h.material.color.set(h === on ? '#ffffff' : '#ff9f43'); });
 }
 // point the gizmo at whatever is selected: move + rotate together, or scale
 export function updateGizmo() {
   if (state.cameraView) { detachGizmo(); return; }
-  if (state.mode === 'edit' && state.joint && !easyNav()) {   // in Easy, limbs are pulled (pull-limb.js)
+  rc.setSize(state.mode === 'edit' ? 0.7 : 0.9);
+  if (state.mode === 'edit' && state.joint) {
     rc.setSpace('local');
     attachGizmo(state.editing.joints[state.joint], { move: false });
     return;
@@ -232,21 +227,23 @@ export function updateModeBadge() {
   renderHelp();
 }
 
-const TRACKPAD_KEYS = [['Ctrl + Two fingers', 'Scroll to orbit'], ['Shift + Two fingers', 'Scroll to pan'], ['Two fingers', 'Scroll or pinch to zoom']];
-const EASY_KEYS = [['Left mouse', 'Drag empty space to rotate'], ['Right mouse', 'Drag to pan'], ['Wheel', 'Scroll to zoom'], ['One finger', 'Drag empty space to rotate'], ...TRACKPAD_KEYS.slice(1)];
-const PRO_KEYS = [['Shift + Middle mouse', 'Drag to pan'], ['Wheel', 'Scroll to zoom'], ...TRACKPAD_KEYS];
-// 'Shift + Middle mouse' drawn as keys, and how to look around per mode and device: also used by the tutorial
+const VIEW_KEYS = [
+  ['Left mouse', 'Drag empty space to orbit'], ['Middle mouse', 'Drag anywhere to orbit'],
+  ['Right mouse', 'Drag to pan'], ['Shift + Middle mouse', 'Drag to pan'], ['Wheel', 'Scroll to zoom'],
+  ['One finger', 'Drag empty space to orbit'], ['Ctrl + Two fingers', 'Scroll to orbit'],
+  ['Shift + Two fingers', 'Scroll to pan'], ['Two fingers', 'Scroll or pinch to zoom'],
+];
+// Draw keyboard keys and pointer buttons in Help and the tutorial.
 export const keysHTML = (k) => k.split(' + ').map((x) => `${inputIcon(x)}<kbd>${x.replace(' mouse', '')}</kbd>`).join(' + ');
-export const navKeys = (easy, pad) => (easy ? EASY_KEYS : PRO_KEYS).filter(([k]) => /finger/.test(k) === pad);
+export const navKeys = (pad) => VIEW_KEYS.filter(([k]) => /finger/.test(k) === pad);
 /* Help: a "?" button in the viewport corner that opens the shortcuts and an explanation for the current mode */
 export function renderHelp() {
-  const easy = document.body.classList.contains('nav-easy');
   const rows = (list) => `<dl>${list.map(([k, t]) => { const pad = /One finger|Two fingers/.test(k) ? ' class="padOnly"' : /mouse|Wheel/.test(k) ? ' class="mouseOnly"' : ''; return `<dt${pad}>${keysHTML(k)}</dt><dd${pad}>${t}</dd>`; }).join('')}</dl>`;
-  const nav = rows([...(easy ? EASY_KEYS : PRO_KEYS), ['1-5', 'Switch between views']]);
+  const nav = rows([...VIEW_KEYS, ['1-5', 'Switch between views']]);
   const html = state.mode === 'edit'
     ? `<h3>Edit mode — ${esc(state.editing.details.name)}</h3>
-       <p>Change the posture: ${easy ? 'pull an orange dot or a body part' : 'click a joint (orange dot) or a body part and drag the rings to rotate it'}, or pick a preset. Everything else keeps working; click another object or empty space to stop.</p>
-       <h4>Keys</h4>${rows([...(easy ? [['Drag', 'A dot to turn what it hangs from (the elbow swings the upper arm), or a body part']] : []), ['Click', 'Select a joint; anything else: stop editing'], ['Ctrl + Z', 'Undo'], ['Ctrl + Y', 'Redo'], ['Esc', 'Deselect the joint, press again to finish']])}
+       <p>Drag a body part or orange dot to pose the doll. Click a joint or body part to show its three rotation rings. Drag empty space or use the middle mouse button to orbit.</p>
+       <h4>Keys</h4>${rows([['Click', 'Select a joint or click elsewhere to stop editing'], ['Ctrl + Z', 'Undo'], ['Ctrl + Y', 'Redo'], ['Esc', 'Deselect the joint, press again to finish']])}
        <h4>View</h4>${nav}`
     : `<h3>Controls</h3>
        <button id="btnTutorial">Start the tutorial</button>
@@ -329,7 +326,7 @@ export function pickDot(e) {
   return raycaster.intersectObjects(state.editing.handles.filter((h) => h.visible), false)[0]?.object || null;
 }
 export function pickHandle(e) {
-  return pickDot(e)?.userData[easyNav() ? 'pulls' : 'handle'] || null;
+  return pickDot(e)?.userData.handle || null;
 }
 export function pickJoint(e) {
   const h = pickHandle(e);
@@ -354,7 +351,7 @@ renderer.domElement.addEventListener('pointerdown', (e) => {
   downPos = [e.clientX, e.clientY];
   box = null;
   if (e.button !== 0 || state.cameraView || gizmoHot()) return;
-  if (document.body.classList.contains('nav-easy') && !e.shiftKey) return;   // dragging orbits there
+  if (!e.shiftKey) return;   // unmodified dragging orbits
   if ((state.mode === 'edit' && pickHandle(e)) || pickCompose(e)) return;   // starting on a doll or the camera = a click, not a box
   box = { x0: e.clientX, y0: e.clientY, add: e.shiftKey };
 });

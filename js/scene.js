@@ -127,6 +127,10 @@ export function attachGizmo(obj, { move = true, turn = true } = {}) {
 export function detachGizmo() { tc.detach(); rc.detach(); }
 export const gizmoDragging = () => tc.dragging || rc.dragging;
 export const gizmoHot = () => !!((tc.object && tc.axis) || (rc.object && rc.axis));   // pointer is on a handle
+export function hitsRotationRing(ray) {
+  if (!rc.object || !rc.visible) return false;
+  return ray.intersectObjects(rc._gizmo.gizmo.rotate.children.filter((mesh) => mesh.visible), false).length > 0;
+}
 
 export const raycaster = new THREE.Raycaster();
 raycaster.layers.enableAll();

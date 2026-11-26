@@ -397,8 +397,7 @@ function environmentSentences(g) {
     const where = PREP.test(s) ? s : 'in ' + (/^[A-Z]/.test(s) ? s : art(s));
     out.push([refEnv('The scene'), ' is set ' + where + '.']);
   }
-  if (e.temperature) out.push([refEnv('The temperature'), ' is ' + e.temperature + '.']);
-  for (const [k, v] of Object.entries(e)) if (!['setting', 'lighting', 'temperature'].includes(k)) out.push([refEnv('The ' + k), ' is ' + v + '.']);
+  for (const [k, v] of Object.entries(e)) if (!['setting', 'lighting'].includes(k)) out.push([refEnv('The ' + k), ' is ' + v + '.']);
   return out;
 }
 

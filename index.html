@@ -90,7 +90,16 @@
     <section id="imageSection">
       <h2>Details</h2>
       <p class="hint detailsHint">Anything you fill in is added to the prompt.</p>
-      <div class="field"><label for="visualStyle">Visual style<span class="req" aria-hidden="true">*</span></label><input aria-required="true" type="text" id="visualStyle" placeholder="e.g. watercolour painting"></div>
+      <div class="field">
+        <label for="visualStyle">Visual style<span class="req" aria-hidden="true">*</span></label>
+        <select id="visualStyle" aria-required="true">
+          <option value="" disabled selected>Choose a style</option>
+          <option value="photorealistic">Photorealistic</option>
+          <option value="anime">Anime</option>
+          <option value="digital illustration">Digital illustration</option>
+          <option value="cartoon">Cartoon</option>
+        </select>
+      </div>
       <div id="envDetails"></div>
     </section>
     <section id="worldSection"></section>

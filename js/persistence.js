@@ -9,6 +9,7 @@ import { deselect, enterEdit, exitEdit, overviewView, selectCamera, selectJoint,
 import { renderContext, renderObjectList, renderWorldPanel } from './left-panel.js';
 import { flushPendingSave, markDirty, renderIncludes } from './prompt-panel.js';
 import { toast } from './clipboard.js';
+import { syncVisualStyle } from './visual-style.js';
 
 /* =====================================================================
    PERSISTENCE
@@ -82,7 +83,7 @@ export function deserializeScene(s) {
 }
 export function syncSettingsUI() {
   $('#notes').value = state.notes;
-  $('#visualStyle').value = state.visualStyle;
+  syncVisualStyle();
   $('#format').value = state.settings.format || 'both';
 }
 export let warnedImgStore = false;

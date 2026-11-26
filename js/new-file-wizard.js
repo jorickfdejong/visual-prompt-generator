@@ -1,60 +1,31 @@
-import { setNavMode } from './nav-mode.js';
-
-/* =====================================================================
-   NEW FILE WIZARD: 1. a name for the project, 2. which controls. Also the first visit; a file that already has a name
-   only gets the controls step. Other code checks for #navAsk to leave the keyboard alone while it is open.
-   ===================================================================== */
-// resolves to { name } once the controls are chosen (name: '' when it was not asked)
-export function newFileWizard({ askName = true } = {}) {
+// The app leaves keyboard shortcuts alone while the project name dialog is open.
+export function newFileWizard() {
   return new Promise((done) => {
-    const el = document.createElement('div');
-    el.id = 'navAsk';
-    el.setAttribute('role', 'dialog');
-    el.setAttribute('aria-modal', 'true');
-    el.setAttribute('aria-labelledby', 'navAskTitle');
-    document.body.appendChild(el);
-    let name = '';
-    const step = (n) => (askName ? `<div class="wizStep">Step ${n} of 2</div>` : '');
-
-    function nameStep() {
-      el.innerHTML = `<form class="navAskBox">${step(1)}<h1 id="navAskTitle">What is your project called?<span class="req" aria-hidden="true">*</span></h1>
-        <p class="hint">You can rename it any time in the menu at the top left.</p>
-        <input type="text" id="wizName" maxlength="60" placeholder="Project name" aria-label="Project name" aria-required="true" spellcheck="false" autocomplete="off">
-        <div class="wizBtns"><button type="submit" class="primary">Next</button></div></form>`;
-      const inp = el.querySelector('input'), next = el.querySelector('button');
-      inp.value = name;
-      const check = () => { next.disabled = !inp.value.trim(); };
-      inp.oninput = check;
-      check();
-      el.querySelector('form').onsubmit = (e) => { e.preventDefault(); name = inp.value.trim(); if (name) controlsStep(); };
-      inp.focus();
-    }
-    function controlsStep() {
-      el.innerHTML = `<div class="navAskBox">${step(2)}<h1 id="navAskTitle">How familiar are you with 3D tools?</h1>
-        <p class="hint">You can switch any time with the Easy / Pro toggle at the bottom of the view.</p>
-        <div class="navAskOpts">
-          <button type="button" data-mode="easy"><b>New to 3D</b><span>Easy controls but less precise</span></button>
-          <button type="button" data-mode="pro"><b>Used to 3D software</b><span>Precise controls but less easy</span><span>Similar to Blender</span></button>
-        </div>${askName ? '<div class="wizBtns"><button type="button" id="wizBack">Back</button></div>' : ''}</div>`;
-      const opts = [...el.querySelectorAll('[data-mode]')];
-      opts.forEach((b) => { b.onclick = () => { el.remove(); setNavMode(b.dataset.mode); done({ name }); }; });
-      el.querySelector('#wizBack')?.addEventListener('click', nameStep);
-      opts[0].focus();
-    }
-
-    el.addEventListener('keydown', (e) => {
-      e.stopPropagation();   // no app shortcuts
-      const opts = [...el.querySelectorAll('[data-mode]')];
-      if (opts.length && /^Arrow/.test(e.key)) {   // the arrows switch between the cards, Enter picks one
-        e.preventDefault();
-        opts[/Right|Down/.test(e.key) ? 1 : 0].focus();
-        return;
-      }
-      if (e.key !== 'Tab') return;
-      const all = [...el.querySelectorAll('input, button:not(:disabled)')], i = all.indexOf(document.activeElement);
+    const dialog = document.createElement('div');
+    dialog.id = 'navAsk';
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    dialog.setAttribute('aria-labelledby', 'navAskTitle');
+    dialog.innerHTML = `<form class="navAskBox"><h1 id="navAskTitle">What is your project called?<span class="req" aria-hidden="true">*</span></h1>
+      <p class="hint">You can rename it any time in the menu at the top left.</p>
+      <input type="text" id="wizName" maxlength="60" placeholder="Project name" aria-label="Project name" aria-required="true" spellcheck="false" autocomplete="off">
+      <div class="wizBtns"><button type="submit" class="primary" disabled>Start</button></div></form>`;
+    document.body.appendChild(dialog);
+    const input = dialog.querySelector('input'), submit = dialog.querySelector('button');
+    input.oninput = () => { submit.disabled = !input.value.trim(); };
+    dialog.querySelector('form').onsubmit = (e) => {
       e.preventDefault();
-      all[(i + (e.shiftKey ? -1 : 1) + all.length) % all.length].focus();
+      const name = input.value.trim();
+      if (!name) return;
+      dialog.remove();
+      done({ name });
+    };
+    dialog.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key !== 'Tab') return;
+      e.preventDefault();
+      (submit.disabled || document.activeElement === submit ? input : submit).focus();
     });
-    if (askName) nameStep(); else controlsStep();
+    input.focus();
   });
 }

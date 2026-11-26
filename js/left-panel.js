@@ -8,7 +8,7 @@ import { PELVIS_Y, POSES } from './mannequin.js';
 import { buildImageCard, IMG_H } from './image-card.js';
 import { TYPES } from './types.js';
 import { nextName, uniqueName } from './objects.js';
-import { exitEdit, placePivot, selectMany, selectObject, selObjs, setTool, toggleInSelection, updateModeBadge } from './selection.js';
+import { enterEdit, exitEdit, placePivot, selectMany, selectObject, selObjs, setTool, toggleInSelection, updateModeBadge } from './selection.js';
 import { camel } from './relations.js';
 import { canStretch, scaleLimits, sideRange, sizeOf } from './stretch.js';
 import { markDirty } from './prompt-panel.js';
@@ -278,19 +278,18 @@ export function renderTools() {
 }
 document.querySelectorAll('#toolStrip [data-tool]').forEach((b) => { b.onclick = () => setTool(b.dataset.tool); });
 
-// Environment settings: labels, background colour, floor and background walls
+// Environment settings: labels, room dimensions, lighting and walls
 
 export function renderWorldPanel() {
-  const R = state.settings.room, F = R.floor, W = R.walls;
-  const opts = (kind, cur) => Object.entries(PATTERNS[kind]).map(([k, p]) => `<option value="${k}" ${k === cur ? 'selected' : ''}>${p.label}</option>`).join('');
-  const imgRow = (kind, cfg) => cfg.pattern !== 'image' ? '' : `<div class="field"><label></label><div class="row" style="flex-wrap:nowrap">
-      <span class="hint" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(imageStore[cfg.imageId]?.name || 'no image')}</span>
-      <button data-wimg="${kind}">Replace…</button></div></div>`;
+  const R = state.settings.room, W = R.walls;
+  const wallOptions = Object.entries(PATTERNS.walls).map(([k, p]) => `<option value="${k}" ${k === W.pattern ? 'selected' : ''}>${p.label}</option>`).join('');
+  const wallImageRow = W.pattern !== 'image' ? '' : `<div class="field"><label></label><div class="row" style="flex-wrap:nowrap">
+      <span class="hint" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(imageStore[W.imageId]?.name || 'no image')}</span>
+      <button id="replaceWallImage">Replace…</button></div></div>`;
   const num = (k, v) => `<input type="number" data-wnum="${k}" min="0.5" max="40" step="0.5" value="${v}">`;
   const el = $('#worldSection');
   $('#envDetails').innerHTML = ENV_FIELDS.map((f) => `<div class="field"><label>${f.label}${f.optional ? "" : REQ}</label><input type="text" ${f.optional ? "" : `aria-required="true"`} data-env="${f.key}" value="${esc(state.environment[f.key] || '')}" placeholder="${esc(f.placeholder || '')}"></div>`).join('');
   el.innerHTML = `<h2>Room</h2>
-    <div class="field"><label>Background</label><input type="color" data-wc="background" value="${R.background}"></div>
     <div class="field"><label>Size (m)</label><div class="tfRow">
       <label class="tfField" title="Width (X): floor and back wall"><span class="ax" data-wscrub="width" title="Drag to adjust">W</span>${num('width', W.width)}</label>
       <label class="tfField" title="Depth (Z): floor and side walls"><span class="ax" data-wscrub="depth" title="Drag to adjust">D</span>${num('depth', W.depth)}</label>
@@ -299,24 +298,14 @@ export function renderWorldPanel() {
     <h3 class="sub">Light</h3>
     <div class="field"><label for="lightDir">Direction</label><div class="row" style="flex-wrap:nowrap"><input type="range" id="lightDir" min="0" max="360" step="1" value="${R.light.direction}" title="Turn the light around the scene"><span id="lightDirVal" style="width:38px;text-align:right">${Math.round(R.light.direction)}°</span></div></div>
     <div class="field"><label>Shadows</label><label class="checkRow"><input type="checkbox" id="lightShadows" ${R.light.shadows !== false ? 'checked' : ''}> Cast shadows</label></div>
-    <h3 class="sub">Floor</h3>
-    <div class="field"><label>Look</label><select data-wpat="floor">${opts('floor', F.pattern)}</select></div>
-    ${imgRow('floor', F)}
-    <div class="field"><label>Colour</label><input type="color" data-wc="floor" value="${F.color}" title="Also fills transparent parts of an image"></div>
     <h3 class="sub">Walls</h3>
     <div class="field"><label>Show</label><div class="row">
       ${['back', 'left', 'right'].map((k) => `<label class="checkRow"><input type="checkbox" data-wall="${k}" ${W[k] ? 'checked' : ''}> ${k[0].toUpperCase() + k.slice(1)}</label>`).join('')}
     </div></div>
-    <div class="field"><label>Look</label><select data-wpat="walls">${opts('walls', W.pattern)}</select></div>
-    ${imgRow('walls', W)}
-    <div class="field"><label>Colour</label><input type="color" data-wc="walls" value="${W.color}" title="Also fills transparent parts of an image"></div>
+    <div class="field"><label for="wallLook">Look</label><select id="wallLook">${wallOptions}</select></div>
+    ${wallImageRow}
     <p class="hint" style="margin:4px 0 0">The floor and walls share the same size. The back wall stands at −Z, behind the default camera view. Walls disappear when you orbit behind them.</p>`;
   const changed = (rerender) => { applyRoom(); markDirty(); if (rerender) renderWorldPanel(); };
-  el.querySelectorAll('[data-wc]').forEach((inp) => inp.addEventListener('input', () => {
-    const k = inp.dataset.wc;
-    if (k === 'background') R.background = inp.value; else R[k].color = inp.value;
-    changed(false);
-  }));
   el.querySelector('#lightDir').addEventListener('input', (e) => {
     R.light.direction = +e.target.value;
     el.querySelector('#lightDirVal').textContent = `${e.target.value}°`;
@@ -353,20 +342,19 @@ export function renderWorldPanel() {
       ax.addEventListener('pointercancel', up, { once: true });
     });
   });
-  const chooseImage = async (kind) => {
+  const showWall = () => { if (!W.back && !W.left && !W.right) W.back = true; };
+  const chooseWallImage = async () => {
     const id = await pickImage();
-    if (id) { R[kind].pattern = 'image'; R[kind].imageId = id; }
-    if (id && kind === 'walls' && !W.back && !W.left && !W.right) W.back = true;
+    if (id) { W.pattern = 'image'; W.imageId = id; showWall(); }
     changed(true);
   };
-  el.querySelectorAll('[data-wpat]').forEach((sel) => sel.addEventListener('change', () => {
-    const kind = sel.dataset.wpat, cfg = R[kind];
-    if (sel.value === 'image' && !imageStore[cfg.imageId]) { chooseImage(kind); return; }   // reverts on cancel
-    cfg.pattern = sel.value;
-    if (kind === 'walls' && !W.back && !W.left && !W.right) W.back = true;   // picking a wall look shows a wall
+  el.querySelector('#wallLook').addEventListener('change', (e) => {
+    if (e.target.value === 'image' && !imageStore[W.imageId]) { chooseWallImage(); return; }
+    W.pattern = e.target.value;
+    showWall();
     changed(true);
-  }));
-  el.querySelectorAll('[data-wimg]').forEach((b) => { b.onclick = () => chooseImage(b.dataset.wimg); });
+  });
+  el.querySelector('#replaceWallImage')?.addEventListener('click', chooseWallImage);
 }
 
 // Image card: the picture, its stand and its real size
@@ -445,10 +433,39 @@ export function bindImagePanel(el, o) {
   };
 }
 
+const DETAIL_POSES = ['Stand', 'T-pose', 'Sit', 'Walk', 'Point'];
+function posturePreset(o) {
+  return (!o.details.customPosture && DETAIL_POSES.find((name) => POSES[name].label === o.details.pose)) || 'Custom';
+}
+function postureField(objs, multiple = false) {
+  const preset = posturePreset(objs[0]);
+  const selected = objs.every((o) => posturePreset(o) === preset) ? preset : '';
+  const choices = multiple ? DETAIL_POSES : [...DETAIL_POSES, 'Custom'];
+  const placeholder = choices.includes(selected) ? '' : `<option value="" selected disabled>${selected || 'Mixed'}</option>`;
+  const options = choices.map((name) => `<option value="${name}" ${name === selected ? 'selected' : ''}>${name}</option>`).join('');
+  return `<div class="field"><label for="detailPosture">Posture${REQ}</label><select id="detailPosture" aria-required="true" ${multiple ? 'data-mk' : 'data-k'}="pose">${placeholder}${options}</select></div>`;
+}
+function bindPosture(el, objs) {
+  el.querySelector('#detailPosture')?.addEventListener('change', (e) => {
+    const preset = e.target.value;
+    if (preset === 'Custom') {
+      const doll = objs[0];
+      doll.details.customPosture = true;
+      doll.details.pose = 'custom posture';
+      enterEdit(doll);
+    } else {
+      objs.forEach((o) => setPose(o, preset));
+      updateDetailCounts();
+    }
+    markDirty();
+  });
+}
+
 // Details of one object. Fields come from the object's type.
 export function detailsHTML(o) {
   const d = o.details;
   const fields = panelFields(o).filter((f) => !f.asNoun).map((f) => {
+    if (f.key === 'pose') return postureField([o]);
     if (f.type === 'select') return `<div class="field"><label>${f.label}</label><select data-k="${f.key}">${f.options.map((v) => `<option value="${v}" ${d[f.key] === v ? 'selected' : ''}>${v || '—'}</option>`).join('')}</select></div>`;
     if (f.type === 'skin') return `<div class="field"><label>${f.label}</label><div><input type="text" data-k="skin" value="${esc(d.skin)}" placeholder="e.g. olive">
       <div class="swatches">${SKIN_TONES.map(([n, c]) => `<button class="swatch ${d.skin === n ? 'on' : ''}" data-skin="${n}" title="${n}" style="background:${c}"></button>`).join('')}</div></div></div>`;
@@ -505,6 +522,7 @@ function wireRowErrors(el, status, fresh) {
 }
 export function bindDetails(el, o) {
   const d = o.details;
+  bindPosture(el, [o]);
   const nameInput = el.querySelector('#objName');
   const applyName = () => {
     setName(o, nameInput.value);
@@ -523,7 +541,7 @@ export function bindDetails(el, o) {
   const fresh = d.custom.indexOf(freshEntry);
   freshEntry = null;
   const reveal = wireRowErrors(el, (i) => ({ k: !d.custom[i].key.trim(), v: !d.custom[i].value.trim() }), fresh);
-  el.querySelectorAll('[data-k]').forEach((inp) => {
+  el.querySelectorAll('[data-k]:not(#detailPosture)').forEach((inp) => {
     inp.addEventListener('input', () => {
       d[inp.dataset.k] = inp.value;
       if (inp.dataset.k === 'skin') el.querySelectorAll('.swatch').forEach((s) => s.classList.toggle('on', s.dataset.skin === inp.value));
@@ -551,6 +569,7 @@ export function multiDetails(objs) {
   const val = (o, k) => o.details[k] ?? '';
   const fields = defs.map((f) => {
     const vals = objs.map((o) => val(o, f.key)), same = vals.every((v) => v === vals[0]), cur = same ? vals[0] : '';
+    if (f.key === 'pose') return postureField(objs, true);
     if (f.type === 'select') return `<div class="field"><label>${f.label}</label><select data-mk="${f.key}">${same ? '' : '<option value="__mixed" disabled selected>Mixed</option>'}${f.options.map((v) => `<option value="${v}" ${same && cur === v ? 'selected' : ''}>${v || '—'}</option>`).join('')}</select></div>`;
     if (f.type === 'skin') return `<div class="field"><label>${f.label}</label><div><input type="text" data-mk="skin" value="${esc(cur)}" placeholder="${same ? 'e.g. olive' : 'Mixed'}">
       <div class="swatches">${SKIN_TONES.map(([n, c]) => `<button class="swatch ${same && cur === n ? 'on' : ''}" data-mskin="${n}" title="${n}" style="background:${c}"></button>`).join('')}</div></div></div>`;
@@ -580,9 +599,10 @@ export function multiDetails(objs) {
   // judge a row by its real entries: "Mixed" values that merely differ are fine
   const rowBad = (i) => [...rows[i].values()].some(incompleteDetail);
   const bind = (el) => {
+    bindPosture(el, objs);
     const fresh = rows.findIndex((m) => [...m.values()].includes(multiFocusEntry));
     const reveal = wireRowErrors(el, (i) => { const es = [...rows[i].values()]; return { k: es.some((e) => !e.key.trim()), v: es.some((e) => !e.value.trim()) }; }, fresh);
-    el.querySelectorAll('[data-mk]').forEach((inp) => inp.addEventListener('input', () => {
+    el.querySelectorAll('[data-mk]:not(#detailPosture)').forEach((inp) => inp.addEventListener('input', () => {
       if (inp.value === '__mixed') return;
       objs.forEach((o) => { o.details[inp.dataset.mk] = inp.value; });
       if (inp.dataset.mk === 'skin') el.querySelectorAll('[data-mskin]').forEach((s) => s.classList.toggle('on', s.dataset.mskin === inp.value));
@@ -639,7 +659,9 @@ export function renderEditPanel(el) {
     <div class="presetGrid">${presets}</div>
     <div class="row"><button id="btnResetJoint" ${state.joint ? '' : 'disabled'}>Reset ${state.joint || 'joint'}</button><button id="btnMirror">Mirror L↔R</button><button id="btnResetPose">Reset posture</button></div>
     <div class="field" style="margin-top:8px"><label>Hip height</label><input type="range" id="hipY" min="0.2" max="1.1" step="0.01" value="${o.joints.pelvis.position.y}"></div>
-    <p class="hint">${document.body.classList.contains('nav-easy') ? 'Pull an orange dot or a body part to move it.' : state.joint ? `Rotating <b>${state.joint}</b> — drag the rings.` : 'Click a joint (orange dot) or a body part to rotate it.'}</p>
+    <p class="hint">${state.joint ? `Rotating <b>${state.joint}</b> — drag one of the three rings.` : 'Click an orange joint or a body part to show its rotation rings.'}</p>
+    <p class="hint">Drag a body part or orange dot to pose the doll directly.</p>
+    <p class="hint">Drag empty space or use the middle mouse button to orbit.</p>
     <p class="hint">Press <kbd>Esc</kbd>, or click another object or empty space, to stop.</p>`;
   el.querySelectorAll('[data-pose]').forEach((b) => { b.onclick = () => applyPose(o, b.dataset.pose); });
   el.querySelector('#btnResetJoint').onclick = () => { if (state.joint) { o.joints[state.joint].rotation.set(0, 0, 0); markDirty(); } };
@@ -648,12 +670,16 @@ export function renderEditPanel(el) {
   el.querySelector('#hipY').addEventListener('input', (e) => { o.joints.pelvis.position.y = +e.target.value; markDirty(); });
 }
 
-export function applyPose(o, name) {
+function setPose(o, name) {
   const p = POSES[name];
   Object.values(o.joints).forEach((g) => g.rotation.set(0, 0, 0));
   for (const [j, r] of Object.entries(p.joints)) o.joints[j].rotation.set(r[0] * DEG, r[1] * DEG, r[2] * DEG);
   o.joints.pelvis.position.y = p.pelvisY ?? PELVIS_Y;
   o.details.pose = p.label;
+  delete o.details.customPosture;
+}
+export function applyPose(o, name) {
+  setPose(o, name);
   markDirty(); renderContext(); updateDetailCounts();
 }
 export function mirrorPose(o) {

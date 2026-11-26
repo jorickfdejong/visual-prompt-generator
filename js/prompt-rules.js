@@ -1,5 +1,5 @@
 import { typeWord } from './details.js';
-import { state } from './state.js';
+import { ENV_FIELDS, state } from './state.js';
 import { PROPS, typesIn } from './props.js';
 
 /* =====================================================================
@@ -27,7 +27,7 @@ export function standInLines() {
 // lines that open every prompt, in every format
 export function fixedLines() {
   if (!state.settings.families.closing) return [];
-  const words = [state.notes, state.visualStyle, ...Object.values(state.environment || {})].join(' ');
+  const words = [state.notes, state.visualStyle, ...ENV_FIELDS.map(({ key }) => state.environment[key])].join(' ');
   const mono = /black[\s-]*(and|&|n)[\s-]*white|\bb\s*&\s*w\b|monochrom|gr[ea]y[\s-]?scale|sepia/i.test(words);
   return [GENERATE_LINE, CLAY_LINE, DEPTH_LINE, ...(mono ? [] : [FULL_COLOUR_LINE]), ...standInLines()];
 }

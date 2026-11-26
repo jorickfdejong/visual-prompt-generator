@@ -13,13 +13,14 @@ import { toggleNames } from './labels.js';
 import { whenNamed } from './naming.js';
 import { addNamed, cancelPlacing, floorPoint, startPlacing } from './placement.js';
 import './nav.js';
-import './easy-drag.js'; import './pull-limb.js';
+import './easy-drag.js';
+import './pull-limb.js';
 import './arrow-keys.js'; import './views.js';
 import './tooltips.js'; import './enter-next.js';
 import { showTab } from './side-tabs.js';
 import { addCustomTuple, flushPendingSave, markDirty, refreshDerived, takeDirty } from './prompt-panel.js';
 import { download, downloadAll, toast } from './clipboard.js';
-import { initNavMode, navModeSaved } from './nav-mode.js';
+import './navigation-hints.js';
 import { newFileWizard } from './new-file-wizard.js';
 import { startTutorial, tutorialDone } from './tutorial.js';
 import { commitHistory, deserializeScene, loadStored, renderSceneName, serializeScene, stepHistory, undoHist } from './persistence.js';
@@ -74,7 +75,6 @@ $('#btnEditDone').onclick = exitEdit;
 $('#btnAll').onclick = downloadAll;
 $('#helpPanel').addEventListener('click', (e) => { if (e.target.id === 'btnTutorial') { toggleHelp(false); startTutorial(); } });
 $('#notes').addEventListener('input', (e) => { state.notes = e.target.value; markDirty(); });
-$('#visualStyle').addEventListener('input', (e) => { state.visualStyle = e.target.value; markDirty(); });
 $('#btnAddTuple').onclick = addCustomTuple;
 $('#customTuple').addEventListener('keydown', (e) => { if (e.key === 'Enter') addCustomTuple(); });
 $('#btnExport').onclick = openExport;
@@ -265,14 +265,12 @@ frame();
 // a new file (also the first visit) starts with the wizard, then the tour if it was not done yet
 const WIZARD = 'vpg.wizard';   // still open in this tab: a reload asks again
 async function start() {
-  initNavMode();
-  const firstVisit = !navModeSaved();
   let pending = false;
   try { pending = !!sessionStorage.getItem(WIZARD); } catch { /* not remembered */ }
   const askName = isNew || pending || !stored;
-  if (askName || firstVisit) {
-    try { if (askName) sessionStorage.setItem(WIZARD, '1'); } catch { /* not remembered */ }
-    const { name } = await newFileWizard({ askName });
+  if (askName) {
+    try { sessionStorage.setItem(WIZARD, '1'); } catch { /* not remembered */ }
+    const { name } = await newFileWizard();
     try { sessionStorage.removeItem(WIZARD); } catch { /* not remembered */ }
     if (name) {
       setSceneName(name);
@@ -281,6 +279,6 @@ async function start() {
       commitHistory();   // undo does not take the name away
     }
   }
-  if (firstVisit || !tutorialDone()) startTutorial();
+  if (!tutorialDone()) startTutorial();
 }
 start();
