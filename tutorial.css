@@ -103,3 +103,35 @@
 /* pressed something that is locked (tutorial-lock.js) */
 #tutCard.tutBlink { animation: tutBlink .25s ease-out 2; }
 @keyframes tutBlink { 50% { border-color: var(--accent); } }
+/* step 1: where to drag, and how (tutorial-gesture.js); the element's own spot is its centre */
+#tutGesture { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; transition: transform .35s ease, opacity .2s; }
+#tutGesture[hidden] { display: none; }
+#tutGesture.busy { opacity: .25; }
+#tutGesture.done { opacity: 0; transition: none; }   /* the task is done: the drawing goes at once */
+#tutGesture .tgPulse { position: absolute; left: -46px; top: -46px; width: 92px; height: 92px; border-radius: 50%; border: 2px dashed var(--accent); background: rgba(240, 160, 75, .12); animation: tgPulse 1.6s ease-out infinite; }
+#tutGesture svg { position: absolute; left: -60px; top: -40px; width: 120px; height: 80px; overflow: visible; fill: none; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .6)); }
+#tutGesture .tgMouse rect, #tutGesture .tgMouse path { stroke: #fff; stroke-width: 2; }
+#tutGesture .tgMouse rect:first-child { fill: rgba(29, 31, 35, .85); }
+#tutGesture .tgMouse .lit { fill: var(--accent); stroke: none; }
+#tutGesture .tgPad { fill: rgba(29, 31, 35, .55); stroke: rgba(255, 255, 255, .7); stroke-width: 1.5; }
+#tutGesture .tgFinger { fill: var(--accent); stroke: #fff; stroke-width: 2; }
+#tutGesture .tgChev { stroke: var(--accent); stroke-width: 3; }
+#tutGesture .tgLabel { position: absolute; left: 50%; top: 26px; transform: translateX(-50%); display: flex; align-items: center; gap: 6px; white-space: nowrap; padding: 3px 9px; border-radius: 6px; background: rgba(29, 31, 35, .85); color: #fff; font-size: 12px; font-weight: 600; }
+#tutGesture .tgHold { font-weight: 400; color: var(--muted); }
+#tutGesture.drag .tgMouse, #tutGesture .tgMove { animation: tgDrag 1.8s ease-in-out infinite; }
+#tutGesture .tgChev.up { animation: tgUp 1s ease-in-out infinite; }
+#tutGesture .tgChev.dn { animation: tgDn 1s ease-in-out infinite; }
+#tutGesture .tgPinchA { animation: tgPinchA 1.6s ease-in-out infinite; }
+#tutGesture .tgPinchB { animation: tgPinchB 1.6s ease-in-out infinite; }
+@keyframes tgPulse { 0% { transform: scale(.75); opacity: 1; } 100% { transform: scale(1.15); opacity: .2; } }
+@keyframes tgDrag { 0%, 100% { transform: translate(-26px, 4px); } 50% { transform: translate(26px, -4px); } }
+@keyframes tgUp { 50% { transform: translateY(-4px); opacity: .4; } }
+@keyframes tgDn { 50% { transform: translateY(4px); opacity: .4; } }
+@keyframes tgPinchA { 50% { transform: translate(-14px, 14px); } }
+@keyframes tgPinchB { 50% { transform: translate(14px, -14px); } }
+@media (prefers-reduced-motion: reduce) { #tutGesture *, #tutGesture { animation: none !important; transition: none; } }
+#tutRing.tutRound { border-radius: 28px; border-style: dashed; animation: tgRing 1.6s ease-in-out infinite; }
+#tutRoot:has(.tutRound) #tutGesture .tgPulse { display: none; }   /* the ring itself is the focus now */
+@keyframes tgRing { 50% { border-color: rgba(240, 160, 75, .35); } }
+@media (prefers-reduced-motion: reduce) { #tutRing.tutRound { animation: none; } }
+#tutGesture:has(.tgPad) .tgLabel { top: 28px; }

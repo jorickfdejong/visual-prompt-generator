@@ -8,6 +8,7 @@ import { unfinished } from './doll-check.js';
 import { celebrate } from './tutorial-finish.js';
 import { lockTo, unlock } from './tutorial-lock.js';
 import { inputKind, onInputKind } from './mouse-detect.js';
+import { showGesture, hideGesture, gestureRect } from './tutorial-gesture.js';
 
 /* Spotlight tour: 5 steps, a ring around the target, a card beside it. The app stays usable underneath.
    Next only works when all tasks of the step are done, and then plays a short animation (tutorial.css). */
@@ -15,10 +16,8 @@ const DONE_KEY = 'vpg.tutorialDone';
 const $ = (s) => document.querySelector(s);
 const easy = () => document.body.classList.contains('nav-easy');
 // the same instruction as in the Controls panel; orbiting with the mouse in Pro is not listed there
-const nav = (what) => {
-  const pad = inputKind() === 'pad', row = navKeys(easy(), pad).find(([, t]) => what.test(t)) || ['Middle mouse', 'Drag to orbit'];
-  return `${row[1]} ${keysHTML(row[0])}`;
-};
+const navRow = (what) => navKeys(easy(), inputKind() === 'pad').find(([, t]) => what.test(t)) || ['Middle mouse', 'Drag to orbit'];
+const nav = (what) => { const row = navRow(what); return `${row[1]} ${keysHTML(row[0])}`; };
 
 // remembers every object it has seen, so anything that happens to one of them can be noticed
 function watch(c, value) {
@@ -34,11 +33,25 @@ function settled(c, value) {
 }
 // the whole tour is about a doll: everybody adds one, and the tasks after that only count for dolls
 const isDoll = (o) => o.type === 'mannequin';
+// after dragging or scrolling in the scene, the spotlight and the card wait a moment before moving on to the next task, so the result can be seen first
+let down = null, dragEndAt = 0;
+addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY, moved: false }; }, true);
+addEventListener('pointermove', (e) => { if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 4) down.moved = true; }, true);
+addEventListener('pointerup', () => { if (down?.moved) dragEndAt = performance.now(); down = null; }, true);
+addEventListener('wheel', () => { dragEndAt = performance.now(); }, { capture: true, passive: true });
+const justDragged = () => !!down?.moved || performance.now() - dragEndAt < 700;
+let shownDid = null;
+// the context the spotlight, arrow, gesture and card follow: the ticks of a moment ago while a drag has just happened
+function viewCtx() {
+  if (!shownDid || !justDragged()) shownDid = new Set(ctx.did);
+  return { ...ctx, did: shownDid };
+}
 const selDolls = () => selObjs().filter(isDoll);
 const ready = () => envComplete() && !unfinished().length;
 
 const ENTER = '<kbd class="tutEnter" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 5v7a3 3 0 0 1-3 3H5M9 10.5 4.5 15 9 19.5"/></svg></kbd>';
 const scaleButton = () => $('#toolStrip [data-tool="scale"]');
+const pressScale = (c) => c.did.has('move') && c.did.has('turn') && !c.did.has('tool');
 // what the step still has to be given before it can go on: '' or 'doll'
 const missing = (s) => (s.needsDoll?.(ctx) && !state.objects.some((o) => isDoll(o) && !o.hidden) ? 'doll' : '');
 
@@ -46,8 +59,8 @@ const STEPS = [
   {
     title: 'Viewport positions', use: { view: '#viewBar' },   // use: the buttons that work during a task (tutorial-lock.js); '*' = the whole step
     text: () => 'Look around the scene from every side.',
-    target: () => $('#viewport'), underPreview: true,
-    arrow: (c) => (c.did.size === 3 && !c.did.has('view') ? $('#viewBar') : null),   // points there without moving the spotlight, so a pan is not interrupted
+    target: (c) => (c.did.size === 3 && !c.did.has('view') ? $('#viewBar') : $('#viewport')), underPreview: true,   // the spotlight on the view buttons once the dragging is done
+    gesture: (c) => { const k = ['orbit', 'zoom', 'pan'].find((t) => !c.did.has(t)); return k && navRow(k === 'orbit' ? /orbit|rotate/ : new RegExp(k))[0]; },   // where and how to drag (tutorial-gesture.js)
     tasks: [
       ['orbit', () => nav(/orbit|rotate/)],
       ['zoom', () => nav(/zoom/)],
@@ -67,16 +80,16 @@ const STEPS = [
       c.zoomed = (c.zoomed || 0) + zoom;
       c.turned = (c.turned || 0) + turn;
       if (zoom < 1e-5) c.slid = (c.slid || 0) + slide;   // zooming towards the pointer also shifts the target
-      if (c.turned > 0.15) c.did.add('orbit');
-      if (c.zoomed > 0.08) c.did.add('zoom');
-      if (c.slid > 0.15) c.did.add('pan');
+      if (c.turned > 0.15) c.did.add('orbit');   // a short drag is enough
+      if (c.zoomed > 0.4) c.did.add('zoom');
+      if (c.slid > 0.8) c.did.add('pan');
     },
   },
   {
     title: 'Adding a doll', besideMenu: true, use: { '*': '#btnAdd, #btnAddDoll' },
     target: (c) => (document.body.classList.contains('placing') || c.added ? $('#viewport') : !c.did.has('name') ? ($('#addDrop').hidden ? $('#btnAdd') : $('#btnAddDoll')) : $('#viewport')),
     tasks: [
-      ['open', () => `Press + to open the add menu ${keysHTML('A')}`],
+      ['open', () => `Press the highlighted button or ${keysHTML('A')}`],
       ['pick', () => 'Select <b>Doll</b>'],
       ['place', () => 'Click in the scene to place the doll'],
       ['name', () => 'Type a name for the doll and press Enter'],
@@ -99,13 +112,14 @@ const STEPS = [
   },
   {
     title: 'Moving & scaling a doll', use: { '*': '#toolStrip [data-tool]' },
-    target: () => $('#viewport'), needsDoll: () => true, overPanel: true,
-    arrow: (c) => (c.did.has('move') && c.did.has('turn') && !c.did.has('tool') ? scaleButton() : !c.did.has('turn') && state.tool === 'scale' ? $('#toolStrip [data-tool="transform"]') : null),   // the rings are not there in scaling mode
+    target: (c) => (pressScale(c) ? scaleButton() : $('#viewport')), needsDoll: () => true, overPanel: true,
+    beside: pressScale,   // the spotlight on the scale button only, with the card next to it
+    arrow: (c) => (!c.did.has('turn') && state.tool === 'scale' ? $('#toolStrip [data-tool="transform"]') : null),   // the rings are not there in scaling mode
     tasks: [
       ['move', () => 'Move the doll by dragging their body or one of the arrows'],
-      ['turn', () => 'Turn the doll by dragging one of the rings'],
+      ['turn', () => 'Select a doll and turn it by dragging the green ring'],
       ['tool', () => `Press the scale button at the bottom ${keysHTML('S')}`],
-      ['scale', () => 'Scale the doll by dragging a square handle'],
+      ['scale', () => 'Select a doll and scale it by dragging the square handle'],
     ],
     update: (c) => {
       watch(c, (o) => ({ q: o.root.quaternion.clone(), s: o.root.scale.clone() }));
@@ -154,7 +168,7 @@ const STEPS = [
   },
 ];
 
-let off = null, root = null, ring = null, arrow = null, card = null, els = null, idx = 0, raf = 0, ctx = {}, lastKey = '';
+let lastPlace = null, off = null, root = null, ring = null, arrow = null, card = null, els = null, idx = 0, raf = 0, ctx = {}, lastKey = '';
 
 export function tutorialDone() { try { return !!localStorage.getItem(DONE_KEY); } catch { return true; } }
 
@@ -220,6 +234,7 @@ function endTutorial() {
   cancelAnimationFrame(raf);
   off?.(); off = null;
   unlock();
+  hideGesture();
   root.remove();
   root = ring = arrow = card = els = null;
   try { localStorage.setItem(DONE_KEY, '1'); } catch { /* not remembered */ }
@@ -228,6 +243,8 @@ function endTutorial() {
 function go(i) {
   idx = i;
   ctx = { did: new Set() };
+  lastPlace = null;
+  shownDid = null;
   lastKey = '';
   els.live.textContent = '';
   els.lbl.textContent = `Step ${idx + 1} of ${STEPS.length}`;
@@ -265,7 +282,7 @@ function refresh() {
 }
 
 function targetFor(s) {
-  const el = document.body.classList.contains('placing') ? $('#viewport') : missing(s) ? ($('#addDrop').hidden ? $('#btnAdd') : $('#btnAddDoll')) : s.target(ctx);
+  const el = document.body.classList.contains('placing') ? $('#viewport') : missing(s) ? ($('#addDrop').hidden ? $('#btnAdd') : $('#btnAddDoll')) : s.target(viewCtx());
   return rectOf(el);
 }
 function rectOf(el) {
@@ -289,7 +306,11 @@ function loop() {
   s.update(ctx);
   refresh();
   layout(targetFor(s), s.besideMenu || missing(s) ? menuRect() : null);
-  pointArrow(rectOf(s.arrow?.(ctx)));
+  const v = viewCtx();
+  pointArrow(rectOf(s.arrow?.(v)));
+  const was = s.gesture?.(v);
+  showGesture(root, was, was !== s.gesture?.(ctx));   // done: the drawing goes at once, the spotlight stays a moment
+  focusGesture(gestureRect());
   raf = requestAnimationFrame(loop);
 }
 
@@ -316,6 +337,7 @@ function layout(r, menuSpace) {
   card.style.width = view ? Math.min(540, view.width - 2 * m) + 'px' : '';
   const cw = Math.min(card.offsetWidth || 300, W - 2 * m), ch = card.offsetHeight || 200;
   if (!r) {
+    ring.classList.remove('tutRound');
     ring.style.display = 'none';
     root.classList.add('tutNoTarget');
     place(Math.round((W - cw) / 2), Math.max(m, H - ch - 24));
@@ -325,8 +347,10 @@ function layout(r, menuSpace) {
   ring.style.display = 'block';
   const x = Math.max(0, r.left - pad), y = Math.max(0, r.top - pad);
   const w = Math.min(W - x, r.width + 2 * pad), h = Math.min(H - y, r.height + 2 * pad);
-  ring.style.transform = `translate(${x}px,${y}px)`;
-  ring.style.width = w + 'px'; ring.style.height = h + 'px';
+  if (!ring.classList.contains('tutRound')) {   // drawn by focusGesture: setting it twice a frame restarts its transition
+    ring.style.transform = `translate(${x}px,${y}px)`;
+    ring.style.width = w + 'px'; ring.style.height = h + 'px';
+  }
   if (menuSpace) {
     const right = menuSpace.right + 20;
     place(right + cw + m <= W || menuSpace.left - 20 - cw < m ? right : menuSpace.left - 20 - cw, menuSpace.bottom - ch);
@@ -338,8 +362,15 @@ function layout(r, menuSpace) {
     place(v ? v.left + (v.width - cw) / 2 : (W - cw) / 2, (H - ch) / 2);
     return;
   }
+  if (STEPS[idx].beside?.(viewCtx())) { place(x + w + 20, y + (h - ch) / 2); return; }   // to the right of the spotlight, 20px from it
   const panel = STEPS[idx].overPanel && rectOf($('#side'));   // at the bottom of the side panel, so the gizmo and the toolbar stay free
   if (panel) { place(panel.left + (panel.width - cw) / 2, panel.bottom - ch - m); return; }
+  if (STEPS[idx].gesture) {   // step 1: next to the drag spotlight, then to the right of the view buttons; it stays at the last place
+    const g = gestureRect(), a = !g && r.height < 100 && r;   // a: the view buttons
+    if (a) lastPlace = [a.right + pad + 20, a.top + (a.height - ch) / 2];   // to the right of the spotlight, 20px from it
+    else if (g) lastPlace = [g.left + g.width + 20, g.top + (g.height - ch) / 2];
+    if (lastPlace) { place(...lastPlace); return; }
+  }
   if (STEPS[idx].underPreview) { place(r.right - cw - m, (rectOf($('#inset'))?.bottom ?? r.top) + m); return; }   // top right of the viewport, below the camera preview
   const gap = 14, cx = r.left + r.width / 2, cy = r.top + r.height / 2;
   const spaces = { right: W - (x + w), left: x, below: H - (y + h), above: y };
@@ -360,6 +391,16 @@ function layout(r, menuSpace) {
     py = cy > H / 2 ? m : H - ch - 24;
   }
   place(px, py);
+}
+
+// a drag task: the spotlight is a rounded box around the place to drag instead of the whole viewport
+function focusGesture(g) {
+  ring.classList.toggle('tutRound', !!g);
+  if (!g) return;
+  root.classList.remove('tutNoTarget');
+  ring.style.display = 'block';
+  ring.style.transform = `translate(${Math.round(g.left)}px,${Math.round(g.top)}px)`;
+  ring.style.width = g.width + 'px'; ring.style.height = g.height + 'px';
 }
 
 // sits above its target, pointing down at it
