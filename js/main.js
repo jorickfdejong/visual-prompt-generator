@@ -21,6 +21,7 @@ import { addCustomTuple, flushPendingSave, markDirty, refreshDerived, takeDirty 
 import { download, downloadAll, toast } from './clipboard.js';
 import { initNavMode, navModeSaved } from './nav-mode.js';
 import { newFileWizard } from './new-file-wizard.js';
+import { matchesShortcut } from './shortcut-presets.js';
 import { startTutorial, tutorialDone } from './tutorial.js';
 import { commitHistory, deserializeScene, loadStored, renderSceneName, serializeScene, stepHistory, undoHist } from './persistence.js';
 
@@ -212,7 +213,7 @@ window.addEventListener('keydown', (e) => {
   if (state.cameraView) return;
   // the add menu owns the keyboard while it is open (Enter/Space pick the focused item)
   if (!$('#addDrop').hidden) {
-    if (k === 'a' && !e.repeat) toggleAddMenu(false);
+    if (matchesShortcut(e, 'add') && !e.repeat) toggleAddMenu(false);
     return;
   }
   if ((e.ctrlKey || e.metaKey) && (k === 'z' || k === 'y')) {
@@ -222,8 +223,8 @@ window.addEventListener('keydown', (e) => {
   }
   {
     if (k === 'n' && !e.ctrlKey && !e.metaKey && !e.repeat) toggleNames();
-    else if (k === 'm' && !e.ctrlKey && !e.metaKey && !e.altKey) setTool('transform');
-    else if (k === 's' && !e.ctrlKey && !e.metaKey && !e.altKey) setTool('scale');
+    else if (matchesShortcut(e, 'transform')) setTool('transform');
+    else if (matchesShortcut(e, 'scale')) setTool('scale');
     else if ((k === 'delete' || k === 'backspace') && selObjs().length) deleteSelection();
     else if (k === 'enter' && state.mode === 'compose' && e.target.tagName !== 'BUTTON' && state.selected?.obj) enterEdit(state.selected.obj);
     else if (k === 'd' && (e.ctrlKey || e.metaKey) && selObjs().length) { e.preventDefault(); duplicateSelection(); }
@@ -231,7 +232,7 @@ window.addEventListener('keydown', (e) => {
     else if (k === 'x' && (e.ctrlKey || e.metaKey)) { if (selObjs().length) { e.preventDefault(); cutSelection(); } }
     else if (k === 'v' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); pasteClipboard(); }
     else if (k === 'a' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); selectMany(state.objects); }
-    else if (k === 'a' && !e.altKey && !e.shiftKey && !e.repeat) toggleAddMenu(true);
+    else if (matchesShortcut(e, 'add') && !e.repeat) toggleAddMenu(true);
   }
 });
 
