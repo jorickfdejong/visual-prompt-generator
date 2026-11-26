@@ -5,6 +5,7 @@ import { exitCameraView } from './camera.js';
 import { deselect, exitEdit, selectCamera, selectObject } from './selection.js';
 import { schedulePreview } from './rendering.js';
 import { exportText } from './relations.js';
+import { startWizard } from './export-wizard.js';
 import { environmentCardKey, naturalText, objectCardKey, promptCards, renderNatural } from './natural.js';
 import { renderPromptCards } from './export-prompt-cards.js';
 import { fixedLines } from './prompt-rules.js';
@@ -75,6 +76,7 @@ export function openExport() {
     return;
   }
   $('#exportModal').hidden = false;
+  startWizard(closeExport);
   renderNatural($('#naturalPrompt'));
   renderPromptEdit();
   refreshPromptCards();

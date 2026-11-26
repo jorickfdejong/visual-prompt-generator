@@ -9,7 +9,12 @@
 /* export window: text and image side by side on top */
 .modalBox { width: min(1080px, 100%); }
 .modalBody { scrollbar-color: var(--line) transparent; }
-.exportTop { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--line); }
+.exportTop { display: grid; grid-template-columns: 1fr 1fr; }
+/* the prompt text and reference images fold away; closed until opened */
+details#exportShot { padding: 0; }
+details#exportShot > summary { padding: 12px 14px; }
+details#exportShot[open] > summary h2 { margin-bottom: 0; }
+details#exportShot .exportTop section { padding-top: 0; }
 .exportTop section { border: 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .exportTop section h2 { margin: 0; }
 .exportTop .row { margin: 0; }
@@ -21,7 +26,6 @@
 #promptView:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
 #exportImage figure { margin: 0; display: flex; flex-direction: column; gap: 6px; }
 #exportImage img { width: 100%; max-height: 320px; min-height: 60px; object-fit: contain; background: #111; border-radius: 6px; display: block; }
-.exportSteps { margin: 0; padding-inline-start: 20px; line-height: 1.5; }
 .modalBox footer button { flex: none; }
 #exportModal .genTitle { font-size: 13px; margin: 14px 14px 0; }
 .promptCards { display: grid; align-items: start; grid-template-columns: repeat(auto-fill, minmax(max(140px, calc(25% - 7.5px)), 1fr)); gap: 10px; }
@@ -52,16 +56,70 @@
 .promptCardHead h3 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
 .promptCard.peek h3 { -webkit-line-clamp: none; }
 #sparseWarning { margin: 12px 0 0; padding: 13px 16px; font-size: 17px; border: 1px solid rgba(240,160,75,.45); border-radius: var(--radius); background: rgba(240,160,75,.1); font-weight: 600; }
-/* after downloading: points at the browser's downloads (js/download-guide.js) */
-#downloadGuide { position: fixed; top: 10px; right: 16px; z-index: 18; width: 290px; max-width: calc(100vw - 32px); padding-top: 62px; }
-#downloadGuide > svg { position: absolute; top: 0; right: 40px; width: 44px; height: 56px; fill: none; stroke: var(--accent); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 2px #000) drop-shadow(0 2px 5px rgba(0,0,0,.6)); animation: guideUp 1s ease-in-out infinite alternate; }
-#downloadGuide > div { padding: 14px; border: 2px solid var(--accent); border-radius: 12px; background: var(--panel); box-shadow: 0 10px 30px rgba(0,0,0,.5); line-height: 1.5; }
-#downloadGuide h3 { margin: 0 0 4px; font-size: 15px; }
-#downloadGuide p { margin: 0 0 10px; }
-@keyframes guideUp { to { transform: translateY(6px); } }
-@media (prefers-reduced-motion: reduce) { #downloadGuide > svg { animation: none; } }
 .modalBox footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 14px; border-top: 1px solid var(--line); }
+/* generate prompt wizard: steps along the top, one page at a time, Back / Next at the bottom */
+.wizSteps { list-style: none; margin: 0; padding: 10px 14px; display: flex; gap: 4px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.wizSteps li { flex: 1; display: flex; align-items: center; min-width: 0; }
+.wizSteps li + li::before { content: ''; flex: 0 0 14px; height: 2px; margin-right: 4px; background: var(--line); }
+.wizSteps li.done + li::before, .wizSteps li.done::before { background: var(--accent); }
+.wizSteps button { flex: 1; min-width: 0; display: flex; align-items: center; gap: 7px; padding: 4px 6px; border: 0; background: none; color: var(--muted); font-size: 12px; white-space: nowrap; border-radius: 6px; }
+.wizSteps button:hover:not(:disabled) { background: var(--panel-2); }
+.wizSteps button:disabled { cursor: default; opacity: .5; }
+.wizSteps .stepNum { width: 22px; height: 22px; font-size: 12px; background: var(--panel-2); color: var(--muted); border: 1px solid var(--line); }
+.wizSteps li.done .stepNum { background: color-mix(in srgb, var(--accent) 25%, transparent); color: var(--accent); border-color: var(--accent); }
+.wizSteps li.current button { color: var(--text); font-weight: 600; }
+.wizSteps li.current .stepNum { background: var(--accent); color: #1d1f23; border-color: var(--accent); }
+/* pages 2-5 sit in the middle of the wizard */
+.wizPage:not([data-step="1"]) { padding: 22px 24px 26px; display: flex; flex-direction: column; gap: 14px; align-items: center; justify-content: center; text-align: center; flex: 1 0 auto; }
+.wizPage .wizList { text-align: left; }
+.wizPage[hidden] { display: none; }
+.wizTitle { margin: 0; font-size: 18px; font-weight: 600; color: var(--text); text-transform: none; letter-spacing: 0; display: block; }
+.wizTitle em { font-style: normal; color: var(--accent); }
+.wizIntro { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.wizPage[data-step="1"] > .wizIntro { padding: 12px 14px 0; }
+.wizList { margin: 0; padding: 0; list-style: none; counter-reset: wl; display: flex; flex-direction: column; gap: 12px; }
+.wizList li { counter-increment: wl; display: grid; grid-template-columns: 26px 1fr; column-gap: 10px; font-size: 15px; color: var(--text); }
+.wizList li::before { content: counter(wl, lower-alpha); grid-row: span 2; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--accent); color: var(--accent); display: grid; place-items: center; font-size: 12px; font-weight: 700; }
+.wizList li > span { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.wizList li b em { font-style: normal; color: var(--accent); }
+.wizList li .genWindow { grid-column: 2; margin-top: 8px; }
+.wizList li::before { grid-row: 1 / span 2; }
+.modalBox footer.wizNav { justify-content: space-between; }
+#wizNext { min-width: 110px; }
+.stepNum { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #1d1f23; font-weight: 700; display: grid; place-items: center; font-size: 14px; }
+/* the files sit in equal columns and the button is exactly as wide as the three of them */
+.dlGroup { align-self: center; display: flex; flex-direction: column; gap: 10px; }
+.flowFiles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.flowFiles li { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 8px 8px; border: 1px solid #8a9097; border-radius: 8px; background: color-mix(in srgb, var(--text) 4%, transparent); font-size: 11px; color: var(--muted); }
+.fileIcon { width: 40px; height: 48px; display: block; }
+.fileIcon .sheet { fill: #e8e6e3; }
+.fileIcon .fold { fill: #b9bcc1; stroke: none; }
+.fileIcon .pic { fill: #c9ccd1; }
+.fileIcon .glyph { fill: #8a9097; }
+.fileIcon .lines { stroke: #8a9097; stroke-width: 2.4; stroke-linecap: round; fill: none; }
+.fileIcon.mini { width: 26px; height: 31px; }
+button.bigDownload { display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 16px; padding: 11px 20px; border-radius: 8px; box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 35%, transparent); }
+button.bigDownload svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.genWindow { flex: 0 0 auto; width: 346px; max-width: 100%; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.genBar { display: flex; gap: 5px; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.genBar i { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.genDrop { margin: 8px; padding: 10px; border: 2px dashed var(--accent); border-radius: 6px; display: flex; align-items: center; gap: 6px; }
+.genDrop span { flex: 1; text-align: center; }
+.genDrop span { margin-left: 6px; font-size: 12px; color: var(--muted); }
+.genExamples { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.45; }
 @media (max-width: 760px) { .exportTop { grid-template-columns: 1fr; } .modalBox footer { flex-direction: column; align-items: stretch; } }
+.genWindow.big { width: 420px; }
+.genWindow.big .genDrop { padding: 22px 16px; }
+.genWindow.big .fileIcon.mini { width: 34px; height: 41px; }
+/* page 4: the files drop into the chat window, on a loop */
+.genDrop, .genDrop .fileIcon { animation: 3.6s ease-in-out infinite; }
+.genDrop .fileIcon:nth-child(2) { animation-delay: .15s; }
+.genDrop .fileIcon:nth-child(3) { animation-delay: .3s; }
+.genDrop .fileIcon { animation-name: fileDrop; }
+.genDrop { animation-name: dropGlow; }
+@keyframes fileDrop { 0%, 10% { transform: translateY(-60px) scale(.8); opacity: 0; } 28% { transform: translateY(3px); opacity: 1; } 34%, 84% { transform: none; opacity: 1; } 96%, 100% { transform: none; opacity: 0; } }
+@keyframes dropGlow { 0%, 30%, 56%, 100% { background: transparent; } 40% { background: color-mix(in srgb, var(--accent) 16%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .genDrop, .genDrop .fileIcon { animation: none; } }
 
 /* tooltips (js/tooltips.js): placed by the button groups in styles.css */
 .tip { z-index: 5; font-weight: 400; cursor: default; }
@@ -203,3 +261,46 @@ body:is(.has-mouse, .has-pad) #camHint { grid-template-columns: repeat(2, auto) 
 #helpPanel dt kbd { vertical-align: middle; }
 /* mouse shortcuts are shorter than trackpad ones: less empty space on the left */
 body.has-mouse #help #helpPanel { --keys: 130px; width: 352px; }
+/* the wizard keeps one height so the window doesn't jump between steps */
+#exportModal .modalBox { height: min(640px, 100%); }
+#exportModal .modalBody { flex: 1; display: flex; flex-direction: column; }
+#exportModal .wizPage[data-step="1"] { flex: none; }
+/* page 3: four small pictures, one per action */
+.visSteps { list-style: none; margin: 4px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; width: 100%; max-width: 820px; }
+.visSteps > li { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+.visSteps > li > .vis { align-self: stretch; margin: 8px 0 10px; }
+.visSteps > li > b { font-size: 14px; color: var(--text); }
+.visSteps > li > b em { font-style: normal; color: var(--accent); }
+.visSteps > li > span:last-child { color: var(--muted); font-size: 12px; line-height: 1.4; }
+.visNum { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #1d1f23; display: grid; place-items: center; font-size: 14px; font-weight: 700; }
+.vis { height: 116px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-2); display: flex; flex-direction: column; overflow: hidden; }
+.visBar { flex: none; display: flex; align-items: center; gap: 4px; padding: 5px 7px; border-bottom: 1px solid var(--line); }
+.visBar i { width: 6px; height: 6px; border-radius: 50%; background: var(--line); }
+.visBar b { flex: 1; height: 7px; margin-left: 6px; border-radius: 4px; background: var(--line); }
+.visBody { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 8px; position: relative; }
+.visOpen { gap: 10px; }
+.visOpen .spark { width: 34px; height: 34px; fill: var(--accent); animation: sparkPulse 2.4s ease-in-out infinite; }
+.visTiles { display: grid; grid-template-columns: repeat(2, 22px); gap: 4px; }
+.visTiles i { height: 22px; border-radius: 4px; background: #3f454d; }
+.visChat { align-items: stretch; justify-content: flex-start; padding: 0; }
+.visSide { flex: 0 0 46%; display: flex; flex-direction: column; gap: 5px; padding: 7px; border-right: 1px solid var(--line); }
+.visSide i { height: 6px; border-radius: 3px; background: var(--line); }
+.visSide i:nth-child(3) { width: 70%; }
+.visNew { font-size: 10px; font-weight: 600; color: var(--accent); border: 1.5px solid var(--accent); border-radius: 5px; padding: 3px 4px; text-align: center; white-space: nowrap; animation: newPulse 2.4s ease-in-out infinite; }
+.visMain { flex: 1; }
+.vis .genDrop { margin: 0; width: 100%; height: 100%; justify-content: center; padding: 6px; }
+.visSend { align-items: flex-end; }
+.visInput { width: 100%; display: flex; align-items: center; gap: 4px; padding: 5px 5px 5px 7px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+.fileIcon.chip { width: 16px; height: 19px; }
+.visSendBtn { margin-left: auto; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); display: grid; place-items: center; animation: sendPulse 2.4s ease-in-out infinite; }
+.visSendBtn svg { width: 13px; height: 13px; fill: none; stroke: #1d1f23; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+@keyframes sparkPulse { 50% { transform: scale(1.15) rotate(8deg); } }
+@keyframes newPulse { 50% { background: color-mix(in srgb, var(--accent) 22%, transparent); } }
+@keyframes sendPulse { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); } 60% { box-shadow: 0 0 0 7px transparent; } }
+@media (prefers-reduced-motion: reduce) { .visOpen .spark, .visNew, .visSendBtn { animation: none; } }
+@media (max-width: 760px) { .visSteps { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* wizard pages push sideways (js/export-wizard.js); the header and step bar stay put */
+#exportModal .modalBody { position: relative; }
+#exportModal .modalBody.sliding { overflow: hidden; }
+/* copies of the file icons that fly to the browser's downloads (js/export-wizard.js) */
+.flyingFile { position: fixed; z-index: 30; pointer-events: none; margin: 0; filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); }
