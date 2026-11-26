@@ -1,4 +1,5 @@
 import { setNavMode } from './nav-mode.js';
+import { SHORTCUT_PRESETS, setShortcutPreset, shortcutPreset } from './shortcut-presets.js';
 
 /* =====================================================================
    NEW FILE WIZARD: 1. a name for the project, 2. which controls. Also the first visit; a file that already has a name
@@ -30,24 +31,33 @@ export function newFileWizard({ askName = true } = {}) {
       inp.focus();
     }
     function controlsStep() {
-      el.innerHTML = `<div class="navAskBox">${step(2)}<h1 id="navAskTitle">How familiar are you with 3D tools?</h1>
-        <p class="hint">You can switch any time with the Easy / Pro toggle at the bottom of the view.</p>
+      el.innerHTML = `<div class="navAskBox">${step(2)}<h1 id="navAskTitle">Which tool are you most familiar with?</h1>
+        <p class="hint">Choose a keyboard shortcut preset. You can change it later in Controls.</p>
         <div class="navAskOpts">
-          <button type="button" data-mode="easy"><b>New to 3D</b><span>Easy controls but less precise</span></button>
-          <button type="button" data-mode="pro"><b>Used to 3D software</b><span>Precise controls but less easy</span><span>Similar to Blender</span></button>
+          ${Object.entries(SHORTCUT_PRESETS).map(([key, preset]) => `<button type="button" data-preset="${key}">
+            <img src="assets/tool-logos/${key}.svg" width="28" height="28" alt="">
+            <b>${preset.label}</b>
+          </button>`).join('')}
         </div>${askName ? '<div class="wizBtns"><button type="button" id="wizBack">Back</button></div>' : ''}</div>`;
-      const opts = [...el.querySelectorAll('[data-mode]')];
-      opts.forEach((b) => { b.onclick = () => { el.remove(); setNavMode(b.dataset.mode); done({ name }); }; });
+      const opts = [...el.querySelectorAll('[data-preset]')];
+      opts.forEach((b) => { b.onclick = () => {
+        el.remove();
+        setShortcutPreset(b.dataset.preset);
+        setNavMode(SHORTCUT_PRESETS[b.dataset.preset].navigation);
+        done({ name });
+      }; });
       el.querySelector('#wizBack')?.addEventListener('click', nameStep);
-      opts[0].focus();
+      (opts.find((b) => b.dataset.preset === shortcutPreset()) || opts[0]).focus();
     }
 
     el.addEventListener('keydown', (e) => {
       e.stopPropagation();   // no app shortcuts
-      const opts = [...el.querySelectorAll('[data-mode]')];
-      if (opts.length && /^Arrow/.test(e.key)) {   // the arrows switch between the cards, Enter picks one
+      const opts = [...el.querySelectorAll('[data-preset]')];
+      const selected = opts.indexOf(document.activeElement);
+      if (selected >= 0 && /^Arrow/.test(e.key)) {
         e.preventDefault();
-        opts[/Right|Down/.test(e.key) ? 1 : 0].focus();
+        const step = /Right|Down/.test(e.key) ? 1 : -1;
+        opts[(selected + step + opts.length) % opts.length].focus();
         return;
       }
       if (e.key !== 'Tab') return;

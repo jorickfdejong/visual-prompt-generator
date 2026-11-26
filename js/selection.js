@@ -9,6 +9,7 @@ import { esc, renderContext, renderObjectList, syncTransformInputs } from './lef
 import { showTab } from './side-tabs.js';
 import { inputIcon } from './input-icons.js';
 import { markDirty } from './prompt-panel.js';
+import { SHORTCUT_PRESETS, setShortcutPreset, shortcutKeys, shortcutPreset } from './shortcut-presets.js';
 
 /* =====================================================================
    MODES & SELECTION
@@ -234,7 +235,7 @@ export function updateModeBadge() {
 
 const TRACKPAD_KEYS = [['Ctrl + Two fingers', 'Scroll to orbit'], ['Shift + Two fingers', 'Scroll to pan'], ['Two fingers', 'Scroll or pinch to zoom']];
 const EASY_KEYS = [['Left mouse', 'Drag empty space to rotate'], ['Right mouse', 'Drag to pan'], ['Wheel', 'Scroll to zoom'], ['One finger', 'Drag empty space to rotate'], ...TRACKPAD_KEYS.slice(1)];
-const PRO_KEYS = [['Shift + Middle mouse', 'Drag to pan'], ['Wheel', 'Scroll to zoom'], ...TRACKPAD_KEYS];
+const PRO_KEYS = [['Middle mouse', 'Drag to orbit'], ['Shift + Middle mouse', 'Drag to pan'], ['Wheel', 'Scroll to zoom'], ...TRACKPAD_KEYS];
 // 'Shift + Middle mouse' drawn as keys, and how to look around per mode and device: also used by the tutorial
 export const keysHTML = (k) => k.split(' + ').map((x) => `${inputIcon(x)}<kbd>${x.replace(' mouse', '')}</kbd>`).join(' + ');
 export const navKeys = (easy, pad) => (easy ? EASY_KEYS : PRO_KEYS).filter(([k]) => /finger/.test(k) === pad);
@@ -249,14 +250,25 @@ export function renderHelp() {
        <h4>Keys</h4>${rows([...(easy ? [['Drag', 'A dot to turn what it hangs from (the elbow swings the upper arm), or a body part']] : []), ['Click', 'Select a joint; anything else: stop editing'], ['Ctrl + Z', 'Undo'], ['Ctrl + Y', 'Redo'], ['Esc', 'Deselect the joint, press again to finish']])}
        <h4>View</h4>${nav}`
     : `<h3>Controls</h3>
+       <label for="helpShortcutPreset">Keyboard shortcuts</label>
+       <select id="helpShortcutPreset">
+         <option value="">Default</option>
+         ${Object.entries(SHORTCUT_PRESETS).map(([key, preset]) => `<option value="${key}"${key === shortcutPreset() ? ' selected' : ''}>${preset.label}</option>`).join('')}
+       </select>
        <button id="btnTutorial">Start the tutorial</button>
        <h4>View</h4>${nav}
        <h4>Selecting</h4>${rows([['Shift + Click', 'Add/remove selection'], ['Ctrl + A', 'Select all objects']])}
-       <h4>Transform</h4>${rows([['M', 'Move and rotate mode'], ['Arrows', 'Move horizontally'], ['S', 'Scaling mode']])}
-       <h4>Objects</h4>${rows([['A', 'Open the add menu'], ['N', 'Show or hide names'], ['Ctrl + G', 'Group (not dolls)'], ['Ctrl + Shift + G', 'Ungroup'], ['Del', 'Delete']])}
+       <h4>Transform</h4>${rows([...shortcutKeys('transform').map((key) => [key, 'Move and rotate mode']), ['Arrows', 'Move horizontally'], ...shortcutKeys('scale').map((key) => [key, 'Scaling mode'])])}
+       <h4>Objects</h4>${rows([...shortcutKeys('add').map((key) => [key, 'Open the add menu']), ['N', 'Show or hide names'], ['Ctrl + G', 'Group (not dolls)'], ['Ctrl + Shift + G', 'Ungroup'], ['Del', 'Delete']])}
        <h4>File</h4>${rows([['Ctrl + S', 'Save the scene'], ['Ctrl + O', 'Open a scene']])}`;
   $('#helpPanel').innerHTML = html;
 }
+document.addEventListener('vpg:shortcut-preset', renderHelp);
+$('#helpPanel').addEventListener('change', (event) => {
+  if (event.target.id !== 'helpShortcutPreset') return;
+  setShortcutPreset(event.target.value);
+  $('#helpShortcutPreset').focus();
+});
 export function toggleHelp(open = $('#helpPanel').hidden) {
   $('#helpPanel').hidden = !open;
   $('#btnHelp').classList.toggle('active', open);
