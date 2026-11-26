@@ -6,7 +6,7 @@ import { PROPS, typesIn } from './props.js';
    PROMPT RULES — fixed lines and sentence templates (no scene calculations)
    ===================================================================== */
 export const GENERATE_LINE = 'Generate one image of the scene described below. Use the two reference images together: they show the same scene from the same camera.';
-export const CLAY_LINE = 'The clay grey reference image shows the shapes and the pose. Use it for composition, pose and camera only. Ignore its colours, materials, textures and lighting.';
+export const CLAY_LINE = 'The example reference image shows the shapes and the pose. Use it for composition, pose and camera only. Ignore its colours, materials, textures and lighting.';
 export const DEPTH_LINE = 'The depth map reference image shows distance: light is close to the camera, dark is far away, black is empty background. Use it for composition, pose, distance and camera only. Its grey values are not colours or lighting, and the result must not look like a depth map.';
 export const FULL_COLOUR_LINE = 'Full-colour image, natural colours.';
 

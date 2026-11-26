@@ -67,7 +67,7 @@ Example export:
 
 ```
 Generate one image of the scene described below. Use the two reference images together: they show the same scene from the same camera.
-The clay grey reference image shows the shapes and the pose. Use it for composition, pose and camera only. Ignore its colours, materials, textures and lighting.
+The example reference image shows the shapes and the pose. Use it for composition, pose and camera only. Ignore its colours, materials, textures and lighting.
 The depth map reference image shows distance: light is close to the camera, dark is far away, black is empty background. Use it for composition, pose, distance and camera only. Its grey values are not colours or lighting, and the result must not look like a depth map.
 Full-colour image, natural colours.
 
@@ -94,7 +94,7 @@ Export always gives two **reference images**: a neutral grey render and a depth 
 
 ## Taking it to an image generator
 
-- **Download all 3 files** gives `clay-grey.png`, `depth-map.png` and `prompt.txt` (allow multiple downloads if the browser asks). Drag all three files into the image generator.
+- **Download all 3 files** gives `example.png`, `depth-map.png` and `prompt.txt` (allow multiple downloads if the browser asks). Drag all three files into the image generator.
 - To re-export an older variant's image, **Load** it and take a screenshot. **Copy** on a card copies that variant's prompt text directly.
 
 ## Structure (for later versions)
