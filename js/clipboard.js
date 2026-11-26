@@ -1,6 +1,5 @@
 import { $ } from './state.js';
 import { dataURLtoBlob, takeScreenshot } from './rendering.js';
-import { showDownloadGuide } from './download-guide.js';
 import { promptText } from './export-modal.js';
 
 /* =====================================================================
@@ -21,7 +20,7 @@ export function downloadText(name, text) {
   download(name, url);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-const SHOT_FILES = { clay: 'clay-grey.png', depth: 'depth-map.png' };
+const SHOT_FILES = { clay: 'example.png', depth: 'depth-map.png' };
 // both reference images + prompt as three files
 export function downloadAll() {
   const text = promptText();
@@ -31,5 +30,4 @@ export function downloadAll() {
   setTimeout(() => downloadText('prompt.txt', text), urls.length * 300);
   setTimeout(() => urls.forEach(([, url]) => URL.revokeObjectURL(url)), 3000);
   toast('Downloading 3 files. If the browser asks, allow multiple downloads.');
-  showDownloadGuide();
 }

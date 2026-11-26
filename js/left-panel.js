@@ -42,11 +42,23 @@ export function renderObjectList() {
       if (e.detail === 2 && e.target.closest('.name') && !e.shiftKey && !e.ctrlKey && !e.metaKey) { startRename(li, o); return; }
       if (e.target.closest('input')) return;   // clicks inside the name being typed
       if (state.mode === 'edit' && state.editing !== o) exitEdit();
-      if (state.mode === 'compose') { if (e.shiftKey || e.ctrlKey || e.metaKey) toggleInSelection(o); else selectObject(o); }
+      if (state.mode !== 'compose') return;
+      if (e.shiftKey) selectRange(o, e.ctrlKey || e.metaKey);
+      else { if (e.ctrlKey || e.metaKey) toggleInSelection(o); else selectObject(o); listAnchor = o; }
     });
     ul.appendChild(li);
   }
   updateDetailCounts();
+}
+// Shift-click selects every row from the last clicked one (the anchor) to this one; Ctrl+Shift adds that range to the selection
+let listAnchor = null;
+function selectRange(o, add) {
+  const cur = selObjs();
+  const anchor = state.objects.includes(listAnchor) && (cur.includes(listAnchor) || !cur.length) ? listAnchor : cur[cur.length - 1];
+  if (!anchor) { selectObject(o); listAnchor = o; return; }
+  const a = state.objects.indexOf(anchor), b = state.objects.indexOf(o);
+  const range = state.objects.slice(Math.min(a, b), Math.max(a, b) + 1);
+  selectMany(add ? [...cur, ...range] : range);
 }
 function detailCountText(o) {
   const n = detailCount(o);
@@ -99,7 +111,7 @@ export function renderContext() {
   if (sel?.kind === 'multi') {
     const multi = multiDetails(objs);
     el.innerHTML = `<h2>${objs.length} objects selected</h2>
-      <p class="hint" style="margin-top:0">${objs.map((o) => esc(o.details.name)).join(', ')}. The gizmo moves, rotates and scales them together. Shift/Ctrl-click to add or remove one.</p>${groupHTML(objs)}${transformHTML(sel)}${multi.html}`;
+      <p class="hint" style="margin-top:0">${objs.map((o) => esc(o.details.name)).join(', ')}. The gizmo moves, rotates and scales them together. Ctrl-click to add or remove one, Shift-click to select a range.</p>${groupHTML(objs)}${transformHTML(sel)}${multi.html}`;
     multi.bind(el);
   } else if (sel?.kind === 'obj') {
     const o = sel.obj;

@@ -9,6 +9,7 @@ import { esc, renderContext, renderObjectList, syncTransformInputs } from './lef
 import { showTab } from './side-tabs.js';
 import { inputIcon } from './input-icons.js';
 import { markDirty } from './prompt-panel.js';
+import { SHORTCUT_PRESETS, setShortcutPreset, shortcutKeys, shortcutPreset } from './shortcut-presets.js';
 
 /* =====================================================================
    MODES & SELECTION
@@ -246,14 +247,25 @@ export function renderHelp() {
        <h4>Keys</h4>${rows([['Click', 'Select a joint or click elsewhere to stop editing'], ['Ctrl + Z', 'Undo'], ['Ctrl + Y', 'Redo'], ['Esc', 'Deselect the joint, press again to finish']])}
        <h4>View</h4>${nav}`
     : `<h3>Controls</h3>
+       <label for="helpShortcutPreset">Keyboard shortcuts</label>
+       <select id="helpShortcutPreset">
+         <option value="">Default</option>
+         ${Object.entries(SHORTCUT_PRESETS).map(([key, preset]) => `<option value="${key}"${key === shortcutPreset() ? ' selected' : ''}>${preset.label}</option>`).join('')}
+       </select>
        <button id="btnTutorial">Start the tutorial</button>
        <h4>View</h4>${nav}
        <h4>Selecting</h4>${rows([['Shift + Click', 'Add/remove selection'], ['Ctrl + A', 'Select all objects']])}
-       <h4>Transform</h4>${rows([['M', 'Move and rotate mode'], ['Arrows', 'Move horizontally'], ['S', 'Scaling mode']])}
-       <h4>Objects</h4>${rows([['A', 'Open the add menu'], ['N', 'Show or hide names'], ['Ctrl + G', 'Group (not dolls)'], ['Ctrl + Shift + G', 'Ungroup'], ['Del', 'Delete']])}
+       <h4>Transform</h4>${rows([...shortcutKeys('transform').map((key) => [key, 'Move and rotate mode']), ['Arrows', 'Move horizontally'], ...shortcutKeys('scale').map((key) => [key, 'Scaling mode'])])}
+       <h4>Objects</h4>${rows([...shortcutKeys('add').map((key) => [key, 'Open the add menu']), ['N', 'Show or hide names'], ['Ctrl + G', 'Group (not dolls)'], ['Ctrl + Shift + G', 'Ungroup'], ['Del', 'Delete']])}
        <h4>File</h4>${rows([['Ctrl + S', 'Save the scene'], ['Ctrl + O', 'Open a scene']])}`;
   $('#helpPanel').innerHTML = html;
 }
+document.addEventListener('vpg:shortcut-preset', renderHelp);
+$('#helpPanel').addEventListener('change', (event) => {
+  if (event.target.id !== 'helpShortcutPreset') return;
+  setShortcutPreset(event.target.value);
+  $('#helpShortcutPreset').focus();
+});
 export function toggleHelp(open = $('#helpPanel').hidden) {
   $('#helpPanel').hidden = !open;
   $('#btnHelp').classList.toggle('active', open);

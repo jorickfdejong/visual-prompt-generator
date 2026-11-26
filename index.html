@@ -110,13 +110,22 @@
 
 <div id="exportModal" role="dialog" aria-modal="true" aria-labelledby="exportTitle" hidden>
   <div class="modalBox">
-    <header><h1 id="exportTitle">Export</h1><button id="btnCloseExport" class="icon" aria-label="Close">✕</button></header>
+    <header><h1 id="exportTitle">Generate prompt</h1><button id="btnCloseExport" class="icon" aria-label="Close">✕</button></header>
+    <ol class="wizSteps" aria-label="Steps">
+      <li><button type="button" data-step="1"><span class="stepNum">1</span>Check details</button></li>
+      <li><button type="button" data-step="2"><span class="stepNum">2</span>Download</button></li>
+      <li><button type="button" data-step="3"><span class="stepNum">3</span>Generate</button></li>
+    </ol>
     <div class="modalBody">
+    <div class="wizPage" data-step="1">
+    <p class="wizIntro">Check that everything the image needs is named and described. Open the sections below to see or tweak the prompt.</p>
     <section aria-labelledby="promptCardsTitle">
       <h2 id="promptCardsTitle">Objects and details</h2>
       <div id="promptCards" class="promptCards"></div>
       <p id="sparseWarning" role="status" hidden>Better names and details, better prompts</p>
     </section>
+    <details class="sec" id="exportShot">
+    <summary><h2><span><span class="chev">▸</span> Prompt text and reference images</span></h2></summary>
     <div class="exportTop">
     <section id="exportText">
       <h2 id="promptTitle">Prompt text</h2>
@@ -128,8 +137,8 @@
     <section id="exportImage">
       <h2>Reference images</h2>
       <figure>
-        <figcaption>Clay grey</figcaption>
-        <img id="shotClay" alt="Clay grey view of the shot camera">
+        <figcaption>Example</figcaption>
+        <img id="shotClay" alt="Example view of the shot camera">
       </figure>
       <figure>
         <figcaption>Depth map</figcaption>
@@ -137,6 +146,7 @@
       </figure>
     </section>
     </div>
+    </details>
 
     <h2 class="genTitle" hidden>Change what the text is made from</h2>
     <section hidden>
@@ -164,10 +174,55 @@
       </div>
       <p class="hint" style="margin:8px 0 0">Untick a line to leave it out. Use the dropdowns to override a computed relation.</p>
     </details>
+        </div>
+
+    <div class="wizPage" data-step="2" hidden>
+      <h2 class="wizTitle">Download all three files</h2>
+      <p class="wizIntro">Your image generator needs all three: two pictures of the scene and the prompt.</p>
+      <div class="dlGroup">
+        <ul class="flowFiles" aria-label="The three files">
+            <li><svg class="fileIcon" viewBox="0 0 40 48" aria-hidden="true"><path class="sheet" d="M4 2h22l10 10v32a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path class="fold" d="M26 2v10h10"/><rect class="pic" x="8" y="20" width="24" height="18" rx="1.5"/><circle class="glyph" cx="14" cy="26" r="2.4"/><path class="glyph" d="M9 37l8-8 5 5 3-3 6 6z"/></svg><span>example.png</span></li>
+            <li><svg class="fileIcon" viewBox="0 0 40 48" aria-hidden="true"><path class="sheet" d="M4 2h22l10 10v32a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path class="fold" d="M26 2v10h10"/><rect class="pic" x="8" y="20" width="24" height="18" rx="1.5"/><circle class="glyph" cx="14" cy="26" r="2.4"/><path class="glyph" d="M9 37l8-8 5 5 3-3 6 6z"/></svg><span>depth-map.png</span></li>
+            <li><svg class="fileIcon" viewBox="0 0 40 48" aria-hidden="true"><path class="sheet" d="M4 2h22l10 10v32a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path class="fold" d="M26 2v10h10"/><path class="lines" d="M9 21h22M9 26h22M9 31h22M9 36h14"/></svg><span>prompt.txt</span></li>
+          </ul>
+        <button id="btnAll" class="primary bigDownload"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M6.5 10l5.5 5.5 5.5-5.5M4 20h16"/></svg>Download all 3 files</button>
+      </div>
     </div>
-    <footer>
-      <ol class="exportSteps"><li>Download all three files: <b>clay-grey.png</b>, <b>depth-map.png</b> and <b>prompt.txt</b>.</li><li>Drag <b>all three files</b> into your image generator.</li></ol>
-      <button id="btnAll" class="primary">Download all 3 files</button>
+
+    <div class="wizPage" data-step="3" hidden>
+      <h2 class="wizTitle">Generate your image</h2>
+      <ol class="visSteps">
+        <li>
+          <span class="visNum">1</span>
+          <div class="vis" aria-hidden="true"><div class="visBar"><i></i><i></i><i></i><b></b></div>
+            <div class="visBody visOpen"><svg class="spark" viewBox="0 0 24 24"><path d="M12 2l2.2 6.3L20.5 10l-6.3 2.2L12 18.5l-2.2-6.3L3.5 10l6.3-1.7z"/><path d="M19 15l.9 2.4 2.4.9-2.4.9L19 21.6l-.9-2.4-2.4-.9 2.4-.9z"/></svg><div class="visTiles"><i></i><i></i><i></i><i></i></div></div></div>
+          <b>Open your image generator</b><span>For example ChatGPT, Gemini or Copilot.</span>
+        </li>
+        <li>
+          <span class="visNum">2</span>
+          <div class="vis" aria-hidden="true"><div class="visBar"><i></i><i></i><i></i></div>
+            <div class="visBody visChat"><div class="visSide"><span class="visNew">+ New chat</span><i></i><i></i><i></i></div><div class="visMain"></div></div></div>
+          <b>Start a new chat</b><span>An old chat can mix in earlier pictures.</span>
+        </li>
+        <li>
+          <span class="visNum">3</span>
+          <div class="vis" aria-hidden="true"><div class="visBar"><i></i><i></i><i></i></div>
+            <div class="visBody"><div class="genDrop"><svg class="fileIcon mini" viewBox="0 0 40 48" aria-hidden="true"><path class="sheet" d="M4 2h22l10 10v32a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path class="fold" d="M26 2v10h10"/><rect class="pic" x="8" y="20" width="24" height="18" rx="1.5"/><circle class="glyph" cx="14" cy="26" r="2.4"/><path class="glyph" d="M9 37l8-8 5 5 3-3 6 6z"/></svg><svg class="fileIcon mini" viewBox="0 0 40 48" aria-hidden="true"><path class="sheet" d="M4 2h22l10 10v32a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path class="fold" d="M26 2v10h10"/><rect class="pic" x="8" y="20" width="24" height="18" rx="1.5"/><circle class="glyph" cx="14" cy="26" r="2.4"/><path class="glyph" d="M9 37l8-8 5 5 3-3 6 6z"/></svg><svg class="fileIcon mini" viewBox="0 0 40 48" aria-hidden="true"><path class="sheet" d="M4 2h22l10 10v32a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path class="fold" d="M26 2v10h10"/><path class="lines" d="M9 21h22M9 26h22M9 31h22M9 36h14"/></svg></div></div></div>
+          <b>Drag <em>all three</em> files in</b><span>From your Downloads folder.</span>
+        </li>
+        <li>
+          <span class="visNum">4</span>
+          <div class="vis" aria-hidden="true"><div class="visBar"><i></i><i></i><i></i></div>
+            <div class="visBody visSend"><div class="visInput"><svg class="fileIcon chip" viewBox="0 0 40 48" aria-hidden="true"><path class="sheet" d="M4 2h22l10 10v32a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path class="fold" d="M26 2v10h10"/><rect class="pic" x="8" y="20" width="24" height="18" rx="1.5"/><circle class="glyph" cx="14" cy="26" r="2.4"/><path class="glyph" d="M9 37l8-8 5 5 3-3 6 6z"/></svg><svg class="fileIcon chip" viewBox="0 0 40 48" aria-hidden="true"><path class="sheet" d="M4 2h22l10 10v32a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path class="fold" d="M26 2v10h10"/><rect class="pic" x="8" y="20" width="24" height="18" rx="1.5"/><circle class="glyph" cx="14" cy="26" r="2.4"/><path class="glyph" d="M9 37l8-8 5 5 3-3 6 6z"/></svg><svg class="fileIcon chip" viewBox="0 0 40 48" aria-hidden="true"><path class="sheet" d="M4 2h22l10 10v32a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path class="fold" d="M26 2v10h10"/><path class="lines" d="M9 21h22M9 26h22M9 31h22M9 36h14"/></svg><span class="visSendBtn"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span></div></div></div>
+          <b>Press send</b><span>No typing needed.</span>
+        </li>
+      </ol>
+    </div>
+    </div>
+    <footer class="wizNav">
+      <button type="button" id="wizPrev">Back</button>
+      <span id="wizCount" class="hint">Step 1 of 5</span>
+      <button type="button" id="wizNext" class="primary">Next</button>
     </footer>
   </div>
 </div>
