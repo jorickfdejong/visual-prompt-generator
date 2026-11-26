@@ -14,9 +14,8 @@ import { showGesture, hideGesture, gestureRect } from './tutorial-gesture.js';
    Next only works when all tasks of the step are done, and then plays a short animation (tutorial.css). */
 const DONE_KEY = 'vpg.tutorialDone';
 const $ = (s) => document.querySelector(s);
-const easy = () => document.body.classList.contains('nav-easy');
-// the same instruction as in the Controls panel; orbiting with the mouse in Pro is not listed there
-const navRow = (what) => navKeys(easy(), inputKind() === 'pad').find(([, t]) => what.test(t)) || ['Middle mouse', 'Drag to orbit'];
+// Use the same orbit, pan, and zoom instructions as the Controls panel.
+const navRow = (what) => navKeys(inputKind() === 'pad').find(([, t]) => what.test(t)) || ['Middle mouse', 'Drag to orbit'];
 const nav = (what) => { const row = navRow(what); return `${row[1]} ${keysHTML(row[0])}`; };
 
 // remembers every object it has seen, so anything that happens to one of them can be noticed
@@ -263,7 +262,7 @@ function refresh() {
   const s = STEPS[idx];
   const lack = missing(s);
   const placing = document.body.classList.contains('placing');
-  const key = [easy(), inputKind(), lack, placing, ...ctx.did].join();
+  const key = [inputKind(), lack, placing, ...ctx.did].join();
   if (key === lastKey) return;
   lastKey = key;
   els.text.innerHTML = s.text?.() || '';

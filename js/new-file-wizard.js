@@ -1,4 +1,3 @@
-import { setNavMode } from './nav-mode.js';
 import { SHORTCUT_PRESETS, setShortcutPreset, shortcutPreset } from './shortcut-presets.js';
 
 /* =====================================================================
@@ -43,7 +42,6 @@ export function newFileWizard({ askName = true } = {}) {
       opts.forEach((b) => { b.onclick = () => {
         el.remove();
         setShortcutPreset(b.dataset.preset);
-        setNavMode(SHORTCUT_PRESETS[b.dataset.preset].navigation);
         done({ name });
       }; });
       el.querySelector('#wizBack')?.addEventListener('click', nameStep);

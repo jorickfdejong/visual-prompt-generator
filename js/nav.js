@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { state } from './state.js';
 import { editCam, orbit, renderer, vp } from './scene.js';
 import { pilot, shotCam } from './camera.js';
-import { isEasy } from './nav-mode.js';
 
 /* =====================================================================
    NAVIGATION: wheel / trackpad / pinch, Space + drag, Alt + drag, and the floating button that shows the names.
@@ -85,7 +84,7 @@ function onWheel(e) {
     (e.deltaX === 0 && wd && wd % 120 === 0 && now - lastTrackpad >= 250));
   if (mouse) {
     // wheel notch: exponential zoom (Shift may turn the wheel into horizontal-only)
-    zoomBy(Math.exp(cap(dy || dx, 100) * 0.0012), isEasy() ? e : null);
+    zoomBy(Math.exp(cap(dy || dx, 100) * 0.0012), state.mode === 'compose' ? e : null);
     return;
   }
   let mode = pinch ? 'pinch' : ctrl ? 'orbit' : e.shiftKey || e.altKey ? 'pan' : 'zoom';
@@ -93,10 +92,10 @@ function onWheel(e) {
   if (mode === 'zoom' && (padMode === 'orbit' || padMode === 'pan') && now - lastTrackpad < 100) mode = padMode;
   lastTrackpad = now;
   padMode = mode;
-  if (mode === 'pinch') zoomBy(Math.exp(cap(dy, 30) * 0.012), isEasy() ? e : null);
+  if (mode === 'pinch') zoomBy(Math.exp(cap(dy, 30) * 0.012), state.mode === 'compose' ? e : null);
   else if (mode === 'orbit') orbitBy(-cap(dx, 200), -cap(dy, 200));
   else if (mode === 'pan') panBy(-cap(dx, 200), -cap(dy, 200));   // as is: Shift may deliver only deltaX
-  else zoomBy(Math.exp(cap(dy, 100) * 0.003), isEasy() ? e : null);
+  else zoomBy(Math.exp(cap(dy, 100) * 0.003), state.mode === 'compose' ? e : null);
 }
 vp.addEventListener('wheel', onWheel, { passive: false });
 

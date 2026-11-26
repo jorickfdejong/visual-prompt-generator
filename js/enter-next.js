@@ -1,11 +1,11 @@
 // Enter in a detail goes to the next one. Objects: after the last it goes to "+ Add your own detail".
-const OBJECT = '#objName, [data-k], [data-mk], [data-ck], [data-cv], [data-mck], [data-mcv], #btnAddDetail';
-const WORLD = '#visualStyle, [data-env]';
+const OBJECT = '#objName, #detailPosture, [data-k], [data-mk], [data-ck], [data-cv], [data-mck], [data-mcv], #btnAddDetail';
+const WORLD = '[data-env]';
 
 function enterNext(panel, DETAILS) {
   panel.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter' || e.isComposing || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
-    if (e.target.id === 'btnAddDetail' || !e.target.matches(DETAILS)) return;
+    if (e.target.matches('#btnAddDetail, #detailPosture') || !e.target.matches(DETAILS)) return;
     e.preventDefault();
     if (e.repeat) return;
     const all = [...panel.querySelectorAll(DETAILS)], next = all[all.indexOf(e.target) + 1];

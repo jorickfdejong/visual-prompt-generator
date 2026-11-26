@@ -1,7 +1,7 @@
 export const SHORTCUT_PRESETS = {
-  blender: { label: 'Blender', navigation: 'pro', transform: ['G', 'R'], scale: ['S'], add: ['Shift + A'] },
-  sketchup: { label: 'SketchUp', navigation: 'pro', transform: ['M', 'Q'], scale: ['S'], add: ['Shift + A'] },
-  figma: { label: 'Figma', navigation: 'easy', transform: ['V'], scale: ['K'], add: ['Shift + I'] },
+  blender: { label: 'Blender', transform: ['G', 'R'], scale: ['S'], add: ['Shift + A'] },
+  sketchup: { label: 'SketchUp', transform: ['M', 'Q'], scale: ['S'], add: ['Shift + A'] },
+  figma: { label: 'Figma', transform: ['V'], scale: ['K'], add: ['Shift + I'] },
 };
 
 const storageKey = 'vpg.shortcutPreset';

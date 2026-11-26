@@ -136,7 +136,7 @@ button.bigDownload svg { width: 20px; height: 20px; fill: none; stroke: currentC
   background: rgba(29,31,35,.92); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 4px 14px rgba(0,0,0,.3); font-size: 11px; }
 #viewBar button.active { background: var(--panel-2); border-color: var(--accent); color: var(--accent); }
 #viewport { container: viewport / inline-size; }
-/* no room beside the Easy / Pro toggle: one row higher */
+/* Keep the view buttons clear of Help on narrow screens. */
 @container viewport (max-width: 480px) { #viewBar { bottom: 48px; } }
 #viewBar button { position: relative; padding: 2px 7px; border-radius: 12px; background: none; border-color: transparent; font-size: 11px; }
 #viewBar .tip { position: absolute; right: 0; bottom: calc(100% + 10px); white-space: pre; padding: 4px 8px; border-radius: 6px; font-size: 12px; color: var(--text);
@@ -144,9 +144,7 @@ button.bigDownload svg { width: 20px; height: 20px; fill: none; stroke: currentC
 #viewBar button:hover .tip { opacity: 1; }
 #viewBar .tipKey { margin-left: 8px; }
 body.camview #viewBar { display: none; }
-/* narrow: above the Easy / Pro toggle */
-@container viewport (max-width: 460px) { body.camview.nav-easy #camHint { left: 10px; right: auto; bottom: 50px; } }
-@container viewport (max-width: 600px) { body.camview:not(.nav-easy) #camHint { left: 10px; right: auto; bottom: 50px; } }
+@container viewport (max-width: 460px) { body.camview #camHint { left: 10px; right: auto; } }
 
 /* mouse / trackpad icons (js/input-icons.js) */
 #viewport svg.inIcon, svg.inIcon { display: inline-block; width: 16px; height: 16px; margin-right: 4px; vertical-align: -3px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
@@ -156,14 +154,12 @@ svg.inIcon .on { fill: var(--accent); stroke: none; }
 #viewport canvas.hovering { cursor: grab; }
 #nameLayer div.hover { background: #fff; color: #1d1f23; z-index: 1; }
 
-/* navigation mode */
-/* easy mode pointer: orbit, unless it is over something */
-body.nav-easy #viewport canvas { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cg stroke='white' stroke-width='4'%3E%3Cpath d='M20 12a8 8 0 1 1-2.34-5.66'/%3E%3Cpath d='M20 4v5h-5'/%3E%3Ccircle cx='12' cy='12' r='1.6'/%3E%3C/g%3E%3Cg stroke='%231d1f23' stroke-width='2'%3E%3Cpath d='M20 12a8 8 0 1 1-2.34-5.66'/%3E%3Cpath d='M20 4v5h-5'/%3E%3Ccircle cx='12' cy='12' r='1.6'/%3E%3C/g%3E%3C/svg%3E") 14 14, all-scroll; }
-body.nav-easy #viewport canvas.hovering { cursor: grab; }
-#viewport canvas.joint, #viewport canvas.gizmo-hot, body.nav-easy #viewport canvas.joint, body.nav-easy #viewport canvas.gizmo-hot { cursor: pointer; }
-body.nav-easy #viewport canvas.joint { cursor: grab; }
+/* Viewport cursor for orbiting empty space. */
+body #viewport canvas { cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 24 24' fill='none' stroke-linecap='round' stroke-linejoin='round'%3E%3Cg stroke='white' stroke-width='4'%3E%3Cpath d='M20 12a8 8 0 1 1-2.34-5.66'/%3E%3Cpath d='M20 4v5h-5'/%3E%3Ccircle cx='12' cy='12' r='1.6'/%3E%3C/g%3E%3Cg stroke='%231d1f23' stroke-width='2'%3E%3Cpath d='M20 12a8 8 0 1 1-2.34-5.66'/%3E%3Cpath d='M20 4v5h-5'/%3E%3Ccircle cx='12' cy='12' r='1.6'/%3E%3C/g%3E%3C/svg%3E") 14 14, all-scroll; }
+#viewport canvas.joint { cursor: grab; }
+#viewport canvas.gizmo-hot { cursor: pointer; }
 body.dragging-obj #viewport canvas { cursor: grabbing !important; }
-body.nav-easy #viewport.nav-space canvas { cursor: grab; }
+#viewport.nav-space canvas { cursor: grab; }
 
 /* name and details of the selected object */
 #nameLayer div.sel { display: flex; flex-direction: column; gap: 1px; padding: 4px 9px; background: rgba(29,31,35,.92); z-index: 2; font-weight: 400; line-height: 1.4; }
@@ -181,11 +177,6 @@ body.nav-easy #viewport.nav-space canvas { cursor: grab; }
 
 .simPill { align-self: flex-start; display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 11px; font-style: normal; font-weight: 600;
   color: var(--accent-2); background: rgba(75,163,240,.14); border: 1px solid rgba(75,163,240,.5); }
-#navMode { position: absolute; left: 52px; bottom: 10px; z-index: 4; height: 32px; display: flex; align-items: center; gap: 2px; padding: 0 3px 0 10px;
-  background: rgba(29,31,35,.92); border: 1px solid var(--line); border-radius: 16px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
-#navMode button { padding: 2px 10px; border-radius: 12px; background: none; border-color: transparent; }
-#navMode button.active { background: var(--panel-2); border-color: var(--accent); }
-body.camview #navMode { left: 10px; }
 #help { z-index: 6; }
 #btnTutorial { margin: 0 0 8px; }
 #navAsk { position: fixed; inset: 0; z-index: 16; display: grid; place-items: center; padding: 24px; background: rgba(0,0,0,.6); }
@@ -207,20 +198,18 @@ body.camview #navMode { left: 10px; }
   .navAskOpts button { flex-direction: row; justify-content: flex-start; }
 }
 
-/* single-select toggles (Easy / Pro, standard views): equal segments in one track, the chosen one filled */
-#navMode, #viewBar { gap: 0; padding: 2px; border-radius: 9px; box-sizing: border-box; background: #111316; }
-#navMode button, #viewBar button { height: 100%; padding: 0 10px; border: 0; border-radius: 7px; background: none; color: var(--muted); font-weight: 600; transition: background .15s, color .15s; }
+/* Standard view buttons share one track. */
+#viewBar { gap: 0; padding: 2px; border-radius: 9px; box-sizing: border-box; background: #111316; }
+#viewBar button { height: 100%; padding: 0 10px; border: 0; border-radius: 7px; background: none; color: var(--muted); font-weight: 600; transition: background .15s, color .15s; }
 #viewBar button { min-width: 44px; padding: 0 5px; }
-#navMode button { min-width: 46px; }
-#viewBar button + button::before, #navMode button + button::before { content: ""; position: absolute; left: 0; top: 25%; height: 50%; width: 1px; background: var(--line); }
-#navMode button { position: relative; }
-#viewBar button.active::before, #viewBar button.active + button::before, #navMode button.active::before, #navMode button.active + button::before { display: none; }
-#navMode button:hover, #viewBar button:hover { color: var(--text); background: rgba(255,255,255,.07); }
-#navMode button.active, #viewBar button.active { background: var(--accent); color: #1d1f23; }
-#navMode button:focus-visible, #viewBar button:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 1px; }
+#viewBar button + button::before { content: ""; position: absolute; left: 0; top: 25%; height: 50%; width: 1px; background: var(--line); }
+#viewBar button.active::before, #viewBar button.active + button::before { display: none; }
+#viewBar button:hover { color: var(--text); background: rgba(255,255,255,.07); }
+#viewBar button.active { background: var(--accent); color: #1d1f23; }
+#viewBar button:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 1px; }
 
 /* clicking a name on the canvas edits it */
-#viewport canvas.over-name, body.nav-easy #viewport canvas.over-name { cursor: text; }
+#viewport canvas.over-name { cursor: text; }
 body.panning #viewport canvas { cursor: move !important; }
 
 /* add / move / scale tools: a row at the bottom centre of the viewport (overrides the left column in styles.css) */

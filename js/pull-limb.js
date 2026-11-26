@@ -1,12 +1,11 @@
 import * as THREE from 'three';
 import { state } from './state.js';
-import { editCam, raycaster, renderer, vp } from './scene.js';
-import { pickDot, pickJoint, rayFrom, selectJoint } from './selection.js';
-import { isEasy } from './nav-mode.js';
+import { editCam, gizmoDragging, hitsRotationRing, raycaster, renderer, vp } from './scene.js';
+import { pickDot, rayFrom, selectJoint } from './selection.js';
 import { markDirty } from './prompt-panel.js';
 
 /* =====================================================================
-   PULLING LIMBS — posture editing in Easy mode: drag a dot and the limb that ends there follows the pointer (the elbow
+   PULLING LIMBS — direct posture editing: drag a dot and the limb that ends there follows the pointer (the elbow
    dot turns the shoulder), or drag a body part to turn it around its own joint. Whatever it hangs from stays put.
    ===================================================================== */
 const canvas = renderer.domElement;
@@ -19,20 +18,25 @@ const pivot = new THREE.Vector3(), a = new THREE.Vector3(), b = new THREE.Vector
 const turn = new THREE.Quaternion(), parentQ = new THREE.Quaternion();
 
 vp.addEventListener('pointerdown', (e) => {
-  if (pull || e.button !== 0 || e.target !== canvas || !isEasy() || state.mode !== 'edit' || state.cameraView) return;
+  if (pull || e.button !== 0 || e.target !== canvas || state.mode !== 'edit' || state.cameraView || gizmoDragging()) return;
   if (e.altKey || e.shiftKey || e.ctrlKey || e.metaKey) return;
-  const dot = pickDot(e), name = dot ? dot.userData.pulls : pickJoint(e);
-  if (!name) return;
+  const o = state.editing;
+  const dot = pickDot(e);
+  const body = dot ? null : raycaster.intersectObjects(o.meshes, false)[0];
+  const clickedJoint = dot?.userData.handle || body?.object.userData.joint;
+  const name = dot?.userData.pulls || clickedJoint;
+  // Over the doll, only the visible ring gets priority over a body drag.
+  if (!name || hitsRotationRing(raycaster)) return;
   e.stopImmediatePropagation();   // no orbiting and no sliding the whole doll
-  const o = state.editing, joint = o.joints[name];
+  const joint = o.joints[name];
   o.root.updateWorldMatrix(true, true);
-  const at = dot ? dot.getWorldPosition(new THREE.Vector3()) : raycaster.intersectObjects(o.meshes, false)[0].point;
+  const at = dot ? dot.getWorldPosition(new THREE.Vector3()) : body.point;
   const grab = joint.worldToLocal(at.clone());
-  if (!dot && grab.length() < MIN_REACH) grab.fromArray(TIPS[name.replace(/[LR]$/, '')]);
+  if (grab.length() < MIN_REACH) grab.fromArray(TIPS[name.replace(/[LR]$/, '')]);
   // the pointer moves in a plane facing the view
   const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(editCam.getWorldDirection(new THREE.Vector3()), at);
   const from = raycaster.ray.intersectPlane(plane, new THREE.Vector3()) || at;
-  pull = { id: e.pointerId, x: e.clientX, y: e.clientY, o, name, dot, joint, grab, plane, from, goal: joint.localToWorld(grab.clone()) };
+  pull = { id: e.pointerId, x: e.clientX, y: e.clientY, o, name, clickedJoint, dot, joint, grab, plane, from, goal: joint.localToWorld(grab.clone()) };
   try { canvas.setPointerCapture(e.pointerId); } catch { /* ignore */ }
 }, true);
 window.addEventListener('pointermove', (e) => {
@@ -61,10 +65,10 @@ window.addEventListener('pointermove', (e) => {
 });
 function end(e) {
   if (!pull || e.pointerId !== pull.id) return;
-  const { started, o, name, dot } = pull;
+  const { started, o, clickedJoint, dot } = pull;
   pull = null;
   document.body.classList.remove('dragging-obj');
-  if (!started && e.type === 'pointerup' && state.editing === o) selectJoint(name, dot);   // a click
+  if (!started && e.type === 'pointerup' && state.editing === o) selectJoint(clickedJoint, dot);   // a click selects the joint for the rings
 }
 window.addEventListener('pointerup', end);
 window.addEventListener('pointercancel', end);

@@ -8,7 +8,6 @@ import { exitCameraView } from './camera.js';
 import { renderObjectList } from './left-panel.js';
 import { namingObject, requireName, whenNamed } from './naming.js';
 import { orbitBy, panBy } from './nav.js';
-import { isEasy } from './nav-mode.js';
 import { showTab } from './side-tabs.js';
 import { flushPendingSave, markDirty } from './prompt-panel.js';
 
@@ -125,7 +124,7 @@ window.addEventListener('pointerdown', (e) => {
   stop(e);
   document.activeElement?.blur?.();
   ghost.aim = { clientX: e.clientX, clientY: e.clientY };
-  left = { ...d, drag: vp.classList.contains('nav-space') ? 'pan' : isEasy() || e.altKey ? 'orbit' : null };
+  left = { ...d, drag: vp.classList.contains('nav-space') ? 'pan' : 'orbit' };
   try { canvas.setPointerCapture(e.pointerId); } catch { /* ignore */ }
 }, true);
 window.addEventListener('pointerup', (e) => {

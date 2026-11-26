@@ -9,7 +9,7 @@
   @container viewport (max-width: 710px) { #placeHint { --strip-bottom: 96px; } }
   @container viewport (max-width: 480px) { #placeHint { --strip-bottom: 134px; } }
 }
-body.placing #viewport canvas, body.placing.nav-easy #viewport canvas { cursor: copy; }
+body.placing #viewport canvas { cursor: copy; }
 body.placing.panning #viewport canvas { cursor: grabbing; }
 
 /* required name of a new object (js/naming.js): the gate blocks and dims the app, the tutorial card (z-index 12) stays above it */

@@ -29,7 +29,7 @@ export const FAMILIES = {
   between: { label: 'Between', color: '#ffb74d', group: 'Relationships', off: true },
   sizeRel: { label: 'Height', color: '#b39ddb', group: 'Relationships', hint: 'taller, shorter, same height (upright objects only)', off: true },
   facingRel: { label: 'Facing each other', color: '#ffe082', group: 'Relationships', hint: 'Two objects turned towards each other', off: true },
-  environment: { label: 'World', color: '#a5d6a7', group: 'Scene', hint: 'World, lighting, floor, background and temperature' },
+  environment: { label: 'World', color: '#a5d6a7', group: 'Scene', hint: 'World, lighting, ground and background' },
   finalImage: { label: 'Visual style', color: '#fff176', group: 'Scene' },
   camera: { label: 'Camera', color: '#90caf9', group: 'Scene', hint: 'Shot size, angle, lens, aspect ratio' },
   custom: { label: 'Your own tuples', color: '#ffffff', group: 'Scene' },
@@ -59,7 +59,7 @@ export const DETAIL_FIELDS = [
   { key: 'hair', label: 'Hair', type: 'text', placeholder: 'e.g. long curly red', suffix: 'hair' },
   { key: 'clothing', label: 'Clothing', type: 'text', placeholder: 'e.g. blue denim jacket' },
   { key: 'expression', label: 'Expression', type: 'text', required: true, placeholder: 'e.g. smiling' },
-  { key: 'pose', label: 'Posture', type: 'text', required: true, placeholder: 'e.g. sitting' },
+  { key: 'pose', label: 'Posture', type: 'select', required: true },
   { key: 'action', label: 'Action', type: 'text', required: true, placeholder: 'e.g. holding a coffee cup' },
 ];
 
@@ -69,7 +69,6 @@ export const ENV_FIELDS = [
   { key: 'lighting', label: 'Lighting', placeholder: 'e.g. golden hour', suffix: 'lighting' },
   { key: 'floor', label: 'Ground', placeholder: 'e.g. wet cobblestones', suffix: 'floor', optional: true },
   { key: 'background', label: 'Background', placeholder: 'e.g. snowy mountains', suffix: 'background', optional: true },
-  { key: 'temperature', label: 'Temperature', placeholder: 'e.g. freezing cold', suffix: 'temperature', optional: true },
 ];
 export const ENV_DEFAULT = () => Object.fromEntries(ENV_FIELDS.map((f) => [f.key, '']));
 

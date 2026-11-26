@@ -17,8 +17,7 @@ export const SKELETON = [
 ];
 // Easy mode: pulling a dot turns the joint it hangs from (the elbow dot swings the arm around the shoulder).
 // The dots of the pelvis, spine and hips would turn the whole doll, so Easy leaves them out.
-const DOT_PULLS = Object.fromEntries(SKELETON.filter(([, parent]) => parent && parent !== 'pelvis').map(([n, parent]) => [n, parent]));
-const TIP_DOTS = { head: [0, 0.25, 0], wristL: [0, -0.13, 0], wristR: [0, -0.13, 0], ankleL: [0, -0.015, 0.15], ankleR: [0, -0.015, 0.15] };
+const DOT_PULLS = Object.fromEntries(SKELETON.filter(([, parent]) => parent && parent !== 'pelvis').map(([name, parent]) => [name, parent]));
 export const PELVIS_Y = 0.95;
 // Pose presets: joint -> [x, y, z] degrees. Doll faces +Z, its left side is +X.
 export const POSES = {
@@ -92,19 +91,7 @@ export function createMannequin(accent) {
     h.scale.setScalar(name === 'pelvis' ? 0.05 : 0.038);
     h.renderOrder = 999;
     h.userData.handle = name;
-    h.visible = false;
-    joints[name].add(h);
-    setHelper(h);
     h.userData.pulls = DOT_PULLS[name];
-    handles.push(h);
-  }
-  // ends of the limbs: only for pulling (Easy mode)
-  for (const [name, pos] of Object.entries(TIP_DOTS)) {
-    const h = new THREE.Mesh(unitSphere, hMat.clone());
-    h.scale.setScalar(0.03);
-    h.position.set(...pos);
-    h.renderOrder = 999;
-    h.userData.pulls = name;
     h.visible = false;
     joints[name].add(h);
     setHelper(h);

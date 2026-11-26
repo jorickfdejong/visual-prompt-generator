@@ -2,13 +2,12 @@ import * as THREE from 'three';
 import { state } from './state.js';
 import { editCam, gizmoDragging, gizmoHot, orbit, raycaster, renderer, vp } from './scene.js';
 import { pilot, shotCam } from './camera.js';
-import { exitEdit, pickCompose, pickHandle, rayFrom, selectCamera, selectObject, selObjs } from './selection.js';
+import { exitEdit, pickCompose, pickJoint, rayFrom, selectCamera, selectObject, selObjs } from './selection.js';
 import { syncTransformInputs } from './left-panel.js';
-import { isEasy } from './nav-mode.js';
 import { markDirty } from './prompt-panel.js';
 
 /* =====================================================================
-   LEFT DRAG — on an object: slides it over the floor. Anywhere else: orbits in Easy mode, box-selects in Pro.
+   LEFT DRAG — on an object: slides it over the floor. On empty space: orbits.
    (The gizmo's own listeners run first, so its handles win. Shift + drag on empty space box-selects.)
    ===================================================================== */
 const canvas = renderer.domElement;
@@ -16,21 +15,21 @@ const THRESHOLD = 4, MAX_DIST = 60;
 let drag = null;   // { id, x, y, hit, plane, from, flat, items }
 const p = new THREE.Vector3(), n = new THREE.Vector3();
 
-// orbiting is left to OrbitControls, so it is as smooth as the middle mouse in Pro: before it sees the press
+// OrbitControls handles left and middle mouse orbiting: before it sees the press
 // (capture), give it the left button or not
 vp.addEventListener('pointerdown', (e) => {
   if (e.button !== 0 || e.target !== canvas) return;
   let left = null;
-  if (isEasy() && !(e.altKey || e.shiftKey || e.ctrlKey || e.metaKey || gizmoDragging() || gizmoHot())) {
-    const joint = state.mode === 'edit' && !state.cameraView && pickHandle(e);
-    if (state.cameraView || joint || !pickCompose(e)) left = THREE.MOUSE.ROTATE;
+  if (!(e.altKey || e.shiftKey || e.ctrlKey || e.metaKey || gizmoDragging() || gizmoHot())) {
+    const joint = state.mode === 'edit' && pickJoint(e);
+    if (state.cameraView || (!joint && !pickCompose(e))) left = THREE.MOUSE.ROTATE;
   }
   orbit.mouseButtons.LEFT = left;
   if (pilot) pilot.mouseButtons.LEFT = left;
 }, true);
 canvas.addEventListener('pointerdown', (e) => {
   if (drag || e.button !== 0 || e.altKey || gizmoDragging() || gizmoHot()) return;
-  if (state.cameraView || (state.mode === 'edit' && pickHandle(e))) return;
+  if (state.cameraView || (state.mode === 'edit' && pickJoint(e))) return;
   const hit = pickCompose(e);
   if (!hit || e.shiftKey || e.ctrlKey || e.metaKey) return;   // with a key held, clicks change the selection
   drag = { id: e.pointerId, x: e.clientX, y: e.clientY, hit, items: null };
