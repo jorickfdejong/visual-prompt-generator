@@ -95,6 +95,10 @@
   <div class="modalBox">
     <header><h1 id="exportTitle">Export</h1><button id="btnCloseExport" class="icon" aria-label="Close">✕</button></header>
     <div class="modalBody">
+    <section aria-labelledby="promptCardsTitle">
+      <h2 id="promptCardsTitle">Detail of objects</h2>
+      <div id="promptCards" class="promptCards"></div>
+    </section>
     <div class="exportTop">
     <section id="exportText">
       <h2><label for="promptEdit">Prompt text</label><span class="editTag"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>Editable: click and type</span></h2>
@@ -116,10 +120,6 @@
     </section>
     </div>
     <ul id="promptWarnings" aria-label="Warnings" hidden></ul>
-    <section aria-labelledby="promptCardsTitle">
-      <h2 id="promptCardsTitle">Detail of objects</h2>
-      <div id="promptCards" class="promptCards"></div>
-    </section>
 
     <h2 class="genTitle" hidden>Change what the text is made from</h2>
     <section hidden>
