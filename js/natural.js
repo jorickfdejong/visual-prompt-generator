@@ -2,13 +2,14 @@ import { ENV_FIELDS, state } from './state.js';
 import { activeTuples, exportId } from './relations.js';
 import { depthWord, footprintsOverlap, leftToRight } from './world-facts.js';
 import { TYPES } from './types.js';
-import { typeWord } from './details.js';
+import { typesIn } from './props.js';
+import { panelFields, typeWord } from './details.js';
 import { fixedLines, TEMPLATES, tupleParts } from './prompt-rules.js';
 
 /* =====================================================================
    NATURAL-LANGUAGE PROMPT — deterministic prose derived from the same resolved tuples as the export
    (activeTuples(): family toggles, overrides and custom tuples are honoured).
-   Objects run from left to right in the frame, then layout, camera and lighting; the closing lines come from prompt-rules.js.
+   Objects run from left to right in the frame, then layout, camera and lighting; the opening lines come from prompt-rules.js.
    Parts of a sentence are strings or segments { text, target } (target = { kind: 'obj', id } | { kind: 'camera' } | { kind: 'environment' } | { kind: 'finalImage' }).
    ===================================================================== */
 
@@ -58,13 +59,10 @@ function gather() {
   const facts = state.facts;
   const vis = leftToRight(facts).filter((o) => !o.hidden && state.objects.includes(o));
   const byId = new Map(vis.map((o) => [o.id, o]));
-  const info = new Map(vis.map((o) => [o.id, { noun: null, fields: {}, custom: [], size: null, facing: null, orient: [], placement: null }]));
+  const info = new Map(vis.map((o) => [o.id, { noun: null, fields: {}, custom: [], size: null, facing: null, orient: [] }]));
   const g = { facts, same: new Set(), vis, byId, info, edges: { left: [], front: [], vert: [], larger: [] }, stand: [], between: [], faces: [], camera: [], env: {}, style: '', custom: [], adj: new Set() };
   const pairKey = (a, b) => (a < b ? a + '|' + b : b + '|' + a);
   g.pairKey = pairKey;
-  // how the objects really stand, also when their orientation is left out of the prompt
-  const turned = new Set(state.tuples.filter((t) => t.family === 'orientation').map((t) => t.objIds[0]));
-  g.upright = (id) => !turned.has(id);
   for (const t of activeTuples()) {
     if (t.custom) { g.custom.push(t.text); continue; }
     const ids = t.objIds || [];
@@ -86,7 +84,6 @@ function gather() {
         else if (t.rel === 'shorter') g.edges.larger.push([ids[1], ids[0], 'larger', t.overridden]);
         else if (t.rel === 'sameHeight') g.same.add(pairKey(ids[0], ids[1]));
         break;
-      case 'placement': if (inf) inf.placement = t.parts[0]; break;
       case 'orientation': if (inf) inf.orient.push(t.parts[0]); break;
       case 'facing': if (inf) inf.facing = t.parts[0]; break;
       case 'facingRel':
@@ -307,7 +304,12 @@ function layoutSentences(g) {
 
 /* ---------- which object is which: by place and pose in the frame, never by colour ---------- */
 const ORDINAL = ['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth'];
-const kindOf = (o) => (o.type === 'mannequin' ? 'figure' : o.type === 'image' ? 'picture' : TYPES[o.type].geometry ? o.type + '-shaped stand-in' : o.type);
+// what a group looks like in the image
+function groupKind(o) {
+  const types = typesIn(o);
+  return 'group of ' + (types.every((t) => t === 'image') ? 'pictures' : types.every((t) => TYPES[t]?.geometry) ? 'shapes' : 'objects');
+}
+const kindOf = (o) => (o.type === 'group' ? groupKind(o) : o.type === 'mannequin' ? 'figure' : o.type === 'image' ? 'picture' : TYPES[o.type].geometry ? typeWord(o) + '-shaped stand-in' : typeWord(o));
 function poseWord(o, inf) {
   if (o.type !== 'mannequin') return '';
   const n = inf.orient.find((x) => /^(lying|leaning|upsideDown)/.test(x));
@@ -336,18 +338,6 @@ function identify(g, o) {
   if (hid) parts.push(f.hidden.part === 'fully' ? ', hidden behind ' : ', partly hidden behind ', refObj(hid));
   parts.push((extra || hid || head.endsWith(',') ? ',' : '') + ' is ', refObj(o));
   return parts;
-}
-
-function placementSentence(g, o) {
-  const inf = g.info.get(o.id);
-  if (inf.placement === 'floating') return [refObj(o), ' is in the air, off the ground.'];
-  if (inf.placement !== 'onGround') return null;
-  if (o.type === 'mannequin' && g.upright(o.id)) {
-    if (/^standing$/i.test(inf.fields.pose || '')) return [refObj(o), ' is standing on the ground.'];
-    const hip = o.joints.pelvis.matrixWorld.elements[13];
-    if (hip > 0.3 * o.root.scale.x) return [refObj(o), ' has ' + pronouns(o, inf.fields.gender).poss + ' feet on the ground.'];
-  }
-  return [refObj(o), ' is on the ground.'];
 }
 
 function objectParagraph(g, o) {
@@ -379,8 +369,6 @@ function objectParagraph(g, o) {
   if (inf.size && inf.size !== 'medium') sents.push([refObj(o), ' is ', inf.size, '.']);
   const fp = inf.facing ? facingParts(inf.facing, { ...p, pl: false, be: 'is' }) : null;
   if (fp) sents.push([refObj(o), ' ', ...resolveBE(fp, 'is'), '.']);
-  const pl = placementSentence(g, o);
-  if (pl) sents.push(pl);
   return sents;
 }
 
@@ -410,7 +398,7 @@ function environmentSentences(g) {
     out.push([refEnv('The scene'), ' is set ' + where + '.']);
   }
   if (e.temperature) out.push([refEnv('The temperature'), ' is ' + e.temperature + '.']);
-  for (const [k, v] of Object.entries(e)) if (!['setting', 'lighting', 'temperature'].includes(k)) out.push([refEnv(cap(k)), ' is ' + v + '.']);
+  for (const [k, v] of Object.entries(e)) if (!['setting', 'lighting', 'temperature'].includes(k)) out.push([refEnv('The ' + k), ' is ' + v + '.']);
   return out;
 }
 
@@ -462,14 +450,14 @@ function describeCards(g) {
     const subject = o.details.subject?.trim();
     const title = subject || g.info.get(o.id).noun || TYPES[o.type].noun;
     const paragraph = segmentText(paragraphSegments(objectParagraph(g, o)));
-    const details = detailLines(TYPES[o.type].fields.filter((f) => !f.asNoun), o.details);
+    const details = detailLines(panelFields(o).filter((f) => !f.asNoun), o.details);
     for (const detail of o.details.custom || []) {
       const label = detail.key?.trim(), value = detail.value?.trim();
       if (label && value) details.push(value);
     }
     return { key: objectCardKey(o.id), objectId: o.id, title: cap(title), name: nameOf(o), text: details.join('\n'), paragraphs: paragraph ? [paragraph] : [] };
   });
-  cards.push({ key: environmentCardKey, title: 'Environment', text: detailLines(ENV_FIELDS, state.environment).join('\n'), paragraphs: environmentParts });
+  cards.push({ key: environmentCardKey, title: 'World', text: detailLines(ENV_FIELDS, state.environment).join('\n'), paragraphs: environmentParts });
   return cards;
 }
 
@@ -521,7 +509,7 @@ export function naturalText() {
 
 const safeColor = (c) => (/^#[0-9a-f]{3,8}$/i.test(String(c)) ? c : '');
 export function renderNatural(el) {
-  const body = paragraphs(), paras = [...body, ...fixedLines().map((text) => [{ text }])];
+  const body = paragraphs(), paras = [...fixedLines().map((text) => [{ text }]), ...body];
   const sig = JSON.stringify([paras, paras.flat().map((s) => (s.target?.kind === 'obj' ? state.objects.find((o) => o.id === s.target.id)?.accent : 0))]);
   if (el._natSig === sig) return;
   el._natSig = sig;

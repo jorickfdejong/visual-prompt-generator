@@ -5,12 +5,14 @@ import { buildImageCard, createImageCard, IMG_H, STAND } from './image-card.js';
 import { scaleRange } from './objects.js';
 import { camel } from './relations.js';
 import { propTypes } from './props.js';
+import { groupType } from './group.js';
 
-// what a puppet represents: a role ("waiter"); a proper name ("Anna") only names the puppet
+// what a doll represents: a role ("waiter"); a proper name ("Anna") only names the doll
 const roleOf = (o) => { const s = (o.details.subject || '').trim(); return /^[A-Z]/.test(s) ? '' : camel(s); };
 
 export const TYPES = {
   ...propTypes((s) => camel(s)),
+  group: groupType((s) => camel(s)),
   image: {
     noun: 'image',
     nounOf: (o) => camel(o.details.subject || '') || 'image',   // what the picture shows becomes its noun

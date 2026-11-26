@@ -104,21 +104,23 @@ const LIST = [
   ['car', 'Car', 'object', 1.5, 'none', createCar, '<path d="M3 17V13c0-4 2-6 5-6h4c3 0 4 2 5 4 3 0 4 2 4 6z"/><circle cx="8" cy="17" r="2.2"/><circle cx="16" cy="17" r="2.2"/>'],
   ['house', 'House', 'object', 2.5, 'none', createHouse, '<path d="M5 21V11l7-8 7 8v10z"/>'],
   ['cube', 'Cube', 'geometry', 1, 'cube', geometry(() => new THREE.BoxGeometry(1, 1, 1)), '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9"/>'],
-  ['ball', 'Ball', 'geometry', 1, 'ball', geometry(() => new THREE.SphereGeometry(0.5, 40, 28)), '<circle cx="12" cy="12" r="8.5"/>'],
+  ['ball', 'Sphere', 'geometry', 1, 'ball', geometry(() => new THREE.SphereGeometry(0.5, 40, 28)), '<circle cx="12" cy="12" r="8.5"/>'],
   ['cylinder', 'Cylinder', 'geometry', 1, 'flip', geometry(() => new THREE.CylinderGeometry(0.5, 0.5, 1, 40)), '<ellipse cx="12" cy="6" rx="6.5" ry="2.5"/><path d="M5.500 6v12c0 1.400 3 2.500 6.500 2.500s6.500-1.100 6.500-2.500V6"/>'],
   ['pyramid', 'Pyramid', 'geometry', 1, 'round', geometry(() => { const g = new THREE.ConeGeometry(Math.SQRT1_2, 1, 4, 1).toNonIndexed(); g.rotateY(Math.PI / 4); g.computeVertexNormals(); return g; }), '<path d="M12 3l9 15-9 3-9-3zM12 3v18"/>'],
   ['cone', 'Cone', 'geometry', 1, 'round', geometry(() => new THREE.ConeGeometry(0.5, 1, 40)), '<path d="M12 3L5.500 18.500M12 3l6.500 15.500"/><ellipse cx="12" cy="18.500" rx="6.500" ry="2.500"/>'],
   ['line', 'Line', 'geometry', 1, 'flip', geometry(() => new THREE.CylinderGeometry(LINE_RADIUS, LINE_RADIUS, 1, 12)), '<path d="M5 19L19 5"/>'],
 ];
 export const PROPS = LIST.map(([type, label, group, , , , icon]) => ({ type, label, group, icon }));
+// the types an object consists of: its own, or those of the members of a group (also for saved data)
+export const typesIn = (o) => (o.type === 'group' ? o.members.flatMap(typesIn) : [o.type]);
 // camel is passed in because relations.js imports types.js (a cycle)
 export function propTypes(camel) {
-  return Object.fromEntries(LIST.map(([type, , group, h, symmetry, create]) => [type, {
+  return Object.fromEntries(LIST.map(([type, label, group, h, symmetry, create]) => [type, {
     noun: group === 'geometry' ? 'object' : type,   // a shape only stands in for something
     geometry: group === 'geometry',
     stretch: true,
     nounOf: (o) => camel(o.details.subject || '') || (group === 'geometry' ? 'object' : type),
-    baseName: type,
+    baseName: label.toLowerCase(),   // the word people see; the type itself is what saved scenes hold ('ball')
     scaleRange: [0.1, 10],
     height: () => h,
     symmetry,

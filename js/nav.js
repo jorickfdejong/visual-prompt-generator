@@ -5,7 +5,7 @@ import { pilot, shotCam } from './camera.js';
 import { isEasy } from './nav-mode.js';
 
 /* =====================================================================
-   NAVIGATION: wheel / trackpad / pinch, Space + drag, Alt + drag, and the floating camera-controls widget.
+   NAVIGATION: wheel / trackpad / pinch, Space + drag, Alt + drag, and the floating button that shows the names.
    Works on the active controls (`pilot` in camera view, else `orbit`). OrbitControls keeps the mouse buttons
    (middle = orbit, right / Shift + middle = pan); its wheel zoom is off (see blenderControls) and handled here.
    Only used inside event handlers, so the import cycles are harmless.
@@ -21,7 +21,7 @@ function camOf(c) { return c === pilot ? shotCam : editCam; }
 function finish(c) { c.update(); }   // pilot 'change' -> markDirty; the orbit view needs no dirty flag
 
 // drag-equivalent orbit, in CSS pixels (same speed as OrbitControls rotating)
-function orbitBy(dx, dy) {
+export function orbitBy(dx, dy) {
   const c = active(); if (!c) return;
   const cam = camOf(c), h = vp.clientHeight || 1;
   _off.copy(cam.position).sub(c.target);
@@ -35,7 +35,7 @@ function orbitBy(dx, dy) {
   finish(c);
 }
 // drag-equivalent pan, screen-scaled by distance and fov like OrbitControls (the scene follows the pointer)
-function panBy(dx, dy) {
+export function panBy(dx, dy) {
   const c = active(); if (!c) return;
   const cam = camOf(c), h = vp.clientHeight || 1;
   const dist = cam.position.distanceTo(c.target) * Math.tan((cam.fov / 2) * Math.PI / 180);
@@ -141,68 +141,33 @@ window.addEventListener('pointerup', endDrag);
 window.addEventListener('pointercancel', endDrag);
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
-/* ---------- floating widget ---------- */
-const ICONS = {
-  names: '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.2"/>',
-  rotate: '<path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/><circle cx="12" cy="12" r="1.6"/>',
-  pan: '<path d="M18 11V6a2 2 0 0 0-4 0M14 10V4a2 2 0 0 0-4 0v2M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/>',
-  minus: '<path d="M5 12h14"/>',
-  plus: '<path d="M12 5v14M5 12h14"/>',
-};
-const widget = document.createElement('div');
-widget.id = 'navWidget';
-widget.setAttribute('role', 'group');
-widget.setAttribute('aria-label', 'Camera controls');
-function mk(id, tip, key, icon) {
-  const b = document.createElement('button');
-  b.type = 'button'; b.id = id; b.dataset.tip = tip; b.dataset.key = key;
-  b.setAttribute('aria-label', tip + (key ? ` (${key.replaceAll('\n', ', ')})` : ''));
-  b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[icon]}</svg>`;
-  widget.appendChild(b);
-  return b;
+/* ---------- middle drag: Shift pans, also when it is pressed after the drag began ---------- */
+// stops the glide of the previous drag, so a pan does not turn the view along
+const _p = new THREE.Vector3(), _t = new THREE.Vector3();
+function stopGlide(c) {
+  const cam = camOf(c), damping = c.enableDamping;
+  _p.copy(cam.position); _t.copy(c.target);
+  c.enableDamping = false;
+  c.update();   // uses up what is left of the glide
+  c.enableDamping = damping;
+  cam.position.copy(_p); c.target.copy(_t);
+  c.update();
 }
-mk('btnNames', 'Show object names', 'N', 'names').setAttribute('aria-pressed', 'false');   // wired in main.js, kept in step by labels.js
-const bRot = mk('navRotate', 'Orbit (hold)', 'Middle mouse drag\nCtrl + Two fingers', 'rotate');
-const bPan = mk('navPan', 'Pan (hold)', 'Shift + Middle mouse drag\nShift + Two fingers', 'pan');
-const bOut = mk('navZoomOut', 'Zoom out (hold)', 'Mouse wheel\nTwo fingers', 'minus');
-const bIn = mk('navZoomIn', 'Zoom in (hold)', 'Mouse wheel\nTwo fingers', 'plus');
-vp.appendChild(widget);
-widget.addEventListener('contextmenu', (e) => e.preventDefault());
+let mid = null;   // { id, x, y, pan } of a middle drag that OrbitControls started as an orbit
+vp.addEventListener('pointerdown', (e) => {
+  const c = active();
+  if (!c || e.target !== canvas || e.pointerType === 'touch') return;
+  if (e.button === 2 || (e.button === 1 && e.shiftKey)) stopGlide(c);
+  if (e.button === 1) mid = e.shiftKey || e.ctrlKey || e.metaKey ? null : { id: e.pointerId, x: e.clientX, y: e.clientY, pan: false };
+}, true);
+vp.addEventListener('pointermove', (e) => {
+  if (!mid || e.pointerId !== mid.id) return;
+  const dx = e.clientX - mid.x, dy = e.clientY - mid.y;
+  mid.x = e.clientX; mid.y = e.clientY;
+  if (!mid.pan && e.shiftKey && active()) { mid.pan = true; stopGlide(active()); }   // stays a pan until the button is released
+  if (!mid.pan) return;
+  e.stopPropagation();   // OrbitControls would turn the view
+  panBy(dx, dy);
+}, true);
+for (const t of ['pointerup', 'pointercancel']) window.addEventListener(t, (e) => { if (mid && e.pointerId === mid.id) mid = null; }, true);
 
-function padDrag(btn, fn, arrowStep) {
-  let id = null, lx = 0, ly = 0;
-  btn.addEventListener('pointerdown', (e) => {
-    if (e.button !== 0) return;
-    id = e.pointerId; lx = e.clientX; ly = e.clientY;
-    btn.setPointerCapture(id); btn.classList.add('held'); e.preventDefault();
-  });
-  btn.addEventListener('pointermove', (e) => {
-    if (e.pointerId !== id) return;
-    fn(e.clientX - lx, e.clientY - ly); lx = e.clientX; ly = e.clientY;
-  });
-  const up = (e) => { if (e.pointerId === id) { id = null; btn.classList.remove('held'); } };
-  btn.addEventListener('pointerup', up);
-  btn.addEventListener('pointercancel', up);
-  btn.addEventListener('keydown', (e) => {
-    const m = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
-    if (!m) return;
-    e.preventDefault(); fn(m[0] * arrowStep, m[1] * arrowStep);
-  });
-}
-padDrag(bRot, orbitBy, 12);
-padDrag(bPan, panBy, 12);
-
-function holdRepeat(btn, factor) {
-  let delay = null, timer = null;
-  const stop = () => { clearTimeout(delay); clearInterval(timer); delay = timer = null; btn.classList.remove('held'); };
-  btn.addEventListener('pointerdown', (e) => {
-    if (e.button !== 0) return;
-    e.preventDefault(); btn.classList.add('held');
-    zoomBy(factor);
-    delay = setTimeout(() => { timer = setInterval(() => zoomBy(factor), 45); }, 320);
-  });
-  ['pointerup', 'pointercancel', 'pointerleave', 'blur'].forEach((t) => btn.addEventListener(t, stop));
-  btn.addEventListener('click', (e) => { if (e.detail === 0) zoomBy(factor); });   // keyboard activation
-}
-holdRepeat(bOut, 1.06);
-holdRepeat(bIn, 1 / 1.06);

@@ -19,7 +19,6 @@ export const FAMILIES = {
   inFrame: { label: 'Place in frame', color: '#bcaaa4', group: 'Objects', hint: 'Where an object is in the picture and what hides it (written prompt only)' },
   facing: { label: 'Facing direction', color: '#ffd54f', group: 'Objects', hint: 'Towards the camera, in profile, from the back' },
   orientation: { label: 'Orientation', color: '#4dd0e1', group: 'Objects', hint: 'Lying, leaning, upside down' },
-  placement: { label: 'On the ground / floating', color: '#a1887f', group: 'Objects' },
   size: { label: 'Size', color: '#9575cd', group: 'Objects', hint: 'small, medium, large', off: true },
   leftRight: { label: 'Left / right', color: '#4ba3f0', group: 'Relationships' },
   frontBack: { label: 'Front / back', color: '#26a69a', group: 'Relationships' },
@@ -30,11 +29,11 @@ export const FAMILIES = {
   between: { label: 'Between', color: '#ffb74d', group: 'Relationships', off: true },
   sizeRel: { label: 'Height', color: '#b39ddb', group: 'Relationships', hint: 'taller, shorter, same height (upright objects only)', off: true },
   facingRel: { label: 'Facing each other', color: '#ffe082', group: 'Relationships', hint: 'Two objects turned towards each other', off: true },
-  environment: { label: 'Environment', color: '#a5d6a7', group: 'Scene', hint: 'Environment, temperature and lighting' },
+  environment: { label: 'World', color: '#a5d6a7', group: 'Scene', hint: 'World, lighting, floor, background and temperature' },
   finalImage: { label: 'Visual style', color: '#fff176', group: 'Scene' },
   camera: { label: 'Camera', color: '#90caf9', group: 'Scene', hint: 'Shot size, angle, lens, aspect ratio' },
   custom: { label: 'Your own tuples', color: '#ffffff', group: 'Scene' },
-  closing: { label: 'Closing lines', color: '#eeeeee', group: 'Scene', hint: 'How to use the reference image, shapes as stand-ins, and full colour' },
+  closing: { label: 'Opening lines', color: '#eeeeee', group: 'Scene', hint: 'How to use the reference images, shapes as stand-ins, and full colour' },
 };
 // Alternatives offered in a relation's override dropdown
 export const ALTS = {
@@ -59,16 +58,18 @@ export const DETAIL_FIELDS = [
   { key: 'skin', label: 'Skin', type: 'skin', suffix: 'skin' },
   { key: 'hair', label: 'Hair', type: 'text', placeholder: 'e.g. long curly red', suffix: 'hair' },
   { key: 'clothing', label: 'Clothing', type: 'text', placeholder: 'e.g. blue denim jacket' },
-  { key: 'expression', label: 'Expression', type: 'text', placeholder: 'e.g. smiling' },
-  { key: 'pose', label: 'Posture', type: 'text', placeholder: 'e.g. sitting' },
-  { key: 'action', label: 'Action', type: 'text', placeholder: 'e.g. holding a coffee cup' },
+  { key: 'expression', label: 'Expression', type: 'text', required: true, placeholder: 'e.g. smiling' },
+  { key: 'pose', label: 'Posture', type: 'text', required: true, placeholder: 'e.g. sitting' },
+  { key: 'action', label: 'Action', type: 'text', required: true, placeholder: 'e.g. holding a coffee cup' },
 ];
 
-// labels describing the environment as a whole (Environment panel), exported as tuples and in the written prompt
+// labels describing the environment as a whole (World panel), exported as tuples and in the written prompt
 export const ENV_FIELDS = [
-  { key: 'setting', label: 'Environment', placeholder: 'e.g. sunny park' },
-  { key: 'temperature', label: 'Temperature', placeholder: 'e.g. freezing cold', suffix: 'temperature' },
+  { key: 'setting', label: 'World', placeholder: 'e.g. sunny park' },
   { key: 'lighting', label: 'Lighting', placeholder: 'e.g. golden hour', suffix: 'lighting' },
+  { key: 'floor', label: 'Ground', placeholder: 'e.g. wet cobblestones', suffix: 'floor', optional: true },
+  { key: 'background', label: 'Background', placeholder: 'e.g. snowy mountains', suffix: 'background', optional: true },
+  { key: 'temperature', label: 'Temperature', placeholder: 'e.g. freezing cold', suffix: 'temperature', optional: true },
 ];
 export const ENV_DEFAULT = () => Object.fromEntries(ENV_FIELDS.map((f) => [f.key, '']));
 
@@ -82,14 +83,12 @@ export const state = {
   cameraView: false,
   camera: { focal: 35, aspect: '16:9' },
   notes: '',
-  promptEdit: null,        // { text, base } when the prompt was edited by hand in Export
   promptCardEdits: {},
   environment: ENV_DEFAULT(),
   visualStyle: '',         // look of the final image (Final image panel)
-  settings: { cell: 0.5, showNames: false, promptDefaults: 3, reference: 'depth', families: Object.fromEntries(Object.keys(FAMILIES).map((k) => [k, !FAMILIES[k].off])) },
+  settings: { cell: 0.5, showNames: false, promptDefaults: 3, families: Object.fromEntries(Object.keys(FAMILIES).map((k) => [k, !FAMILIES[k].off])) },
   overrides: {},           // tupleKey -> { off?: true, rel?: string }
   custom: [],              // [{ text, off }]
   tuples: [],
   facts: new Map(),        // world facts per object id, refreshed with the tuples
-  lastShot: null,          // dataURL
 };

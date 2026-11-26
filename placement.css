@@ -1,0 +1,35 @@
+/* placing a new object (js/placement.js) */
+/* above the tool strip (same steps as feedback.css) */
+#placeHint { --strip-bottom: 10px; position: absolute; bottom: calc(var(--strip-bottom) + 54px); left: 50%; transform: translateX(-50%); z-index: 3; padding: 6px 14px; border-radius: 16px; pointer-events: none;
+  background: rgba(29,31,35,.94); border: 1px solid var(--accent); color: var(--text); font-size: 12px; font-weight: 600; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,.3); }
+#placeHint[hidden] { display: none; }
+@container viewport (max-width: 710px) { #placeHint { --strip-bottom: 52px; } }
+@container viewport (max-width: 480px) { #placeHint { --strip-bottom: 90px; } }
+@media (max-height: 520px) {
+  @container viewport (max-width: 710px) { #placeHint { --strip-bottom: 96px; } }
+  @container viewport (max-width: 480px) { #placeHint { --strip-bottom: 134px; } }
+}
+body.placing #viewport canvas, body.placing.nav-easy #viewport canvas { cursor: copy; }
+body.placing.panning #viewport canvas { cursor: grabbing; }
+
+/* required name of a new object (js/naming.js): the gate blocks and dims the app, the tutorial card (z-index 12) stays above it */
+#nameGate { position: fixed; inset: 0; z-index: 11; background: rgba(10,12,15,.5); touch-action: none; }
+body.naming #tutRing { visibility: hidden; }
+#nameBox { position: fixed; left: 0; top: 0; z-index: 13; width: 240px; max-width: calc(100vw - 16px); padding: 12px; border: 1px solid var(--line); border-radius: 12px;
+  background: rgba(29,31,35,.98); box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+#nameBox input { padding: 6px 8px; text-align: center; font-size: 14px; border: 1px solid #59606a; }
+#nameBox input:focus { outline: none; border-color: #8a9099; }
+#nameBox label { display: block; margin: 0 0 6px; text-align: center; font-size: 13px; font-weight: 600; }
+#nameBox > div { margin-top: 8px; }
+#nameBox p:empty { display: none; }
+#nameBox p { margin: 6px 0 8px; text-align: center; font-size: 12px; line-height: 1.35; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+#nameBox > div { display: flex; justify-content: space-between; gap: 6px; }
+#nameBox button { font-size: 12px; }
+#nameBox button:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+#nameBox .nameRemove { background: none; border-color: transparent; color: var(--muted); }
+#nameBox .nameRemove:hover { border-color: var(--danger); color: var(--danger); }
+#nameBox.bad input { border-color: var(--danger); }
+#nameBox.bad p { color: #ff8a80; }
+#nameBox.shake { animation: nameShake .35s; }
+@keyframes nameShake { 20%, 60% { transform: translateX(-7px); } 40%, 80% { transform: translateX(7px); } }
+@media (prefers-reduced-motion: reduce) { #nameBox.shake { animation: none; } }

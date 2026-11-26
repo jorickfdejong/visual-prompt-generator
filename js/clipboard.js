@@ -1,9 +1,10 @@
 import { $ } from './state.js';
 import { dataURLtoBlob, takeScreenshot } from './rendering.js';
+import { showDownloadGuide } from './download-guide.js';
 import { promptText } from './export-modal.js';
 
 /* =====================================================================
-   CLIPBOARD & DOWNLOADS
+   DOWNLOADS & TOAST
    ===================================================================== */
 export let toastTimer;
 export function toast(msg) {
@@ -20,21 +21,15 @@ export function downloadText(name, text) {
   download(name, url);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-export async function copyText(text = promptText()) {
-  try { await navigator.clipboard.writeText(text); toast('Prompt text copied'); }
-  catch { downloadText('prompt.txt', text); toast('Clipboard blocked — downloaded prompt.txt instead'); }
-}
-export async function copyImage() {
-  const url = takeScreenshot();
-  try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': dataURLtoBlob(url) })]); toast('Reference image copied'); }
-  catch { download('reference.png', url); toast('Clipboard blocked — downloaded reference.png instead'); }
-}
-// reference image + prompt as two files (most apps paste only one of two copied things)
-export function downloadBoth() {
-  const url = URL.createObjectURL(dataURLtoBlob(takeScreenshot()));
-  download('reference.png', url);
+const SHOT_FILES = { clay: 'clay-grey.png', depth: 'depth-map.png' };
+// both reference images + prompt as three files
+export function downloadAll() {
   const text = promptText();
-  setTimeout(() => downloadText('prompt.txt', text), 300);   // some browsers drop a second download in the same instant
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
-  toast('Downloading reference.png and prompt.txt. If the browser asks, allow multiple downloads.');
+  const urls = Object.entries(SHOT_FILES).map(([look, name]) => [name, URL.createObjectURL(dataURLtoBlob(takeScreenshot(look)))]);
+  // spread out: some browsers drop a second download in the same instant
+  urls.forEach(([name, url], i) => setTimeout(() => download(name, url), i * 300));
+  setTimeout(() => downloadText('prompt.txt', text), urls.length * 300);
+  setTimeout(() => urls.forEach(([, url]) => URL.revokeObjectURL(url)), 3000);
+  toast('Downloading 3 files. If the browser asks, allow multiple downloads.');
+  showDownloadGuide();
 }

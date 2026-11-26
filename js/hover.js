@@ -12,7 +12,7 @@ export function hovered() {
 }
 function update() {
   queued = false;
-  const off = !last || last.buttons || state.cameraView || gizmoDragging() || gizmoHot();
+  const off = !last || last.buttons || state.cameraView || gizmoDragging() || gizmoHot() || document.body.classList.contains('placing');
   const hit = off ? null : pickCompose(last);
   over = hit?.obj || null;
   canvas.classList.toggle('hovering', !!hit);

@@ -4,21 +4,22 @@ import { editCam, orbit } from './scene.js';
 import { exitCameraView } from './camera.js';
 import { deselect, exitEdit, selectCamera, selectObject } from './selection.js';
 import { schedulePreview } from './rendering.js';
-import { exportText, finalTuples } from './relations.js';
+import { exportText } from './relations.js';
 import { environmentCardKey, naturalText, objectCardKey, promptCards, renderNatural } from './natural.js';
 import { renderPromptCards } from './export-prompt-cards.js';
-import { renderWarnings } from './consistency.js';
 import { fixedLines } from './prompt-rules.js';
 import { showTab } from './side-tabs.js';
-import { markDirty } from './prompt-panel.js';
+import { envComplete, showEnvWarning } from './env-check.js';
+import { dollsComplete, markUnfinished, showDollWarning } from './doll-check.js';
+import { detailCount } from './details.js';
+import { TYPES } from './types.js';
 
 /* =====================================================================
    EXPORT MODAL
    ===================================================================== */
 // the text that is copied / downloaded, in the chosen format
-export function promptText() { return state.promptEdit?.text ?? generatedText(); }
-export function generatedText() {
-  return [bodyText(), fixedLines().join('\n')].filter(Boolean).join('\n\n');
+export function promptText() {
+  return [fixedLines().join('\n'), bodyText()].filter(Boolean).join('\n\n');
 }
 function bodyText() {
   const f = state.settings.format || 'both';
@@ -28,7 +29,7 @@ function bodyText() {
   const notes = state.notes.trim(), t = exportText(includeTuple);
   return [naturalText(), notes ? t.slice(notes.length).trimStart() : t].filter(Boolean).join('\n\n');
 }
-const objectCardFamilies = new Set(['attributes', 'size', 'placement', 'orientation', 'facing']);
+const objectCardFamilies = new Set(['attributes', 'size', 'orientation', 'facing']);
 export function includeTuple(t) {
   if (t.family === 'environment') return !Object.hasOwn(state.promptCardEdits, environmentCardKey);
   if (!objectCardFamilies.has(t.family)) return true;
@@ -36,60 +37,45 @@ export function includeTuple(t) {
   return !state.facts.get(id)?.inShot || !Object.hasOwn(state.promptCardEdits, objectCardKey(id));
 }
 
-function applyCard(card, text) {
-  const edits = state.promptCardEdits;
-  const previous = edits[card.key];
-  if (text === (previous ?? card.text)) return;
-  const manual = state.promptEdit;
-  const previousGenerated = manual && generatedText();
-  const oldTuples = manual ? finalTuples(includeTuple) : [];
-  edits[card.key] = text;
-  if (manual) {
-    const oldParagraphs = previous !== undefined ? [previous] : card.paragraphs;
-    const currentTuples = new Set(finalTuples(includeTuple));
-    const removedTuples = new Set(oldTuples.filter((line) => !currentTuples.has(line)));
-    const paragraphs = manual.text.split('\n\n');
-    let inserted = false;
-    const updated = paragraphs.flatMap((paragraph) => {
-      if (paragraph && oldParagraphs.includes(paragraph)) {
-        if (inserted) return [];
-        inserted = true;
-        return text ? [text] : [];
-      }
-      const remaining = paragraph.split('\n').filter((line) => !removedTuples.has(line)).join('\n');
-      return remaining || !paragraph ? [remaining] : [];
-    });
-    if (!inserted && text) updated.push(text);
-    const next = updated.join('\n\n');
-    const generated = generatedText();
-    state.promptEdit = next === generated ? null : { text: next, base: manual.base === previousGenerated ? generated : manual.base };
-  }
-  markDirty(true);
-  renderPromptEdit();
-}
+// older scenes can hold a card text typed by hand, which replaces the environment fields: those win again once edited
+$('#envDetails').addEventListener('input', () => { delete state.promptCardEdits[environmentCardKey]; }, true);
 
+// an object with more than half of its fields still empty
+function isSparse(card) {
+  const o = card.objectId && state.objects.find((x) => x.id === card.objectId);
+  if (!o || Object.hasOwn(state.promptCardEdits, card.key)) return false;
+  return detailCount(o) < (TYPES[o.type].fields || []).filter((f) => !f.asNoun).length / 2;
+}
 export function refreshPromptCards() {
-  renderPromptCards($('#promptCards'), promptCards(), state.promptCardEdits, applyCard);
+  const cards = promptCards().map((card) => ({ ...card, sparse: isSparse(card) }));
+  $('#sparseWarning').hidden = !cards.some((card) => card.sparse);
+  renderPromptCards($('#promptCards'), cards, state.promptCardEdits);
 }
-// the editable text: a hand-edited prompt stays as it is until it is reset
-export function editPrompt() {
-  const text = $('#promptEdit').value;
-  state.promptEdit = text === generatedText() ? null : { text, base: state.promptEdit?.base ?? generatedText() };
-  markDirty();
-}
-export function resetPrompt() { state.promptEdit = null; markDirty(); renderPromptEdit(); }
+let shownPrompt = null;
 export function renderPromptEdit() {
-  const box = $('#promptEdit'), text = promptText(), ed = state.promptEdit;
-  if (box.value !== text) box.value = text;
-  $('#promptEditState').hidden = $('#btnPromptReset').hidden = !ed;
-  if (ed) $('#promptEditState').textContent = ed.base === generatedText() ? 'Edited by you.' : 'Edited by you. The scene or options changed since: reset to get the new text.';
+  const box = $('#promptView'), text = promptText();
+  if (shownPrompt === text) return;
+  shownPrompt = text;
+  // only on screen: every fixed line and every paragraph gets room around it
+  const fixed = fixedLines(), body = text.slice(fixed.join('\n').length);
+  box.replaceChildren(...[...fixed, ...body.split(/\n{2,}/)].filter((t) => t.trim()).map((t) => {
+    const p = document.createElement('p');
+    p.textContent = t.trim();
+    return p;
+  }));
 }
 export function exportOpen() { return !$('#exportModal').hidden; }
 export function openExport() {
   if (exportOpen()) return;
+  if (!envComplete() || !dollsComplete()) {   // empty required details: show them instead of exporting
+    if (state.cameraView) exitCameraView();
+    if (state.mode === 'edit') exitEdit();
+    markUnfinished();
+    if (!envComplete()) showEnvWarning(); else showDollWarning();
+    return;
+  }
   $('#exportModal').hidden = false;
   renderNatural($('#naturalPrompt'));
-  renderWarnings();
   renderPromptEdit();
   refreshPromptCards();
   schedulePreview();
@@ -126,6 +112,6 @@ export function goTo(target) {
   } else deselect();
   $('#btnExport').blur();
   showTab(['environment', 'finalImage'].includes(target.kind) ? 'env' : 'scene');
-  (target.kind === 'finalImage' ? $('#imageSection') : target.kind === 'environment' ? $('#worldSection') : target.kind === 'camera' ? $('#camSection') : $('#context')).scrollIntoView({ block: 'start', behavior: 'smooth' });
+  (target.kind === 'finalImage' || target.kind === 'environment' ? $('#imageSection') : target.kind === 'camera' ? $('#camSection') : $('#context')).scrollIntoView({ block: 'start', behavior: 'smooth' });
 }
 document.addEventListener('vpg:goto', (e) => goTo(e.detail));

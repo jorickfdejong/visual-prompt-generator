@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { $, ASPECTS, state } from './state.js';
-import { clayReference, depthReference } from './prompt-rules.js';
 import { renderDepth } from './depth-map.js';
 import { wallGroup } from './room.js';
 import { editCam, floor, hemi, gizmo, renderer, scene, vp } from './scene.js';
@@ -78,7 +77,7 @@ function clayRender(fn) {
   const swap = (m, color) => { const old = m.material; undo.push(() => { m.material = old; }); m.material = clayMat(color, old.side); };
   const bg = scene.background, sky = hemi.color.clone(), ground = hemi.groundColor.clone();
   try {
-    for (const o of state.objects) for (const m of o.meshes) if (!(o.type === 'image' && m.material === o.mats[0])) swap(m, '#b8b8b8');
+    for (const o of state.objects) for (const m of o.meshes) if (!m.material.userData.picture) swap(m, '#b8b8b8');
     swap(floor, '#a0a0a0');
     wallGroup.children.forEach((m) => swap(m, '#acacac'));
     scene.background = new THREE.Color('#dcdcdc');
@@ -102,7 +101,8 @@ function greyURL(src, type, quality) {
 }
 
 export let shotRenderer = null;
-export function renderShot(longSide, type = 'image/png', quality) {
+// look: 'clay' or 'depth'
+export function renderShot(look, longSide, type = 'image/png', quality) {
   const a = shotCam.aspect;
   const w = a >= 1 ? longSide : Math.round(longSide * a), h = a >= 1 ? Math.round(longSide / a) : longSide;
   if (!shotRenderer) {
@@ -112,23 +112,14 @@ export function renderShot(longSide, type = 'image/png', quality) {
     shotRenderer.setPixelRatio(1);
   }
   shotRenderer.setSize(w, h, false);
-  const draw = () => shotRenderer.render(scene, shotCam);
-  if (depthReference()) {
+  if (look === 'depth') {
     cleanRender(() => renderDepth(shotRenderer, shotCam));
     return shotRenderer.domElement.toDataURL(type, quality);
   }
-  if (clayReference()) {
-    cleanRender(() => clayRender(draw));
-    return greyURL(shotRenderer.domElement, type, quality);
-  }
-  cleanRender(draw);
-  return shotRenderer.domElement.toDataURL(type, quality);
+  cleanRender(() => clayRender(() => shotRenderer.render(scene, shotCam)));
+  return greyURL(shotRenderer.domElement, type, quality);
 }
-export function takeScreenshot() {
-  state.lastShot = renderShot(1024);
-  $('#shotPreview').src = state.lastShot;
-  return state.lastShot;
-}
+export const takeScreenshot = (look) => renderShot(look, 1024);
 export function dataURLtoBlob(url) {
   const [head, b64] = url.split(',');
   const mime = head.match(/:(.*?);/)[1];
@@ -136,9 +127,9 @@ export function dataURLtoBlob(url) {
   for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
   return new Blob([arr], { type: mime });
 }
-// live camera preview in the Export window (throttled)
+// live camera previews in the Export window (throttled)
 export let previewTimer = null;
 export function schedulePreview() {
   if ($('#exportModal').hidden || previewTimer) return;
-  previewTimer = setTimeout(() => { previewTimer = null; $('#shotPreview').src = renderShot(640); }, 120);
+  previewTimer = setTimeout(() => { previewTimer = null; $('#shotClay').src = renderShot('clay', 640); $('#shotDepth').src = renderShot('depth', 640); }, 120);
 }

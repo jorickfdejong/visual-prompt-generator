@@ -1,11 +1,10 @@
 import * as THREE from 'three';
-import { $, state } from './state.js';
+import { $, DEG, state } from './state.js';
 import { attachGizmo, detachGizmo, editCam, floor, gizmoDragging, gizmoHot, orbit, raycaster, rc, renderer, scene, setGizmoBlocker, showStretch, tc, vp } from './scene.js';
 import { grid } from './room.js';
 import { camModel, shotCam } from './camera.js';
 import { TYPES } from './types.js';
-import { scaleRange } from './objects.js';
-import { canStretch, scaleLimits } from './stretch.js';
+import { canStretch, scaleLimits, stretchSide } from './stretch.js';
 import { esc, renderContext, renderObjectList, syncTransformInputs } from './left-panel.js';
 import { showTab } from './side-tabs.js';
 import { inputIcon } from './input-icons.js';
@@ -133,9 +132,9 @@ export function applyGroupTransform() {
     if (tc.axis?.length === 1) {   // one side of a single object
       const k = tc.axis.toLowerCase();
       for (const [o, { s }] of groupRel) {
-        const v = THREE.MathUtils.clamp(s[k] * pivot.scale[k], ...scaleRange(o));
+        const v = stretchSide(o, s[k], s, pivot.scale[k]);
         o.root.scale[k] = v;
-        pivot.scale[k] = v / s[k];
+        pivot.scale[k] = v / s[k];   // always > 0: the gizmo never shows a flipped side
       }
       return;
     }
@@ -224,7 +223,7 @@ export function selectJoint(name, dot = null) {
 }
 export function setTool(t) {
   state.tool = t;
-  if (state.joint) selectJoint(null);   // editing a posture: back to the whole puppet
+  if (state.joint) selectJoint(null);   // editing a posture: back to the whole doll
   updateGizmo();
   renderContext();
 }
@@ -233,31 +232,30 @@ export function updateModeBadge() {
   renderHelp();
 }
 
-const TRACKPAD_KEYS = [['Two fingers', 'zoom'], ['Ctrl + Two fingers', 'orbit'], ['Shift + Two fingers', 'pan']];
-const EASY_KEYS = [['Left mouse', 'drag on empty space: orbit'], ['Right mouse', 'drag: pan'], ['Wheel', 'zoom'], ...TRACKPAD_KEYS];
-const PRO_KEYS = [['Middle mouse', 'drag: orbit'], ['Shift + Middle mouse', 'drag: pan'], ['Wheel', 'zoom'], ...TRACKPAD_KEYS];
+const TRACKPAD_KEYS = [['Ctrl + Two fingers', 'Scroll to orbit'], ['Shift + Two fingers', 'Scroll to pan'], ['Two fingers', 'Scroll or pinch to zoom']];
+const EASY_KEYS = [['Left mouse', 'Drag empty space to rotate'], ['Right mouse', 'Drag to pan'], ['Wheel', 'Scroll to zoom'], ['One finger', 'Drag empty space to rotate'], ...TRACKPAD_KEYS.slice(1)];
+const PRO_KEYS = [['Shift + Middle mouse', 'Drag to pan'], ['Wheel', 'Scroll to zoom'], ...TRACKPAD_KEYS];
+// 'Shift + Middle mouse' drawn as keys, and how to look around per mode and device: also used by the tutorial
+export const keysHTML = (k) => k.split(' + ').map((x) => `${inputIcon(x)}<kbd>${x.replace(' mouse', '')}</kbd>`).join(' + ');
+export const navKeys = (easy, pad) => (easy ? EASY_KEYS : PRO_KEYS).filter(([k]) => /finger/.test(k) === pad);
 /* Help: a "?" button in the viewport corner that opens the shortcuts and an explanation for the current mode */
 export function renderHelp() {
   const easy = document.body.classList.contains('nav-easy');
-  const rows = (list) => `<dl>${list.map(([k, t]) => `<dt>${inputIcon(k)}${k.split(' + ').map((x) => `<kbd>${x}</kbd>`).join(' + ')}</dt><dd>${t}</dd>`).join('')}</dl>`;
-  const nav = rows(easy ? EASY_KEYS : PRO_KEYS);
+  const rows = (list) => `<dl>${list.map(([k, t]) => { const pad = /One finger|Two fingers/.test(k) ? ' class="padOnly"' : /mouse|Wheel/.test(k) ? ' class="mouseOnly"' : ''; return `<dt${pad}>${keysHTML(k)}</dt><dd${pad}>${t}</dd>`; }).join('')}</dl>`;
+  const nav = rows([...(easy ? EASY_KEYS : PRO_KEYS), ['1-5', 'Switch between views']]);
   const html = state.mode === 'edit'
     ? `<h3>Edit mode — ${esc(state.editing.details.name)}</h3>
        <p>Change the posture: ${easy ? 'pull an orange dot or a body part' : 'click a joint (orange dot) or a body part and drag the rings to rotate it'}, or pick a preset. Everything else keeps working; click another object or empty space to stop.</p>
-       <h4>Keys</h4>${rows([...(easy ? [['Drag', 'a dot to turn what it hangs from (the elbow swings the upper arm), or a body part']] : []), ['Click', 'select a joint; anything else: stop editing'], ['Ctrl + Z', 'undo'], ['Ctrl + Y', 'redo'], ['Esc', 'deselect the joint, press again to finish']])}
+       <h4>Keys</h4>${rows([...(easy ? [['Drag', 'A dot to turn what it hangs from (the elbow swings the upper arm), or a body part']] : []), ['Click', 'Select a joint; anything else: stop editing'], ['Ctrl + Z', 'Undo'], ['Ctrl + Y', 'Redo'], ['Esc', 'Deselect the joint, press again to finish']])}
        <h4>View</h4>${nav}`
-    : `<h3>Compose mode</h3>
+    : `<h3>Controls</h3>
        <button id="btnTutorial">Start the tutorial</button>
-       <p>Arrange the objects and the shot camera. Spatial relations (left of, in front of, between…) are read from the camera's point of view on the grid and become prompt tuples in the Export window. Nothing is decided for you: every tuple can be switched off or overridden.</p>
-       <p>The Environment tab edits the final image (visual style), the labels, background, floor and walls. Select an object or the camera to edit it, or type exact values.</p>
-       <h4>Selecting</h4>${rows([['Click', 'select an object or the camera; a name above an object: change it'], [easy ? 'Shift + Drag' : 'Drag', 'box-select on empty space'], ['Shift + Click', 'add to the selection'], ['Ctrl + Click', 'toggle one object'], ['Ctrl + A', 'select all objects'], ['Esc', 'deselect']])}
-       <h4>Transform</h4>${rows([['W', 'move and rotate (also R): drag an arrow or a ring'], ['Drag', 'an object to slide it over the floor'], ['← ↑ ↓ →', 'move over the floor, 0.5 m per press (smaller steps when scaled down)'], ['K', 'scale: the orange handle keeps the proportions, a coloured box stretches one side'], ['Drag X / Y / Z', 'in the panel to scrub a value (Shift = finer)']])}
-       <h4>Standard views</h4>${rows([['1', 'front'], ['2', 'right'], ['3', 'back'], ['4', 'left'], ['5', 'above']])}
-       <h4>Objects</h4>${rows([['A', 'open the add menu'], ['N', 'show or hide object names'], ['Enter', 'change the posture of a puppet (also double-click)'], ['Ctrl + C', 'copy'], ['Ctrl + X', 'cut'], ['Ctrl + V', 'paste'], ['Ctrl + D', 'duplicate'], ['Del', 'delete']])}
-       <h4>History</h4>${rows([['Ctrl + Z', 'undo'], ['Ctrl + Y', 'redo (also Ctrl + Shift + Z)']])}
        <h4>View</h4>${nav}
-       <h4>File</h4>${rows([['Ctrl + S', 'save the scene as a .json file'], ['Ctrl + O', 'open a scene file (or drop it on the page)'], ['Drop', 'JPG / PNG files on the page to add them as images']])}`;
-  $('#helpPanel').innerHTML = html + `<p class="foot">Press <kbd>?</kbd> to open or close this panel.</p>`;
+       <h4>Selecting</h4>${rows([['Shift + Click', 'Add/remove selection'], ['Ctrl + A', 'Select all objects']])}
+       <h4>Transform</h4>${rows([['M', 'Move and rotate mode'], ['Arrows', 'Move horizontally'], ['S', 'Scaling mode']])}
+       <h4>Objects</h4>${rows([['A', 'Open the add menu'], ['N', 'Show or hide names'], ['Ctrl + G', 'Group (not dolls)'], ['Ctrl + Shift + G', 'Ungroup'], ['Del', 'Delete']])}
+       <h4>File</h4>${rows([['Ctrl + S', 'Save the scene'], ['Ctrl + O', 'Open a scene']])}`;
+  $('#helpPanel').innerHTML = html;
 }
 export function toggleHelp(open = $('#helpPanel').hidden) {
   $('#helpPanel').hidden = !open;
@@ -286,10 +284,26 @@ function snapToFloor() {
   objs.forEach((o) => { o.root.position.y -= low; });
   pivot.position.y -= low;
 }
+// turning: an object sticks to the quarter turns when it comes close to one (several objects: to quarter turns from where they were)
+const TURN_SNAP = 8 * DEG;
+function snapTurn() {
+  const axis = { X: [1, 2], Y: [2, 0], Z: [0, 1] }[rc.axis];   // the two world axes the ring lies in
+  const objs = selObjs();
+  if (!axis || !objs.length) return;
+  const [u, v] = axis, n = 3 - u - v;
+  const q = objs.length === 1 ? objs[0].root.quaternion : pivot.quaternion;
+  // the side that lies flattest in the ring tells how far it is turned
+  const side = [0, 1, 2].map((i) => new THREE.Vector3().setComponent(i, 1).applyQuaternion(q)).sort((a, b) => Math.abs(a.getComponent(n)) - Math.abs(b.getComponent(n)))[0];
+  const angle = Math.atan2(side.getComponent(v), side.getComponent(u));
+  const off = Math.round(angle / (Math.PI / 2)) * (Math.PI / 2) - angle;
+  if (Math.abs(off) > TURN_SNAP || Math.abs(off) < 1e-6) return;
+  pivot.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3().setComponent(n, 1), off));
+  applyGroupTransform();
+}
 export function onGizmoChange(e) {
   const obj = e.target.object;
   if (!obj) return;
-  if (obj === pivot) { applyGroupTransform(); snapToFloor(); }
+  if (obj === pivot) { applyGroupTransform(); if (e.target === rc) snapTurn(); else snapToFloor(); }
   markDirty();
   syncTransformInputs();
 }
@@ -396,7 +410,7 @@ renderer.domElement.addEventListener('dblclick', (e) => {
   if (state.cameraView) return;
   if (state.mode === 'edit' && pickJoint(e)) return;
   const hit = pickCompose(e);
-  // the gizmo covers much of a selected puppet: near it counts as on it
+  // the gizmo covers much of a selected doll: near it counts as on it
   const sel = !hit && state.selected?.kind === 'obj' && state.selected.obj;
   const near = sel && objsInBox(e.clientX, e.clientY, e.clientX, e.clientY).includes(sel) ? sel : null;
   if (hit?.obj || near) enterEdit(hit?.obj || near);

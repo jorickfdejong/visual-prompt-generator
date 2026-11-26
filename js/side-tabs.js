@@ -2,11 +2,13 @@ import { $, state } from './state.js';
 import { renderer } from './scene.js';
 
 /* =====================================================================
-   SIDEBAR TABS — Scene (objects, camera, selection) and Environment
+   SIDEBAR TABS — Scene (objects, camera, selection) and World
    ===================================================================== */
 const side = $('#side'), tabs = [...document.querySelectorAll('#tabs button')];
 export function showTab(name) {
+  const other = side.dataset.tab !== name;
   side.dataset.tab = name;
+  if (other) $('#sideBody').scrollTop = 0;   // another tab starts at the top
   for (const b of tabs) { const on = b.dataset.tab === name; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); }
 }
 tabs.forEach((b) => { b.onclick = () => { showTab(b.dataset.tab); b.blur(); }; });
